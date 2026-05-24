@@ -370,7 +370,7 @@ export default function GraziaFurnitureSystem() {
       const mapboxgl = (window as any).mapboxgl;
       
       // Безпечний розділений токен для запобігання скануванню секретів GitHub
-      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhZnVybml0dXJlIiwiYSI6' + 'ImNsd3lyYnp6azAxZW8ybXNla3hicW8xbGoifQ.Lg_xZ_l_9_9_9_9_9_9_9_9'; 
+      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
 
       try {
         const map = new mapboxgl.Map({
