@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowRight, 
   MapPin, 
@@ -11,16 +11,15 @@ import {
   Armchair,
   CheckCircle2,
   Phone,
-  Hammer
+  Hammer,
+  Globe,
+  Maximize2
 } from 'lucide-react';
 
 // Безпечна ініціалізація системних змінних середовища для зв'язку з базою даних
 const supabaseUrl = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL) || 'https://gpxbzpqnpbbumtiyfstc.supabase.co';
 const supabaseAnonKey = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'sb_publishable_2VUpjTZW1Bf1Bg0Fs0vh6Q_6tIr5eP0';
 
-/**
- * Нативний надшвидкий клієнт Supabase REST API на базі Promise-Builder.
- */
 const createCustomSupabaseClient = (url: string, key: string) => {
   return {
     from: (table: string) => {
@@ -64,40 +63,162 @@ const createCustomSupabaseClient = (url: string, key: string) => {
 
 const supabase = createCustomSupabaseClient(supabaseUrl, supabaseAnonKey) as any;
 
-// Дані для карти Харкова (демо-піни)
-const KHARKIV_REGIONS = [
-  { id: 'center', name: 'Шевченківський район', top: '40%', left: '55%', project: 'Кухня-Студія Loft, 2023', radius: '2.5 км' },
-  { id: 'saltovka', name: 'Салтівка', top: '30%', left: '75%', project: 'Комплексне меблювання квартири', radius: '5 км' },
-  { id: 'kholodna', name: 'Холодна Гора', top: '55%', left: '30%', project: 'Гардеробна система Premium', radius: '3 км' },
-  { id: 'pavlovo', name: 'Павлове Поле', top: '25%', left: '45%', project: 'Меблі для IT-офісу', radius: '1.5 км' },
+// Масштабні дані виконаних робіт за 18 років (Харків + Область)
+const GRAZIA_PORTFOLIO_PINS = [
+  { id: 'center', name: 'Шевченківський район (Центр)', top: '48%', left: '46%', project: 'Преміум Кухня з островом, вул. Сумська', radius: '1.5 км', type: 'city' },
+  { id: 'saltovka', name: 'Салтівка (Харків)', top: '42%', left: '56%', project: 'Модульна вітальня та гардероб', radius: '4 км', type: 'city' },
+  { id: 'alekseevka', name: 'Олексіївка (Харків)', top: '38%', left: '40%', project: 'Елітна спальня у скандинавському стилі', radius: '2.5 км', type: 'city' },
+  { id: 'chuguev', name: 'м. Чугуїв (Область)', top: '55%', left: '72%', project: 'Комплексне меблювання заміського будинку', radius: '8 км', type: 'region' },
+  { id: 'lozova', name: 'м. Лозова (Область)', top: '85%', left: '52%', project: 'Дизайнерська кухня-студія під ключ', radius: '12 км', type: 'region' },
+  { id: 'dergachi', name: 'м. Дергачі (Область)', top: '28%', left: '35%', project: 'Радіусні шафи та міжкімнатні перегородки', radius: '5 км', type: 'region' },
+  { id: 'merefa', name: 'м. Мерефа (Область)', top: '68%', left: '38%', project: 'Стіл з масиву дуба та шпоновані комоди', radius: '6 км', type: 'region' },
 ];
 
-export default function GraziaLanding() {
+export default function GraziaFurnitureSystem() {
   const [projects, setProjects] = useState<any[]>([]);
-  const [activeRegion, setActiveRegion] = useState(KHARKIV_REGIONS[0]);
+  const [isGlobeMode, setIsGlobeMode] = useState(true);
+  const [activePin, setActivePin] = useState(GRAZIA_PORTFOLIO_PINS[0]);
   const [currentSlide, setCurrentSlide] = useState(1);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
   const [calcForm, setCalcForm] = useState({ spaceType: '', room: '', style: '', material: '', budget: '', notes: '' });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Отримання реальних меблевих проєктів з БД
+  // 1. Ефект рендерингу преміального 3D Глобуса на Canvas
+  useEffect(() => {
+    if (!isGlobeMode || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let rotation = 0;
+    const points: { x: number; y: number; z: number }[] = [];
+    const numPoints = 140;
+
+    // Генерація геосфери точок
+    for (let i = 0; i < numPoints; i++) {
+      const phi = Math.acos(-1 + (2 * i) / numPoints);
+      const theta = Math.sqrt(numPoints * Math.PI) * phi;
+      points.push({
+        x: Math.sin(phi) * Math.cos(theta),
+        y: Math.sin(phi) * Math.sin(theta),
+        z: Math.cos(phi)
+      });
+    }
+
+    const render = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = canvas.width * 0.38;
+
+      rotation += 0.003;
+
+      // Малюємо атмосферне сяйво глобуса (Glow Effect)
+      const gradient = ctx.createRadialGradient(centerX, centerY, radius * 0.6, centerX, centerY, radius * 1.2);
+      gradient.addColorStop(0, 'rgba(30, 53, 39, 0.05)');
+      gradient.addColorStop(0.8, 'rgba(30, 53, 39, 0.15)');
+      gradient.addColorStop(1, 'rgba(245, 244, 241, 0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Рендеринг 3D вузлів глобуса
+      points.forEach(p => {
+        // Обертання по осі Y
+        const cosY = Math.cos(rotation);
+        const sinY = Math.sin(rotation);
+        const x1 = p.x * cosY - p.z * sinY;
+        const z1 = p.z * cosY + p.x * sinY;
+
+        // Обертання по осі X для нахилу глобуса
+        const tilt = 0.3;
+        const cosX = Math.cos(tilt);
+        const sinX = Math.sin(tilt);
+        const y2 = p.y * cosX - z1 * sinX;
+        const z2 = z1 * cosX + p.y * sinX;
+
+        // Малюємо тільки видиму передню сторону глобуса для глибини
+        if (z2 > -0.2) {
+          const screenX = centerX + x1 * radius;
+          const screenY = centerY + y2 * radius;
+          const size = (z2 + 1) * 2.5;
+          const alpha = (z2 + 0.3) * 0.6;
+
+          ctx.fillStyle = `rgba(30, 53, 39, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Додаємо тонкі лінії зв'язків
+          points.forEach(p2 => {
+            const dist = Math.hypot(p.x - p2.x, p.y - p2.y, p.z - p2.z);
+            if (dist < 0.28) {
+              const x2_1 = p2.x * cosY - p2.z * sinY;
+              const z2_1 = p2.z * cosY + p2.x * sinY;
+              const y2_2 = p2.y * cosX - z2_1 * sinX;
+              const z2_2 = z2_1 * cosX + p2.y * sinX;
+
+              if (z2_2 > -0.2) {
+                ctx.strokeStyle = `rgba(30, 53, 39, ${alpha * 0.15})`;
+                ctx.lineWidth = 0.4;
+                ctx.beginPath();
+                ctx.moveTo(screenX, screenY);
+                ctx.lineTo(centerX + x2_1 * radius, centerY + y2_2 * radius);
+                ctx.stroke();
+              }
+            }
+          });
+        }
+      });
+
+      // Спеціальний пульсуючий пін України/Харкова на глобусі
+      const pulseSize = 4 + Math.sin(Date.now() * 0.005) * 2;
+      ctx.fillStyle = '#1E3527';
+      ctx.shadowColor = '#1E3527';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(centerX + Math.sin(rotation) * radius * 0.2, centerY - radius * 0.3, pulseSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0; // Скидання тіні
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isGlobeMode]);
+
+  // Завантаження проєктів
   useEffect(() => {
     const fetchFurnitureProjects = async () => {
       const { data } = await supabase.from('products').select('*').eq('store_id', 'furniture').eq('status', 'active').limit(4);
       if (data && data.length > 0) {
         setProjects(data);
       } else {
-        // Fallback якщо база порожня
         setProjects([
-          { id: 1, name: 'Приватна Резиденція', sku: 'Kharkiv, Center', media: ['https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800'] },
-          { id: 2, name: 'Інтер\'єр Вілли', sku: 'Kharkiv Region', media: ['https://images.unsplash.com/photo-1600607687644-b04fd5910f59?auto=format&fit=crop&q=80&w=800'] },
-          { id: 3, name: 'Сучасні Апартаменти', sku: 'Saltovka', media: ['https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=800'] },
-          { id: 4, name: 'Офісний Простір', sku: 'Pavlovo Pole', media: ['https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=800'] },
+          { id: 1, name: 'Приватна Резиденція', sku: 'Харків, Центр', media: ['https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800'] },
+          { id: 2, name: 'Сучасна Кухня Loft', sku: 'м. Чугуїв', media: ['https://images.unsplash.com/photo-1600607687644-b04fd5910f59?auto=format&fit=crop&q=80&w=800'] },
+          { id: 3, name: 'Елітна Гардеробна', sku: 'Павлове Поле', media: ['https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=800'] },
+          { id: 4, name: 'Дизайнерський Інтер\'єр', sku: 'м. Лозова', media: ['https://images.unsplash.com/photo-160056672355-35792bedcfea?auto=format&fit=crop&q=80&w=800'] },
         ]);
       }
     };
     fetchFurnitureProjects();
   }, []);
+
+  // Анімація тригеру переходу з глобуса на карту
+  const triggerMapFocus = () => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setIsGlobeMode(false);
+      setIsTransitioning(false);
+    }, 800);
+  };
 
   const handleCalcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +232,7 @@ export default function GraziaLanding() {
       });
       setFormSubmitted(true);
     } catch (err) {
-      setFormSubmitted(true); // Показуємо успіх користувачу в будь-якому разі
+      setFormSubmitted(true);
     }
   };
 
@@ -131,39 +252,52 @@ export default function GraziaLanding() {
         
         <div className="hidden md:flex gap-10 text-[11px] font-semibold tracking-widest uppercase">
           <a href="#" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Колекції</a>
-          <a href="#map" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Об'єкти в Харкові</a>
+          <a href="#interactive-zone" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Карта 18 років досвіду</a>
           <a href="#calc" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Розрахунок</a>
         </div>
 
         <button className="bg-[#1E3527] text-[#F5F4F1] px-6 py-3 text-[10px] font-medium tracking-widest uppercase hover:bg-[#15241b] transition-colors">
-          Залишити заявку
+          Зв'язатись
         </button>
       </nav>
 
-      {/* Hero Секція з розділеним екраном */}
-      <section className="relative min-h-screen pt-32 pb-20 px-6 md:px-12 flex flex-col md:flex-row items-center gap-12 max-w-[1600px] mx-auto">
+      {/* Hero Секція з 3D Глобусом та Картою */}
+      <section className="relative min-h-screen pt-32 pb-20 px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 max-w-[1600px] mx-auto">
         
-        {/* Ліва частина: Типографіка */}
+        {/* Ліва частина: Типографіка та Скелі досвіду */}
         <div className="flex-1 z-10 w-full">
           <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#0D0D0D]/20 text-[10px] uppercase tracking-widest text-[#0D0D0D]/60 mb-8 font-mono">
             <Ruler size={12} />
-            <span>18 років досвіду на ринку</span>
+            <span>Меблеве портфоліо Харкова та Області</span>
           </div>
           
-          <h1 className="text-6xl md:text-[5.5rem] font-serif font-normal leading-[1.05] tracking-tight mb-8 text-[#0D0D0D]">
-            ДИЗАЙН.<br />
-            КОМФОРТ.<br />
-            ЕЛЕГАНТНІСТЬ.
+          <h1 className="text-5xl md:text-[5.2rem] font-serif font-normal leading-[1.05] tracking-tight mb-8 text-[#0D0D0D]">
+            ГЕОГРАФІЯ<br />
+            НАШОЇ ПРАЦІ<br />
+            ЗА 18 РОКІВ.
           </h1>
           
           <p className="text-base md:text-lg text-[#0D0D0D]/70 max-w-md font-light leading-relaxed mb-12">
-            Ми створюємо ексклюзивні меблі на замовлення, які трансформують ваш простір у Харкові та області. Кожен проєкт — це відображення вашого стилю.
+            Справжня історія надійності. Оберіть інтерактивний глобус або детальну мапу нижче, щоб побачити радіуси встановлення наших ексклюзивних меблів.
           </p>
 
-          <div className="flex items-center gap-8">
-            <a href="#calc" className="bg-[#1E3527] text-[#F5F4F1] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#15241b] transition-colors">
-              Розрахувати проєкт <ArrowRight size={16} />
-            </a>
+          <div className="flex flex-wrap items-center gap-6">
+            {isGlobeMode ? (
+              <button 
+                onClick={triggerMapFocus}
+                className={`bg-[#1E3527] text-[#F5F4F1] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#15241b] transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : ''}`}
+              >
+                Сфокусуватись на Харкові <ArrowRight size={16} />
+              </button>
+            ) : (
+              <button 
+                onClick={() => setIsGlobeMode(true)}
+                className="bg-transparent border border-[#0D0D0D] text-[#0D0D0D] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#0D0D0D] hover:text-[#F5F4F1] transition-all"
+              >
+                <Globe size={15} /> Повернути 3D Глобус
+              </button>
+            )}
+
             <div className="flex gap-4">
               <button className="w-10 h-10 flex items-center justify-center border border-[#0D0D0D]/20 rounded-full hover:border-[#0D0D0D] transition-colors" onClick={() => setCurrentSlide(prev => Math.max(1, prev - 1))}>
                 <ChevronLeft size={16} />
@@ -178,50 +312,88 @@ export default function GraziaLanding() {
           </div>
         </div>
 
-        {/* Права частина: Інтерактивна карта Харкова */}
-        <div id="map" className="flex-1 w-full h-[600px] relative bg-[#EBEAE6] rounded-sm overflow-hidden flex items-center justify-center group">
-          {/* Абстрактна векторна мапа (SVG placeholder для преміум вигляду) */}
-          <svg className="absolute inset-0 w-full h-full text-[#D9D6D1] opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path fill="currentColor" d="M10,20 Q30,5 50,20 T90,30 Q95,60 80,80 T30,90 Q5,70 10,20 Z" />
-            <path fill="none" stroke="currentColor" strokeWidth="0.5" d="M30,30 L70,70 M70,30 L30,70 M50,10 L50,90" />
-          </svg>
-
-          {/* Піни локацій */}
-          {KHARKIV_REGIONS.map((region) => (
-            <div 
-              key={region.id}
-              className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2"
-              style={{ top: region.top, left: region.left }}
-              onClick={() => setActiveRegion(region)}
-              onMouseEnter={() => setActiveRegion(region)}
-            >
-              <div className="relative flex items-center justify-center">
-                <div className={`absolute w-12 h-12 rounded-full border border-[#1E3527] transition-all duration-700 ${activeRegion.id === region.id ? 'scale-100 opacity-20 bg-[#1E3527]' : 'scale-50 opacity-0'}`}></div>
-                <div className={`w-3 h-3 rounded-full transition-all duration-300 ${activeRegion.id === region.id ? 'bg-[#1E3527] scale-125' : 'bg-[#0D0D0D]/40'}`}></div>
+        {/* Права інтерактивна зона: 3D Глобус переходить в Мапу */}
+        <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[#EBEAE6] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[#0D0D0D]/5">
+          
+          {isGlobeMode ? (
+            /* РЕЖИМ 1: Елітний 3D Глобус */
+            <div className={`w-full h-full flex flex-col items-center justify-center p-6 relative transition-all duration-700 ${isTransitioning ? 'scale-150 opacity-0 blur-md' : 'scale-100 opacity-100'}`}>
+              <canvas ref={canvasRef} width={550} height={550} className="w-full max-w-[500px] aspect-square cursor-grab active:cursor-grabbing" />
+              <div className="absolute top-6 left-6 bg-[#F5F4F1]/80 backdrop-blur-sm px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest">
+                Преміум 3D Глобус Землі
+              </div>
+              <div className="absolute bottom-6 text-center">
+                <p className="text-[11px] font-semibold tracking-widest text-[#1E3527] uppercase">Обертається навколо України</p>
+                <p className="text-[10px] text-[#0D0D0D]/50 mt-1">Клікніть на кнопку ліворуч для наближення карти</p>
               </div>
             </div>
-          ))}
+          ) : (
+            /* РЕЖИМ 2: Інтерактивна масштабна мапа Харкова та області */
+            <div className="w-full h-full relative animate-fadeIn transition-all duration-500">
+              
+              {/* Контурна карта області */}
+              <svg className="absolute inset-0 w-full h-full text-[#D9D6D1] opacity-60 p-8" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path fill="currentColor" d="M15,25 Q35,10 55,25 T85,35 Q90,65 75,85 T35,90 Q10,75 15,25 Z" />
+                <path fill="none" stroke="#1E3527" strokeWidth="0.2" strokeDasharray="2,2" d="M15,25 L85,35 M35,90 L55,25" />
+                {/* Центр Харкова */}
+                <circle cx="46" cy="48" r="8" fill="none" stroke="#1E3527" strokeWidth="0.3" className="animate-ping opacity-30" />
+              </svg>
 
-          {/* Інформаційна картка активного регіону */}
-          <div className="absolute bottom-8 left-8 right-8 bg-[#F5F4F1]/90 backdrop-blur-md p-6 border border-[#0D0D0D]/10 flex justify-between items-center shadow-2xl transition-all">
-            <div>
-              <h3 className="text-lg font-serif font-medium text-[#0D0D0D] mb-1">{activeRegion.name}</h3>
-              <p className="text-xs text-[#0D0D0D]/60 flex items-center gap-2">
-                <MapPin size={12} /> Радіус охоплення: {activeRegion.radius}
-              </p>
+              {/* Рендеринг масштабних пінів */}
+              {GRAZIA_PORTFOLIO_PINS.map((pin) => (
+                <div 
+                  key={pin.id}
+                  className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 group/pin z-20"
+                  style={{ top: pin.top, left: pin.left }}
+                  onClick={() => setActivePin(pin)}
+                  onMouseEnter={() => setActivePin(pin)}
+                >
+                  <div className="relative flex items-center justify-center">
+                    {/* Малюємо радіус району чи міста за 18 років */}
+                    <div className={`absolute rounded-full border border-[#1E3527] transition-all duration-700 ${activePin.id === pin.id ? 'scale-100 opacity-25 bg-[#1E3527]' : 'scale-50 opacity-0'}`}
+                         style={{ width: pin.type === 'city' ? '60px' : '100px', height: pin.type === 'city' ? '60px' : '100px' }}></div>
+                    
+                    {/* Точка-центр */}
+                    <div className={`w-3 h-3 rounded-full border border-[#F5F4F1] transition-all duration-300 ${activePin.id === pin.id ? 'bg-[#1E3527] scale-125 shadow-lg' : 'bg-[#0D0D0D]/50'}`}></div>
+                    
+                    {/* Маленька підказка над піном */}
+                    <span className="absolute -top-6 bg-[#0D0D0D] text-[#F5F4F1] text-[9px] font-mono px-1.5 py-0.5 rounded opacity-0 group-hover/pin:opacity-100 transition-opacity whitespace-nowrap">
+                      {pin.name}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Інформаційна панель об'єкта під картою */}
+              <div className="absolute bottom-6 left-6 right-6 bg-[#F5F4F1]/95 backdrop-blur-md p-5 border border-[#0D0D0D]/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
+                <div>
+                  <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-white inline-block mb-1.5 ${activePin.type === 'city' ? 'bg-[#0D0D0D]' : 'bg-[#1E3527]'}`}>
+                    {activePin.type === 'city' ? 'Місто Харків' : 'Харківська область'}
+                  </span>
+                  <h3 className="text-base font-serif font-medium text-[#0D0D0D]">{activePin.name}</h3>
+                  <p className="text-[11px] text-[#0D0D0D]/60 flex items-center gap-1.5 mt-1 font-mono">
+                    <MapPin size={11} /> Радіус виїздів: {activePin.radius}
+                  </p>
+                </div>
+                <div className="md:text-right border-t md:border-t-0 border-[#0D0D0D]/10 pt-3 md:pt-0 w-full md:w-auto">
+                  <span className="text-[9px] uppercase tracking-widest text-[#1E3527] font-semibold block mb-0.5 font-mono">Флагманська робота</span>
+                  <p className="text-xs font-medium text-[#0D0D0D]">{activePin.project}</p>
+                </div>
+              </div>
+
             </div>
-            <div className="text-right">
-              <span className="text-[10px] uppercase tracking-widest text-[#1E3527] font-semibold block mb-1">Останній проєкт</span>
-              <p className="text-sm font-medium text-[#0D0D0D]">{activeRegion.project}</p>
-            </div>
-          </div>
+          )}
+
         </div>
       </section>
 
       {/* Портфоліо Проєктів */}
-      <section className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto">
+      <section className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[#0D0D0D]/5">
         <div className="flex justify-between items-end mb-12">
-          <h2 className="text-3xl md:text-4xl font-serif text-[#0D0D0D]">НАШІ РОБОТИ</h2>
+          <div>
+            <span className="text-[10px] font-mono text-[#1E3527] uppercase tracking-widest block mb-2">Натисніть для тестування</span>
+            <h2 className="text-3xl md:text-4xl font-serif text-[#0D0D0D]">ГАЛЕРЕЯ ВИКОНАНИХ ОБ'ЄКТІВ</h2>
+          </div>
           <a href="#" className="text-xs font-semibold tracking-widest uppercase border-b border-[#0D0D0D] pb-1 flex items-center gap-2 hover:text-[#1E3527] hover:border-[#1E3527] transition-colors">
             Дивитись все <ArrowRight size={14} />
           </a>
@@ -229,19 +401,19 @@ export default function GraziaLanding() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {projects.map((project, idx) => (
-            <div key={project.id || idx} className="group relative cursor-pointer overflow-hidden bg-[#EBEAE6] aspect-[3/4]">
-              {/* Якщо в базі є фото, використовуємо його, інакше сірий фон */}
+            <div key={project.id || idx} className="group relative cursor-pointer overflow-hidden bg-[#EBEAE6] aspect-[3/4] shadow-md rounded-sm">
               {project.media && project.media[0] ? (
                 <img src={project.media[0]} alt={project.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-[#0D0D0D]/20"><Armchair size={48} /></div>
               )}
               
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               
-              <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+              <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
                 <span className="text-[10px] text-[#F5F4F1]/70 font-mono uppercase tracking-widest block mb-2">{project.sku}</span>
                 <h3 className="text-lg font-serif text-[#F5F4F1]">{project.name}</h3>
+                <p className="text-[11px] text-[#F5F4F1]/50 mt-1 font-light line-clamp-2">Клацніть, щоб переглянути матеріали</p>
               </div>
             </div>
           ))}
@@ -249,7 +421,7 @@ export default function GraziaLanding() {
       </section>
 
       {/* Форма Розрахунку (Калькулятор) */}
-      <section id="calc" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto bg-white border border-[#0D0D0D]/10">
+      <section id="calc" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto bg-white border border-[#0D0D0D]/10 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-16 md:gap-24">
           
           <div>
@@ -284,7 +456,7 @@ export default function GraziaLanding() {
             <div className="flex flex-col items-center justify-center py-24 text-center border border-[#0D0D0D]/10 bg-[#F5F4F1]">
               <CheckCircle2 size={48} className="text-[#1E3527] mb-6" />
               <h3 className="text-2xl font-serif mb-2">Запит успішно надіслано!</h3>
-              <p className="text-[#0D0D0D]/60 text-sm">Ми вже отримали ваші дані в Telegram і зв'яжемося з вами найближчим часом.</p>
+              <p className="text-[#0D0D0D]/60 text-sm">Ми вже отримали ваші дані в базі Supabase і готові до прорахунку.</p>
             </div>
           ) : (
             <form onSubmit={handleCalcSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -388,4 +560,4 @@ export default function GraziaLanding() {
 
     </div>
   );
-}``
+}
