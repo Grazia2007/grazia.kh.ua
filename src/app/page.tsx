@@ -65,12 +65,12 @@ const createCustomSupabaseClient = (url: string, key: string) => {
 
 const supabase = createCustomSupabaseClient(supabaseUrl, supabaseAnonKey) as any;
 
-// Деталізовані дані по Харкову (Mock data для фронтенду, поки не підключимо адмінку)
+// Деталізовані дані по Харкову та Області (Включаючи Полтаву та Вовчанськ)
 const KHARKIV_DETAILED_PINS = [
   { 
     id: 'naukova', 
     name: 'м. Наукова', 
-    top: '42%', left: '45%', 
+    top: '42%', left: '48%', 
     project: 'Кухня-Студія Loft, 2023', 
     radius: 'Радіус робіт: 300м', 
     type: 'city',
@@ -84,7 +84,7 @@ const KHARKIV_DETAILED_PINS = [
   { 
     id: 'saltovka', 
     name: 'Салтівка (522 м/р)', 
-    top: '35%', left: '65%', 
+    top: '35%', left: '60%', 
     project: 'Модульна вітальня та гардероб', 
     radius: 'Радіус робіт: 500м', 
     type: 'city',
@@ -98,7 +98,7 @@ const KHARKIV_DETAILED_PINS = [
   { 
     id: 'gagarina', 
     name: 'пр. Гагаріна (13 лікарня)', 
-    top: '55%', left: '50%', 
+    top: '55%', left: '52%', 
     project: 'Світла неокласика', 
     radius: 'Радіус робіт: 400м', 
     type: 'city',
@@ -111,7 +111,7 @@ const KHARKIV_DETAILED_PINS = [
   { 
     id: 'zhukova', 
     name: 'Маршала Жукова (21 лікарня)', 
-    top: '60%', left: '65%', 
+    top: '60%', left: '62%', 
     project: 'Дитяча та Кабінет', 
     radius: 'Радіус робіт: 300м', 
     type: 'city',
@@ -122,30 +122,29 @@ const KHARKIV_DETAILED_PINS = [
     ]
   },
   { 
-    id: 'bezludovka', 
-    name: 'Безлюдівка', 
-    top: '80%', left: '48%', 
-    project: 'Меблювання заміського будинку', 
-    radius: 'Радіус робіт: 1 км', 
+    id: 'poltava', 
+    name: 'Полтава', 
+    top: '40%', left: '20%', 
+    project: 'Резиденція преміум-класу', 
+    radius: 'Радіус робіт: 2 км', 
     type: 'region',
-    description: 'Комплексний проєкт. Від гардеробних до ванних кімнат. Використання вологостійких матеріалів та натурального дерева.',
+    description: 'Масштабний виїзний проєкт у Полтаві. Повне меблювання будинку: від розкішної кухні до облаштування винного льоху.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Велика кухня для заміського будинку. Центр сімейного тяжіння.' },
-      { url: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=1200', caption: 'Вологостійкі тумби для ванної кімнати. Надійність на десятиліття.' }
+      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Велика кухня для заміського будинку. Центр сімейного тяжіння.' }
     ]
   },
   { 
-    id: 'danilovka', 
-    name: 'Мала Данилівка', 
-    top: '20%', left: '42%', 
-    project: 'Premium Кухня-Студія', 
-    radius: 'Радіус робіт: 800м', 
+    id: 'volchansk', 
+    name: 'Вовчанськ', 
+    top: '15%', left: '75%', 
+    project: 'Заміський комплекс', 
+    radius: 'Радіус робіт: 1.5 км', 
     type: 'region',
-    description: 'Розкішний проєкт з кам\'яним островом та вбудованою технікою преміум-сегмента.',
+    description: 'Еко-проєкт із використанням масиву дерева та шпону. Природні текстури, які гармонійно вписуються в ландшафт.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600607687644-b04fd5910f59?auto=format&fit=crop&q=80&w=1200', caption: 'Монолітний острів. Ідеальне місце для ранкової кави та вечірніх зустрічей.' }
+      { url: 'https://images.unsplash.com/photo-1600607687644-b04fd5910f59?auto=format&fit=crop&q=80&w=1200', caption: 'Природні текстури та масив дерева. Інтер\'єр, що дихає.' }
     ]
   },
 ];
@@ -168,7 +167,7 @@ export default function GraziaFurnitureSystem() {
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // 1. D3.js Глобус (Тепер з однією точкою - Україна)
+  // 1. D3.js Глобус
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -294,17 +293,16 @@ export default function GraziaFurnitureSystem() {
 
   // Завантаження проєктів (Для сітки знизу)
   useEffect(() => {
-    // В реальності тут буде запит до Supabase
     setProjects(KHARKIV_DETAILED_PINS.slice(0, 4));
   }, []);
 
-  // Анімація "Падіння з космосу" в Харків
+  // Анімація "Падіння з космосу" в 2.5D Карту
   const triggerMapFocus = () => {
     setIsTransitioning(true);
     setTimeout(() => {
       setMapLevel('kharkiv');
       setIsTransitioning(false);
-    }, 1000); // 1 секунда кінематографічного зуму
+    }, 1000); 
   };
 
   const handleCalcSubmit = async (e: React.FormEvent) => {
@@ -312,7 +310,6 @@ export default function GraziaFurnitureSystem() {
     setFormSubmitted(true);
   };
 
-  // Компонент Соціальних Іконок (Raw SVG для стабільності)
   const InstagramIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
   );
@@ -324,7 +321,6 @@ export default function GraziaFurnitureSystem() {
       {selectedProject && (
         <div className="fixed inset-0 z-[100] bg-[#F5F4F1] overflow-y-auto animate-fadeIn">
           
-          {/* Header галереї */}
           <div className="sticky top-0 bg-[#F5F4F1]/90 backdrop-blur-md px-6 py-4 border-b border-[#0D0D0D]/10 flex justify-between items-center z-50">
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-[#1E3527] block">{selectedProject.name}</span>
@@ -434,7 +430,7 @@ export default function GraziaFurnitureSystem() {
         <div className="flex-1 z-10 w-full">
           <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#0D0D0D]/20 text-[10px] uppercase tracking-widest text-[#0D0D0D]/60 mb-8 font-mono">
             <Ruler size={12} />
-            <span>Меблеве портфоліо Харкова та Області</span>
+            <span>Меблеве портфоліо: Харків та Полтава</span>
           </div>
           
           <h1 className="text-5xl md:text-[5.2rem] font-serif font-normal leading-[1.05] tracking-tight mb-8 text-[#0D0D0D]">
@@ -444,7 +440,7 @@ export default function GraziaFurnitureSystem() {
           </h1>
           
           <p className="text-base md:text-lg text-[#0D0D0D]/70 max-w-md font-light leading-relaxed mb-12">
-            Справжня історія надійності. Оберіть абстрактний глобус або детальну мапу нижче, щоб побачити радіуси встановлення наших ексклюзивних меблів.
+            Справжня історія надійності. Оберіть глобальний перегляд або детальну 3D-карту нижче, щоб побачити радіуси встановлення наших ексклюзивних меблів.
           </p>
 
           <div className="flex flex-wrap items-center gap-6">
@@ -453,7 +449,7 @@ export default function GraziaFurnitureSystem() {
                 onClick={triggerMapFocus}
                 className={`bg-[#1E3527] text-[#F5F4F1] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#15241b] transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : ''}`}
               >
-                Сфокусуватись на Харкові <ArrowRight size={16} />
+                Сфокусуватись на мапі <ArrowRight size={16} />
               </button>
             ) : (
               <button 
@@ -478,55 +474,83 @@ export default function GraziaFurnitureSystem() {
               </div>
             </div>
           ) : (
-            /* РЕЖИМ 2: Інтерактивна абстрактна мапа Харкова (Стилізована) */
-            <div className="w-full h-full relative animate-fadeIn transition-all duration-1000 bg-[#EBEAE6]">
+            /* РЕЖИМ 2: 2.5D ІЗОМЕТРИЧНА АРХІТЕКТУРНА КАРТА (AAA Рівень) */
+            <div className="w-full h-full relative animate-fadeIn transition-all duration-1000 bg-[#EBEAE6] flex items-center justify-center [perspective:1200px]">
               
-              {/* Абстрактні артерії міста (річки/дороги) */}
-              <svg className="absolute inset-0 w-full h-full text-[#D9D6D1] opacity-70 p-4" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path fill="none" stroke="#1E3527" strokeWidth="0.1" d="M0,50 Q40,30 50,50 T100,20" />
-                <path fill="none" stroke="#1E3527" strokeWidth="0.1" d="M30,0 Q40,50 60,100" />
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#1E3527" strokeWidth="0.05" strokeDasharray="1,2" />
-                <circle cx="50" cy="50" r="25" fill="none" stroke="#1E3527" strokeWidth="0.05" strokeDasharray="1,2" />
-              </svg>
+              {/* Полотно карти, нахилене в 3D просторі (як стіл архітектора) */}
+              <div 
+                className="absolute w-[160%] h-[160%] bg-[#F0EFEB] transition-transform duration-1000 ease-in-out"
+                style={{ 
+                  transform: 'rotateX(60deg) rotateZ(-30deg) translateY(-10%)',
+                  transformStyle: 'preserve-3d',
+                  boxShadow: 'inset 0 0 100px rgba(0,0,0,0.05)'
+                }}
+              >
+                {/* Абстрактна архітектурна сітка та артерії (дороги) на самій карті */}
+                <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(#D9D6D1 1px, transparent 1px), linear-gradient(90deg, #D9D6D1 1px, transparent 1px)', backgroundSize: '50px 50px', opacity: 0.5 }}></div>
+                
+                <svg className="absolute inset-0 w-full h-full text-[#1E3527] opacity-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <path fill="none" stroke="currentColor" strokeWidth="0.2" d="M0,50 Q40,30 50,50 T100,20" />
+                  <path fill="none" stroke="currentColor" strokeWidth="0.4" d="M30,0 Q40,50 60,100" />
+                  <path fill="none" stroke="currentColor" strokeWidth="0.1" d="M10,80 Q50,70 90,90" />
+                </svg>
 
-              <div className="absolute top-6 left-6 bg-[#F5F4F1]/90 backdrop-blur-sm px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest z-30">
-                Деталізація: Харківська Область
+                {/* Рендеринг пінів, які "виростають" з 3D-карти */}
+                {KHARKIV_DETAILED_PINS.map((pin) => (
+                  <div 
+                    key={pin.id}
+                    className="absolute cursor-pointer group/pin z-20"
+                    style={{ 
+                      top: pin.top, 
+                      left: pin.left,
+                      transformStyle: 'preserve-3d'
+                    }}
+                    onClick={() => { setActivePin(pin); setSelectedProject(pin); }}
+                    onMouseEnter={() => setActivePin(pin)}
+                  >
+                    {/* Безпечний Радіус (Лежить плоско на карті) */}
+                    <div className={`absolute transform -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1E3527] transition-all duration-700 ${activePin.id === pin.id ? 'scale-100 opacity-40 bg-[#1E3527]' : 'scale-50 opacity-10 border-dashed'}`}
+                         style={{ width: pin.type === 'city' ? '120px' : '200px', height: pin.type === 'city' ? '120px' : '200px' }}></div>
+                    
+                    {/* Контейнер самого піна, який розвертається ОБЛИЧЧЯМ до користувача (компенсує нахил карти) */}
+                    <div 
+                      className="absolute transform -translate-x-1/2"
+                      style={{ 
+                        transform: 'rotateZ(30deg) rotateX(-60deg) translateY(-20px)', // Математика ізометрії: стоїть рівно
+                        transformOrigin: 'bottom center'
+                      }}
+                    >
+                      {/* Стрижень піна (Ніжка) */}
+                      <div className="w-[1px] h-8 bg-gradient-to-t from-[#1E3527] to-transparent mx-auto opacity-50"></div>
+                      
+                      {/* Сам Пін */}
+                      <div className="relative flex flex-col items-center justify-center">
+                        <div className={`w-4 h-4 rounded-full border-2 border-[#F5F4F1] transition-all duration-300 ${activePin.id === pin.id ? 'bg-[#1E3527] scale-150 shadow-2xl' : 'bg-[#0D0D0D]/80'}`}></div>
+                        
+                        {/* Підказка (Теж стоїть рівно) */}
+                        <div className="absolute bottom-8 bg-[#0D0D0D]/90 backdrop-blur text-[#F5F4F1] text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-2xl opacity-0 group-hover/pin:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none border border-white/10">
+                          {pin.name}
+                          <div className="text-[8px] text-white/50 mt-0.5">{pin.radius}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              {/* Рендеринг детальних пінів Харкова */}
-              {KHARKIV_DETAILED_PINS.map((pin) => (
-                <div 
-                  key={pin.id}
-                  className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 group/pin z-20"
-                  style={{ top: pin.top, left: pin.left }}
-                  onClick={() => { setActivePin(pin); setSelectedProject(pin); }}
-                  onMouseEnter={() => setActivePin(pin)}
-                >
-                  <div className="relative flex items-center justify-center">
-                    {/* Безпечний Радіус (300м) */}
-                    <div className={`absolute rounded-full border border-[#1E3527] transition-all duration-700 ${activePin.id === pin.id ? 'scale-100 opacity-30 bg-[#1E3527]' : 'scale-50 opacity-0'}`}
-                         style={{ width: pin.type === 'city' ? '70px' : '120px', height: pin.type === 'city' ? '70px' : '120px' }}></div>
-                    
-                    {/* Точка */}
-                    <div className={`w-3.5 h-3.5 rounded-full border-2 border-[#F5F4F1] transition-all duration-300 ${activePin.id === pin.id ? 'bg-[#1E3527] scale-150 shadow-xl' : 'bg-[#0D0D0D]/60'}`}></div>
-                    
-                    {/* Підказка */}
-                    <span className="absolute -top-7 bg-[#0D0D0D] text-[#F5F4F1] text-[10px] font-mono px-2 py-1 rounded shadow-lg opacity-0 group-hover/pin:opacity-100 transition-opacity whitespace-nowrap z-50">
-                      {pin.name}
-                    </span>
-                  </div>
-                </div>
-              ))}
+              <div className="absolute top-6 left-6 bg-[#F5F4F1]/90 backdrop-blur-sm px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest z-30">
+                2.5D Архітектурна Мапа
+              </div>
 
               {/* Інформаційна панель знизу мапи */}
               <div className="absolute bottom-6 left-6 right-6 bg-[#F5F4F1]/95 backdrop-blur-md p-5 border border-[#0D0D0D]/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-white transition-colors" onClick={() => setSelectedProject(activePin)}>
                 <div>
-                  <span className="text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-white inline-block mb-2 bg-[#1E3527]">
-                    Район: {activePin.name}
+                  <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-white inline-block mb-2 ${activePin.type === 'city' ? 'bg-[#0D0D0D]' : 'bg-[#1E3527]'}`}>
+                    {activePin.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
                   </span>
                   <h3 className="text-lg font-serif font-medium text-[#0D0D0D]">{activePin.project}</h3>
                   <p className="text-[11px] text-[#0D0D0D]/60 flex items-center gap-1.5 mt-1 font-mono">
-                    <MapPin size={12} /> {activePin.radius} (Захист приватності)
+                    <MapPin size={12} /> Зона робіт: {activePin.name}
                   </p>
                 </div>
                 <div className="md:text-right border-t md:border-t-0 border-[#0D0D0D]/10 pt-3 md:pt-0 w-full md:w-auto">
