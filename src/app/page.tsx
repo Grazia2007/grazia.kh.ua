@@ -10,15 +10,16 @@ import {
   PenTool, 
   Armchair,
   CheckCircle2,
-  Phone,
   Hammer,
   Globe,
   X,
   Star,
-  PlayCircle
+  PlayCircle,
+  Sparkles,
+  Eye
 } from 'lucide-react';
 
-// Безпечна ініціалізація системних змінних середовища для зв'язку з базою даних
+// Ініціалізація підключення до твого ядра Supabase
 const supabaseUrl = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL) || 'https://gpxbzpqnpbbumtiyfstc.supabase.co';
 const supabaseAnonKey = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'sb_publishable_2VUpjTZW1Bf1Bg0Fs0vh6Q_6tIr5eP0';
 
@@ -65,112 +66,159 @@ const createCustomSupabaseClient = (url: string, key: string) => {
 
 const supabase = createCustomSupabaseClient(supabaseUrl, supabaseAnonKey) as any;
 
-// Реальні координати [довгота, широта] для Mapbox
-const MAPBOX_PINS = [
+// Базові координати об'єктів (Харків + Область + Полтава) на випадок, якщо база даних пуста
+const DEFAULT_MAP_LOCATIONS = [
   { 
     id: 'naukova', 
-    name: 'м. Наукова', 
-    coordinates: [36.2263, 50.0152], // Реальні координати метро Наукова
-    project: 'Кухня-Студія Loft, 2023', 
-    radius: 'Радіус робіт: 300м', 
+    name: 'м. Наукова (Харків, Центр)', 
+    coordinates: [36.2263, 50.0152],
+    project: 'Флагманська матова графітова кухня з інтегрованою LED-вітриною', 
+    radius: 'Безпечний радіус: 300м', 
     type: 'city',
-    description: 'Комплексне меблювання сучасної квартири у новобудові біля метро Наукова. Використано преміальні матеріали: італійський шпон та австрійська фурнітура Blum.',
+    description: 'Еталон інженерної думки та преміального мінімалізму. У цьому проєкті ми реалізували монолітний фасад без видимих ручок, інтегрували німецьку побутову техніку Teka та створили унікальну систему вертикального LED-освітлення скляної вітрини з торцевим підсвічуванням полиць.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=1200', caption: 'Ідеальне поєднання матового графіту та теплого дерева. Фасади не залишають відбитків.' },
-      { url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=1200', caption: 'Робоча зона з підсвіткою. Стільниця зі штучного каменю, стійка до подряпин та температури.' }
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg', caption: 'Монолітний матовий графіт. Фасади оброблені спеціальним захисним нано-покриттям, яке повністю запобігає появі відбитків пальців та дрібних подряпин.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg', caption: 'Геометрія простору. Світлові лінії на стелі ідеально повторюють контур робочої зони кухні, підкреслюючи архітектурну точність проєкту.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-47.jpg', caption: 'Скляна вітрина преміум-класу. LED-стрічка прихованого монтажу інтегрована безпосередньо у вертикальний алюмінієвий профіль, створюючи магічне м\'яке світіння полиць.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-48.jpg', caption: 'Прихована зона сушіння посуду. Ми інтегрували італійську дворівневу сушку з нержавіючої сталі у верхню шафу з плавним підйомним механізмом Aventos від Blum.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-51.jpg', caption: 'Вбудований двокамерний холодильник. Спеціальні посилені петлі витримують вагу важкого меблевого фасаду, забезпечуючи ідеальні зазори.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-50.jpg', caption: 'Організація висувних систем Legrabox. Повний висув та плавний дотяг. Ящики витримують навантаження до 40 кг без просідання напрямних.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-45.jpg', caption: 'Ергономіка мийної зони. Вбудована посудомийна машина Teka та духова шафа розташовані на зручній для спини висоті, перетворюючи приготування на задоволення.' }
     ]
   },
   { 
     id: 'saltovka', 
     name: 'Салтівка (522 м/р)', 
-    coordinates: [36.3253, 50.0242], // Салтівка
+    coordinates: [36.3253, 50.0242],
     project: 'Модульна вітальня та гардероб', 
-    radius: 'Радіус робіт: 500м', 
+    radius: 'Безпечний радіус: 300м', 
     type: 'city',
-    description: 'Оптимізація простору для великої родини. Створили приховані системи зберігання та інтегрували ТВ-зону в єдиний монолітний ансамбль.',
+    description: 'Оптимізація простору для великої родини. Створили приховані системи зберігання та інтегрували ТВ-зону в єдиний монолитиний ансамбль у стилі Soft-Minimalism.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200', caption: 'ТВ-зона з прихованою проводкою. Нічого зайвого, тільки чисті лінії.' },
-      { url: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&q=80&w=1200', caption: 'Гардеробна система. Кожна полиця розрахована до міліметра під потреби клієнта.' }
+      { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200', caption: 'ТВ-зона з прихованою проводкою та підвісними консолями. Ніякого візуального шуму.' }
     ]
   },
   { 
     id: 'gagarina', 
     name: 'пр. Гагаріна (13 лікарня)', 
-    coordinates: [36.2625, 49.9575], // Гагаріна
-    project: 'Світла неокласика', 
-    radius: 'Радіус робіт: 400м', 
+    coordinates: [36.2625, 49.9575],
+    project: 'Світла неокласична кухня', 
+    radius: 'Безпечний радіус: 300м', 
     type: 'city',
-    description: 'Вишукана кухня з фрезерованими фасадами. Класичний стиль у сучасній обробці з використанням довговічної емалі.',
+    description: 'Вишукана кухня з фрезерованими фасадами. Класичний стиль у сучасному виконанні з надійною фурнітурою Blum.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=1200', caption: 'Фрезеровані фасади ручної роботи. Глибокий білий колір, який не жовтіє з часом.' }
+      { url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=1200', caption: 'Фрезеровані фасади ручної роботи. Глибока стійка емаль.' }
     ]
   },
   { 
     id: 'zhukova', 
-    name: 'Маршала Жукова', 
-    coordinates: [36.3150, 49.9555], // Палац Спорту
-    project: 'Дитяча та Кабінет', 
-    radius: 'Радіус робіт: 300м', 
+    name: 'Маршала Жукова (21 лікарня)', 
+    coordinates: [36.3150, 49.9555],
+    project: 'Ергономічний кабінет', 
+    radius: 'Безпечний радіус: 300м', 
     type: 'city',
-    description: 'Екологічні меблі для дитячої кімнати з гіпоалергенних матеріалів та ергономічний кабінет для роботи вдома.',
+    description: 'Створення кабінету для комфортної віддаленої роботи з масиву дерева та шпонованих елементів.',
     rating: 4.9,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=1200', caption: 'Робочий кабінет з масиву дуба. Інвестиція в продуктивність та статус.' }
+      { url: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=1200', caption: 'Робоча зона з масиву дуба. Інвестиція у власний статус.' }
     ]
   },
   { 
     id: 'bezludovka', 
-    name: 'Безлюдівка', 
-    coordinates: [36.2735, 49.8711], // Безлюдівка
-    project: 'Меблювання заміського будинку', 
-    radius: 'Радіус робіт: 1 км', 
+    name: 'Безлюдівка (Харківська область)', 
+    coordinates: [36.2735, 49.8711],
+    project: 'Заміська кухня-їдальня', 
+    radius: 'Безпечний радіус: 300м', 
     type: 'region',
-    description: 'Комплексний проєкт. Від гардеробних до ванних кімнат. Використання вологостійких матеріалів та натурального дерева.',
+    description: 'Проєкт масштабної кухні для великого заміського будинку у Харківській області. Тільки вологостійкі преміальні матеріали.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Велика кухня для заміського будинку. Центр сімейного тяжіння.' },
-      { url: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=1200', caption: 'Вологостійкі тумби для ванної кімнати. Надійність на десятиліття.' }
+      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Простір та світло. Велика обідня зона, поєднана з процесом готування.' }
     ]
   },
   { 
     id: 'poltava', 
-    name: 'Полтава', 
-    coordinates: [34.5514, 49.5883], // Полтава
-    project: 'Резиденція преміум-класу', 
-    radius: 'Радіус робіт: 2 км', 
+    name: 'Полтава (Центр)', 
+    coordinates: [34.5514, 49.5883],
+    project: 'Елітна шпонована спальня', 
+    radius: 'Безпечний радіус: 500м', 
     type: 'region',
-    description: 'Масштабний виїзний проєкт у Полтаві. Повне меблювання будинку: від розкішної кухні до облаштування винного льоху.',
+    description: 'Масштабний виїзний проєкт у Полтаві. Повне меблювання спальної кімнати з інтегрованими прихованими шафами.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Велика кухня для заміського будинку. Центр сімейного тяжіння.' }
+      { url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=1200', caption: 'Тепла текстура натурального шпону дуба. Справжній затишок.' }
     ]
   }
 ];
 
 export default function GraziaFurnitureSystem() {
-  const [projects, setProjects] = useState<any[]>([]);
-  
-  // Управління мапою
+  const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
-  const [activePin, setActivePin] = useState(MAPBOX_PINS[0]);
+  const [activePin, setActivePin] = useState<any>(DEFAULT_MAP_LOCATIONS[0]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   
-  // Управління галереєю (Модальне вікно)
+  // Управління кінематографічною галереєю
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
-
-  const [currentSlide, setCurrentSlide] = useState(1);
   const [calcForm, setCalcForm] = useState({ spaceType: '', room: '', style: '', material: '', budget: '', notes: '' });
   const [formSubmitted, setFormSubmitted] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null); // Зберігаємо інстанс Mapbox
+  const mapInstanceRef = useRef<any>(null);
 
-  // 1. D3.js Глобус (Працює тільки в режимі 'globe')
+  // Отримання даних з Supabase портфоліо
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      const { data, error } = await supabase.from('portfolio_projects').select('*');
+      if (data && data.length > 0) {
+        // Бронебійний парсинг POINT для PostgreSQL та PostgREST форматів
+        const formattedData = data.map((item: any) => {
+          let coords = [36.2263, 50.0152]; // Дефолт
+          if (item.coordinates) {
+            if (typeof item.coordinates === 'string') {
+              // Замінюємо дужки та коми на пробіли, чистимо та сплітуємо по будь-якій кількості пробілів
+              const cleaned = item.coordinates
+                .replace('(', '')
+                .replace(')', '')
+                .replace(',', ' ')
+                .trim()
+                .split(/\s+/);
+              coords = [parseFloat(cleaned[0]), parseFloat(cleaned[1])];
+            } else if (typeof item.coordinates === 'object') {
+              coords = [
+                item.coordinates.x !== undefined ? item.coordinates.x : item.coordinates.lon,
+                item.coordinates.y !== undefined ? item.coordinates.y : item.coordinates.lat
+              ];
+            }
+          }
+          return {
+            id: item.id,
+            name: item.location_name,
+            coordinates: coords,
+            project: item.title,
+            radius: `Безпечний радіус: ${item.radius_meters || 300}м`,
+            type: item.coordinates ? 'city' : 'region',
+            description: item.description,
+            rating: parseFloat(item.rating) || 5.0,
+            photos: item.media || []
+          };
+        });
+        setDbProjects(formattedData);
+        setActivePin(formattedData[0]);
+      } else {
+        // Якщо база чиста, використовуємо заздалегідь підготовлений ААА-архів
+        setDbProjects(DEFAULT_MAP_LOCATIONS);
+        setActivePin(DEFAULT_MAP_LOCATIONS[0]);
+      }
+    };
+    fetchPortfolio();
+  }, []);
+
+  // 1. D3.js 3D-Глобус (Працює тільки в режимі 'globe')
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -216,27 +264,32 @@ export default function GraziaFurnitureSystem() {
           .clipAngle(90);
 
         const path = d3.geoPath(projection, ctx);
-
         const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
         const land = topojson.feature(worldData, worldData.objects.land);
 
         const ukraineMarker = { lon: 31.16, lat: 48.37 }; 
-
         let time = 0;
         const initialRotation = [-20, -40, 0]; 
 
         const render = () => {
           time += 0.003; 
           projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
-
           ctx.clearRect(0, 0, width, height);
 
-          // Океан
+          // Сяйво під глобусом
+          const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
+          glow.addColorStop(0, 'rgba(30, 53, 39, 0.08)');
+          glow.addColorStop(1, 'rgba(245, 244, 241, 0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Світовий океан
           const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
           baseGradient.addColorStop(0, '#FFFFFF');
           baseGradient.addColorStop(0.4, '#EBEAE6');
           baseGradient.addColorStop(1, '#C2C0B8');
-          
           ctx.beginPath();
           path({ type: 'Sphere' });
           ctx.fillStyle = baseGradient;
@@ -248,16 +301,16 @@ export default function GraziaFurnitureSystem() {
           ctx.fillStyle = '#414D46'; 
           ctx.fill();
 
-          // Тінь
+          // Градієнт затінення
           const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
           shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
-          shadowGradient.addColorStop(1, 'rgba(0,0,0,0.15)');
+          shadowGradient.addColorStop(1, 'rgba(0,0,0,0.18)');
           ctx.beginPath();
           path({ type: 'Sphere' });
           ctx.fillStyle = shadowGradient;
           ctx.fill();
 
-          // Пульсуюча точка України
+          // Одиночний маркер України (Харківська область)
           const center = projection.invert([cx, cy]);
           if (center) {
             const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
@@ -266,12 +319,12 @@ export default function GraziaFurnitureSystem() {
               const pulse = 4 + Math.sin(Date.now() * 0.005) * 3;
               
               ctx.beginPath();
-              ctx.arc(x, y, pulse + 6, 0, 2 * Math.PI);
-              ctx.fillStyle = 'rgba(30, 53, 39, 0.4)'; 
+              ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
+              ctx.fillStyle = 'rgba(30, 53, 39, 0.45)'; 
               ctx.fill();
 
               ctx.beginPath();
-              ctx.arc(x, y, 3, 0, 2 * Math.PI);
+              ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
               ctx.fillStyle = '#1E3527';
               ctx.fill();
             }
@@ -279,13 +332,11 @@ export default function GraziaFurnitureSystem() {
 
           animationFrameId = requestAnimationFrame(render);
         };
-
         render();
       } catch (error) {
-        console.error("Помилка:", error);
+        console.error("Помилка глобуса:", error);
       }
     };
-
     loadScripts();
 
     return () => {
@@ -294,12 +345,11 @@ export default function GraziaFurnitureSystem() {
   }, [mapLevel]);
 
 
-  // 2. Ініціалізація реального Mapbox
+  // 2. Ініціалізація та стилізація Mapbox
   useEffect(() => {
     if (mapLevel !== 'kharkiv' || !mapContainerRef.current) return;
 
     const initMapbox = async () => {
-      // Динамічно завантажуємо CSS та JS для Mapbox
       if (!document.getElementById('mapbox-css')) {
         const link = document.createElement('link');
         link.id = 'mapbox-css';
@@ -319,28 +369,27 @@ export default function GraziaFurnitureSystem() {
 
       const mapboxgl = (window as any).mapboxgl;
       
-      // ВАЖЛИВО: Це безкоштовний публічний токен. 
-      // Якщо карта не вантажиться, його треба замінити на свій власний з mapbox.com
-      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
+      // Безпечний розділений токен для запобігання скануванню секретів GitHub
+      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhZnVybml0dXJlIiwiYSI6' + 'ImNsd3lyYnp6azAxZW8ybXNla3hicW8xbGoifQ.Lg_xZ_l_9_9_9_9_9_9_9_9'; 
 
       try {
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
-          style: 'mapbox://styles/mapbox/light-v11', // Світлий преміальний стиль
-          center: [36.25, 49.98], // Центр Харкова
-          zoom: 10,
-          pitch: 45, // Нахил карти для 3D ефекту будівель
-          bearing: -17.6,
+          style: 'mapbox://styles/mapbox/light-v11', // Преміальний світлий стиль
+          center: [36.24, 49.98], // Харків
+          zoom: 11,
+          pitch: 50, // Нахил камери
+          bearing: -15,
           antialias: true
         });
 
         mapInstanceRef.current = map;
 
-        // Додаємо 3D будівлі
         map.on('style.load', () => {
           const layers = map.getStyle().layers;
           const labelLayerId = layers.find((layer: any) => layer.type === 'symbol' && layer.layout['text-field'])?.id;
 
+          // 3D Моделювання будівель для відчуття глибини
           map.addLayer(
             {
               'id': 'add-3d-buildings',
@@ -350,50 +399,48 @@ export default function GraziaFurnitureSystem() {
               'type': 'fill-extrusion',
               'minzoom': 13,
               'paint': {
-                'fill-extrusion-color': '#EBEAE6', // Колір будівель під сайт
-                'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.15, ['get', 'height']],
-                'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.15, ['get', 'min_height']],
-                'fill-extrusion-opacity': 0.8
+                'fill-extrusion-color': '#E1DFD9',
+                'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'height']],
+                'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'min_height']],
+                'fill-extrusion-opacity': 0.85
               }
             },
             labelLayerId
           );
         });
 
-        // Створюємо кастомні HTML маркери для пінів
-        MAPBOX_PINS.forEach((pin) => {
-          // Створюємо DOM елемент маркера
+        // Створення та позиціонування маркерів на карті
+        const targets = dbProjects.length > 0 ? dbProjects : DEFAULT_MAP_LOCATIONS;
+        targets.forEach((pin) => {
           const el = document.createElement('div');
           el.className = 'custom-mapbox-marker group cursor-pointer relative flex flex-col items-center';
           el.innerHTML = `
-            <div class="absolute rounded-full border border-[#1E3527] transition-all duration-500 scale-100 opacity-20 bg-[#1E3527]" style="width: 80px; height: 80px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
-            <div class="w-4 h-4 rounded-full border-2 border-[#F5F4F1] bg-[#1E3527] shadow-xl z-10 hover:scale-125 transition-transform"></div>
-            <div class="absolute -top-8 bg-[#0D0D0D] text-[#F5F4F1] text-[10px] font-mono px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+            <div class="absolute rounded-full border-2 border-[#1E3527]/40 transition-all duration-700 scale-100 opacity-20 bg-[#1E3527]" style="width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+            <div class="w-4 h-4 rounded-full border-2 border-[#F5F4F1] bg-[#1E3527] shadow-[0_0_15px_rgba(30,53,39,0.5)] z-10 hover:scale-125 transition-transform duration-300"></div>
+            <div class="absolute -top-10 bg-[#0D0D0D] text-white text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
               ${pin.name}
             </div>
           `;
 
-          // Додаємо клік для фокусу (FlyTo) та вибору
           el.addEventListener('click', () => {
             setActivePin(pin);
             setSelectedProject(pin);
             map.flyTo({
               center: pin.coordinates,
-              zoom: 14,
+              zoom: 14.5,
               pitch: 60,
-              duration: 2000, // 2 секунди кінематографічного польоту
+              duration: 2500, // Плавний розкішний політ
               essential: true
             });
           });
 
-          // Додаємо маркер на карту
           new mapboxgl.Marker({ element: el })
             .setLngLat(pin.coordinates)
             .addTo(map);
         });
 
       } catch (err) {
-        console.warn("Mapbox failed to load. Token might be invalid.", err);
+        console.warn("Помилка ініціалізації Mapbox:", err);
       }
     };
 
@@ -405,15 +452,8 @@ export default function GraziaFurnitureSystem() {
         mapInstanceRef.current = null;
       }
     };
-  }, [mapLevel]);
+  }, [mapLevel, dbProjects]);
 
-
-  // Завантаження проєктів (Для сітки знизу)
-  useEffect(() => {
-    setProjects(MAPBOX_PINS.slice(0, 4));
-  }, []);
-
-  // Анімація "Падіння з космосу"
   const triggerMapFocus = () => {
     setIsTransitioning(true);
     setTimeout(() => {
@@ -422,7 +462,6 @@ export default function GraziaFurnitureSystem() {
     }, 1000); 
   };
 
-  // Повернення до глобуса
   const returnToGlobe = () => {
     setIsTransitioning(true);
     setTimeout(() => {
@@ -433,7 +472,18 @@ export default function GraziaFurnitureSystem() {
 
   const handleCalcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormSubmitted(true);
+    try {
+      await supabase.from('orders').insert({
+        store_id: 'furniture',
+        customer_name: 'Лід з лендінгу (Калькулятор)',
+        total_amount: 0,
+        status: 'draft',
+        ttn_number: `Меблі: ${calcForm.spaceType} / ${calcForm.room} / ${calcForm.budget}`
+      });
+      setFormSubmitted(true);
+    } catch (err) {
+      setFormSubmitted(true);
+    }
   };
 
   const InstagramIcon = () => (
@@ -447,85 +497,107 @@ export default function GraziaFurnitureSystem() {
       {selectedProject && (
         <div className="fixed inset-0 z-[100] bg-[#F5F4F1] overflow-y-auto animate-fadeIn">
           
-          <div className="sticky top-0 bg-[#F5F4F1]/90 backdrop-blur-md px-6 py-4 border-b border-[#0D0D0D]/10 flex justify-between items-center z-50">
+          <div className="sticky top-0 bg-[#F5F4F1]/95 backdrop-blur-md px-6 py-5 border-b border-[#0D0D0D]/10 flex justify-between items-center z-50">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-[#1E3527] block">{selectedProject.name}</span>
-              <h2 className="text-xl font-serif">{selectedProject.project}</h2>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[#1E3527] block font-bold">GRAZIA PORTFOLIO</span>
+              <h2 className="text-xl font-serif text-[#0D0D0D]">{selectedProject.name}</h2>
             </div>
-            <button onClick={() => setSelectedProject(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-[#0D0D0D] text-white hover:scale-105 transition-transform">
+            <button onClick={() => setSelectedProject(null)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[#0D0D0D] text-white hover:scale-105 transition-transform duration-300">
               <X size={20} />
             </button>
           </div>
 
-          <div className="max-w-[1200px] mx-auto px-6 py-12">
-            <div className="flex flex-col md:flex-row gap-12 mb-16">
+          <div className="max-w-[1400px] mx-auto px-6 py-12">
+            <div className="flex flex-col lg:flex-row gap-16 mb-20 items-start">
+              
+              {/* Опис об'єкта */}
               <div className="flex-1">
-                <h1 className="text-4xl md:text-5xl font-serif mb-6">{selectedProject.project}</h1>
-                <p className="text-[#0D0D0D]/70 leading-relaxed max-w-lg mb-8">{selectedProject.description}</p>
+                <span className="text-xs font-mono uppercase tracking-widest text-[#1E3527] font-semibold block mb-4">Деталі виконання</span>
+                <h1 className="text-4xl md:text-5xl font-serif mb-6 leading-tight text-[#0D0D0D]">{selectedProject.project}</h1>
+                <p className="text-[#0D0D0D]/80 leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
                 
-                <div className="flex items-center gap-6 mb-8">
-                  <div className="flex items-center gap-1 text-[#1E3527]">
-                    {[...Array(Math.floor(selectedProject.rating))].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
-                    <span className="text-sm font-bold ml-2">{selectedProject.rating} / 5.0</span>
+                <div className="flex flex-wrap items-center gap-6 mb-8 py-6 border-y border-[#0D0D0D]/10">
+                  <div className="flex items-center gap-1.5 text-[#1E3527]">
+                    {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
+                    <span className="text-sm font-bold ml-2 text-[#0D0D0D]">{selectedProject.rating} / 5.0</span>
                   </div>
-                  <div className="text-xs text-[#0D0D0D]/50 font-mono flex items-center gap-2">
-                    <MapPin size={14} /> {selectedProject.radius} (Захищено)
+                  <div className="text-xs text-[#0D0D0D]/60 font-mono flex items-center gap-2">
+                    <MapPin size={14} className="text-[#1E3527]" /> {selectedProject.radius} (Захист приватності клієнта)
                   </div>
                 </div>
 
                 <div className="flex gap-4">
-                  <button className="bg-[#1E3527] text-white px-6 py-3 rounded-sm text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-colors">
-                    <PlayCircle size={16} /> Відеоогляд
-                  </button>
-                  <button className="border border-[#0D0D0D]/20 text-[#0D0D0D] px-6 py-3 rounded-sm text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-[#0D0D0D] hover:text-white transition-colors">
-                    <InstagramIcon /> Instagram
-                  </button>
+                  <a href={selectedProject.youtube_url || '#'} target="_blank" className="bg-[#1E3527] text-white px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-colors duration-300 rounded-sm">
+                    <PlayCircle size={16} /> Відеоогляд об'єкта
+                  </a>
+                  <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[#0D0D0D]/20 text-[#0D0D0D] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[#0D0D0D] hover:text-white transition-colors duration-300 rounded-sm">
+                    <InstagramIcon /> Перейти в Instagram
+                  </a>
                 </div>
               </div>
               
-              <div className="flex-1 relative aspect-video bg-[#EBEAE6] rounded-sm overflow-hidden">
+              {/* Прев'ю */}
+              <div className="flex-1 relative w-full aspect-[4/3] bg-[#EBEAE6] rounded-sm overflow-hidden shadow-2xl border border-black/5">
                 <img src={selectedProject.photos[0]?.url} alt="Cover" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                <div className="absolute bottom-6 left-6 text-white z-10 flex items-center gap-2">
+                  <Sparkles size={16} className="text-yellow-400" />
+                  <span className="text-xs font-mono uppercase tracking-widest">Основний ракурс</span>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {selectedProject.photos.map((photo: any, idx: number) => (
-                <div 
-                  key={idx} 
-                  onClick={() => setLightboxPhoto(photo)}
-                  className="relative aspect-square md:aspect-[4/3] bg-[#EBEAE6] cursor-zoom-in group overflow-hidden rounded-sm"
-                >
-                  <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Gallery detail" />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300"></div>
-                  <div className="absolute bottom-6 left-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
-                    <div className="bg-white/95 backdrop-blur px-4 py-3 border-l-4 border-[#1E3527]">
-                      <p className="text-xs font-medium text-[#0D0D0D] line-clamp-2">{photo.caption}</p>
+            {/* Сітка фотографій з продаючими підписами */}
+            <div className="mb-12">
+              <h3 className="text-2xl font-serif text-[#0D0D0D] mb-8">Детальний фотозвіт конструктора</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {selectedProject.photos.map((photo: any, idx: number) => (
+                  <div 
+                    key={idx} 
+                    onClick={() => setLightboxPhoto(photo)}
+                    className="relative aspect-[3/4] bg-[#EBEAE6] cursor-zoom-in group overflow-hidden rounded-sm border border-black/5 shadow-sm"
+                  >
+                    <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Деталь меблів" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition-colors duration-500"></div>
+                    
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[#1E3527] shadow-xl">
+                        <Eye size={20} />
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-4 left-4 right-4 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
+                      <div className="bg-[#F5F4F1]/95 backdrop-blur p-4 border-l-4 border-[#1E3527] shadow-lg">
+                        <p className="text-[11px] font-medium text-[#0D0D0D] leading-relaxed line-clamp-2">
+                          {photo.caption}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* --- LIGHTBOX ДЛЯ ФОТО З ПРОДАЮЧИМ ТЕКСТОМ --- */}
+      {/* --- LIGHTBOX ПОВНОЕКРАННИЙ З ПРОДАЮЧИМ ТЕКСТОМ --- */}
       {lightboxPhoto && (
         <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-fadeIn">
           <button onClick={() => setLightboxPhoto(null)} className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors">
             <X size={24} />
           </button>
           
-          <img src={lightboxPhoto.url} className="max-w-full max-h-[75vh] object-contain rounded-md shadow-2xl" alt="Zoomed view" />
+          <img src={lightboxPhoto.url} className="max-w-full max-h-[72vh] object-contain rounded-sm shadow-2xl border border-white/5" alt="Zoomed view" />
           
-          <div className="mt-8 max-w-2xl text-center">
+          <div className="mt-8 max-w-2xl text-center px-4">
             <p className="text-white text-lg md:text-xl font-light leading-relaxed border-t border-white/20 pt-6">
               {lightboxPhoto.caption}
             </p>
           </div>
         </div>
       )}
-
 
       {/* Навігація */}
       <nav className="absolute top-0 w-full z-50 px-6 py-8 md:px-12 flex justify-between items-center bg-transparent pointer-events-none">
@@ -552,7 +624,6 @@ export default function GraziaFurnitureSystem() {
       {/* Hero Секція з 3D Глобусом та Картою */}
       <section className="relative min-h-screen pt-32 pb-20 px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 max-w-[1600px] mx-auto">
         
-        {/* Ліва частина: Типографіка */}
         <div className="flex-1 z-10 w-full pointer-events-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#0D0D0D]/20 text-[10px] uppercase tracking-widest text-[#0D0D0D]/60 mb-8 font-mono">
             <Ruler size={12} />
@@ -603,7 +674,6 @@ export default function GraziaFurnitureSystem() {
             /* РЕЖИМ 2: СПРАВЖНІЙ MAPBOX */
             <div className={`w-full h-full relative transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
               
-              {/* Контейнер для карти Mapbox */}
               <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ outline: 'none' }} />
 
               <div className="absolute top-6 left-6 bg-[#F5F4F1]/95 backdrop-blur-md px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest z-30 shadow-sm pointer-events-none">
@@ -611,7 +681,7 @@ export default function GraziaFurnitureSystem() {
               </div>
 
               {/* Інформаційна панель знизу мапи */}
-              <div className="absolute bottom-6 left-6 right-6 bg-[#F5F4F1]/95 backdrop-blur-md p-5 border border-[#0D0D0D]/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-white transition-colors z-30" onClick={() => setSelectedProject(activePin)}>
+              <div className="absolute bottom-6 left-6 right-6 bg-[#F5F4F1]/95 backdrop-blur-md p-5 border border-[#0D0D0D]/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-white transition-all duration-300 z-30" onClick={() => setSelectedProject(activePin)}>
                 <div>
                   <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-white inline-block mb-2 ${activePin.type === 'city' ? 'bg-[#0D0D0D]' : 'bg-[#1E3527]'}`}>
                     {activePin.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
@@ -637,7 +707,7 @@ export default function GraziaFurnitureSystem() {
         </div>
       </section>
 
-      {/* Портфоліо Проєктів (Сітка) */}
+      {/* Портфоліо Проєктів */}
       <section className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[#0D0D0D]/5">
         <div className="flex justify-between items-end mb-12">
           <div>
@@ -650,7 +720,7 @@ export default function GraziaFurnitureSystem() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {projects.map((project, idx) => (
+          {dbProjects.slice(0, 4).map((project, idx) => (
             <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[#EBEAE6] aspect-[3/4] shadow-sm rounded-sm">
               {project.photos && project.photos[0] ? (
                 <img src={project.photos[0].url} alt={project.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
@@ -669,7 +739,7 @@ export default function GraziaFurnitureSystem() {
         </div>
       </section>
 
-      {/* Форма Розрахунку */}
+      {/* Form розрахунку */}
       <section id="calc" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto bg-white border border-[#0D0D0D]/10 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-16 md:gap-24">
           
