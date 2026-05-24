@@ -86,7 +86,7 @@ export default function GraziaFurnitureSystem() {
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // 1. Ефект рендерингу преміального 3D Глобуса на Canvas
+  // 1. Ефект рендерингу преміального 3D Глобуса з материками (як на референсі)
   useEffect(() => {
     if (!isGlobeMode || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -94,103 +94,136 @@ export default function GraziaFurnitureSystem() {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let rotation = 0;
-    const points: { x: number; y: number; z: number }[] = [];
-    const numPoints = 140;
 
-    // Генерація геосфери точок
-    for (let i = 0; i < numPoints; i++) {
-      const phi = Math.acos(-1 + (2 * i) / numPoints);
-      const theta = Math.sqrt(numPoints * Math.PI) * phi;
-      points.push({
-        x: Math.sin(phi) * Math.cos(theta),
-        y: Math.sin(phi) * Math.sin(theta),
-        z: Math.cos(phi)
-      });
-    }
-
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const radius = canvas.width * 0.38;
-
-      rotation += 0.003;
-
-      // Малюємо атмосферне сяйво глобуса (Glow Effect)
-      const gradient = ctx.createRadialGradient(centerX, centerY, radius * 0.6, centerX, centerY, radius * 1.2);
-      gradient.addColorStop(0, 'rgba(30, 53, 39, 0.05)');
-      gradient.addColorStop(0.8, 'rgba(30, 53, 39, 0.15)');
-      gradient.addColorStop(1, 'rgba(245, 244, 241, 0)');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius * 1.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Рендеринг 3D вузлів глобуса
-      points.forEach(p => {
-        // Обертання по осі Y
-        const cosY = Math.cos(rotation);
-        const sinY = Math.sin(rotation);
-        const x1 = p.x * cosY - p.z * sinY;
-        const z1 = p.z * cosY + p.x * sinY;
-
-        // Обертання по осі X для нахилу глобуса
-        const tilt = 0.3;
-        const cosX = Math.cos(tilt);
-        const sinX = Math.sin(tilt);
-        const y2 = p.y * cosX - z1 * sinX;
-        const z2 = z1 * cosX + p.y * sinX;
-
-        // Малюємо тільки видиму передню сторону глобуса для глибини
-        if (z2 > -0.2) {
-          const screenX = centerX + x1 * radius;
-          const screenY = centerY + y2 * radius;
-          const size = (z2 + 1) * 2.5;
-          const alpha = (z2 + 0.3) * 0.6;
-
-          ctx.fillStyle = `rgba(30, 53, 39, ${alpha})`;
-          ctx.beginPath();
-          ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Додаємо тонкі лінії зв'язків
-          points.forEach(p2 => {
-            const dist = Math.hypot(p.x - p2.x, p.y - p2.y, p.z - p2.z);
-            if (dist < 0.28) {
-              const x2_1 = p2.x * cosY - p2.z * sinY;
-              const z2_1 = p2.z * cosY + p2.x * sinY;
-              const y2_2 = p2.y * cosX - z2_1 * sinX;
-              const z2_2 = z2_1 * cosX + p2.y * sinX;
-
-              if (z2_2 > -0.2) {
-                ctx.strokeStyle = `rgba(30, 53, 39, ${alpha * 0.15})`;
-                ctx.lineWidth = 0.4;
-                ctx.beginPath();
-                ctx.moveTo(screenX, screenY);
-                ctx.lineTo(centerX + x2_1 * radius, centerY + y2_2 * radius);
-                ctx.stroke();
-              }
-            }
-          });
-        }
-      });
-
-      // Спеціальний пульсуючий пін України/Харкова на глобусі
-      const pulseSize = 4 + Math.sin(Date.now() * 0.005) * 2;
-      ctx.fillStyle = '#1E3527';
-      ctx.shadowColor = '#1E3527';
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.arc(centerX + Math.sin(rotation) * radius * 0.2, centerY - radius * 0.3, pulseSize, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0; // Скидання тіні
-
-      animationFrameId = requestAnimationFrame(render);
+    // Динамічно вантажимо D3.js для роботи з гео-даними без встановлення NPM-пакетів
+    const loadScripts = async () => {
+      if (!(window as any).d3) {
+        await new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://d3js.org/d3.v7.min.js';
+          script.onload = resolve;
+          document.head.appendChild(script);
+        });
+      }
+      if (!(window as any).topojson) {
+        await new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/topojson-client@3';
+          script.onload = resolve;
+          document.head.appendChild(script);
+        });
+      }
+      initSolidGlobe();
     };
 
-    render();
-    return () => cancelAnimationFrame(animationFrameId);
+    const initSolidGlobe = async () => {
+      try {
+        const d3 = (window as any).d3;
+        const topojson = (window as any).topojson;
+
+        const width = canvas.width;
+        const height = canvas.height;
+        const cx = width / 2;
+        const cy = height / 2;
+        const radius = width * 0.42;
+
+        const projection = d3.geoOrthographic()
+          .translate([cx, cy])
+          .scale(radius)
+          .clipAngle(90);
+
+        const path = d3.geoPath(projection, ctx);
+
+        // Завантажуємо векторні контури материків
+        const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
+        const land = topojson.feature(worldData, worldData.objects.land);
+
+        // Піни для краси (Україна + Світ)
+        const markers = [
+          { lon: 36.23, lat: 50.00 }, // Харків
+          { lon: 30.52, lat: 50.45 }, // Київ
+          { lon: 12.49, lat: 41.90 }, // Італія
+          { lon: 8.54,  lat: 47.37 }, // Швейцарія
+          { lon: 13.40, lat: 52.52 }, // Німеччина
+          { lon: 55.27, lat: 25.20 }, // Дубай
+          { lon: -0.12, lat: 51.50 }, // Лондон
+          { lon: -74.00, lat: 40.71 } // Нью-Йорк
+        ];
+
+        let time = 0;
+        const initialRotation = [-30, -30, 0]; // Фокус стартує ближче до Європи
+
+        const render = () => {
+          time += 0.003; 
+          projection.rotate([initialRotation[0] + time * 20, initialRotation[1], initialRotation[2]]);
+
+          ctx.clearRect(0, 0, width, height);
+
+          // 1. Океан / База глобуса з 3D бліком (за референсом)
+          const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
+          baseGradient.addColorStop(0, '#FFFFFF'); // Відблиск
+          baseGradient.addColorStop(0.4, '#EBEAE6'); // Основний колір (слонова кістка)
+          baseGradient.addColorStop(1, '#C2C0B8'); // Затінення для об'єму
+          
+          ctx.beginPath();
+          path({ type: 'Sphere' });
+          ctx.fillStyle = baseGradient;
+          ctx.fill();
+
+          // 2. Материки (графітово-зелений)
+          ctx.beginPath();
+          path(land);
+          ctx.fillStyle = '#414D46'; 
+          ctx.fill();
+
+          // 3. Внутрішня тінь для більшої глибини
+          const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
+          shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
+          shadowGradient.addColorStop(1, 'rgba(0,0,0,0.15)');
+          ctx.beginPath();
+          path({ type: 'Sphere' });
+          ctx.fillStyle = shadowGradient;
+          ctx.fill();
+
+          // 4. Сяючі білі піни з гало
+          const center = projection.invert([cx, cy]);
+          markers.forEach(marker => {
+            if (!center) return;
+            const dist = d3.geoDistance(center, [marker.lon, marker.lat]);
+            
+            // Малюємо лише ті точки, що зараз "обернені" до нас
+            if (dist < Math.PI / 2) {
+              const [x, y] = projection([marker.lon, marker.lat]);
+              const pulse = 3 + Math.sin(Date.now() * 0.004 + marker.lon) * 2.5;
+              
+              // Напівпрозоре Гало
+              ctx.beginPath();
+              ctx.arc(x, y, pulse + 4, 0, 2 * Math.PI);
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+              ctx.fill();
+
+              // Яскравий центр
+              ctx.beginPath();
+              ctx.arc(x, y, 2.5, 0, 2 * Math.PI);
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fill();
+            }
+          });
+
+          animationFrameId = requestAnimationFrame(render);
+        };
+
+        render();
+      } catch (error) {
+        console.error("Помилка завантаження карти:", error);
+      }
+    };
+
+    loadScripts();
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
   }, [isGlobeMode]);
 
   // Завантаження проєктів
@@ -316,14 +349,14 @@ export default function GraziaFurnitureSystem() {
         <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[#EBEAE6] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[#0D0D0D]/5">
           
           {isGlobeMode ? (
-            /* РЕЖИМ 1: Елітний 3D Глобус */
+            /* РЕЖИМ 1: Елітний 3D Глобус з материками */
             <div className={`w-full h-full flex flex-col items-center justify-center p-6 relative transition-all duration-700 ${isTransitioning ? 'scale-150 opacity-0 blur-md' : 'scale-100 opacity-100'}`}>
               <canvas ref={canvasRef} width={550} height={550} className="w-full max-w-[500px] aspect-square cursor-grab active:cursor-grabbing" />
               <div className="absolute top-6 left-6 bg-[#F5F4F1]/80 backdrop-blur-sm px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest">
                 Преміум 3D Глобус Землі
               </div>
               <div className="absolute bottom-6 text-center">
-                <p className="text-[11px] font-semibold tracking-widest text-[#1E3527] uppercase">Обертається навколо України</p>
+                <p className="text-[11px] font-semibold tracking-widest text-[#1E3527] uppercase">Обертається навколо Європи та України</p>
                 <p className="text-[10px] text-[#0D0D0D]/50 mt-1">Клікніть на кнопку ліворуч для наближення карти</p>
               </div>
             </div>
