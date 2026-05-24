@@ -160,8 +160,19 @@ export default function Home() {
       const { top, height } = containerRef.current.getBoundingClientRect();
       const windowHeight = window.innerHeight;
       const scrollableDistance = height - windowHeight;
-      let progress = -top / scrollableDistance;
-      progress = Math.max(0, Math.min(1, progress));
+      
+      let progress = 0;
+      if (scrollableDistance > 0) {
+        progress = -top / scrollableDistance;
+      }
+      
+      // Надійний захист від NaN та нескінченності під час первинного рендерингу
+      if (isNaN(progress) || !isFinite(progress)) {
+        progress = 0;
+      } else {
+        progress = Math.max(0, Math.min(1, progress));
+      }
+      
       setScrollProgress(progress);
     };
 
@@ -194,14 +205,16 @@ export default function Home() {
     }
   };
 
-  // --- Математика анімацій пакування у коробку на основі скролу ---
-  const textOpacity = Math.max(1 - scrollProgress * 4, 0);
-  const tvScale = 1 - scrollProgress * 0.45; // Зменшується з 1 до 0.55
-  const tvY = scrollProgress * 42; // Рухається вниз у коробку (в vh)
-  const boxY = Math.max(100 - scrollProgress * 210, 0); // Випливає знизу
-  const boxOpacity = scrollProgress > 0.15 ? Math.min((scrollProgress - 0.15) * 6, 1) : 0;
-  const flapAngle = scrollProgress > 0.65 ? Math.min((scrollProgress - 0.65) * 250, 90) : 0;
-  const uiOpacity = scrollProgress > 0.82 ? Math.min((scrollProgress - 0.82) * 6, 1) : 0;
+  // --- Захист обчислень анімацій від значень NaN ---
+  const safeProgress = isNaN(scrollProgress) || !isFinite(scrollProgress) ? 0 : scrollProgress;
+
+  const textOpacity = Math.max(1 - safeProgress * 4, 0);
+  const tvScale = 1 - safeProgress * 0.45; // Зменшується з 1 до 0.55
+  const tvY = safeProgress * 42; // Рухається вниз у коробку (в vh)
+  const boxY = Math.max(100 - safeProgress * 210, 0); // Випливає знизу
+  const boxOpacity = safeProgress > 0.15 ? Math.min((safeProgress - 0.15) * 6, 1) : 0;
+  const flapAngle = safeProgress > 0.65 ? Math.min((safeProgress - 0.65) * 250, 90) : 0;
+  const uiOpacity = safeProgress > 0.82 ? Math.min((safeProgress - 0.82) * 6, 1) : 0;
 
   // Демо-продукти на випадок порожньої бази даних
   const fallbackProducts = activeStore === 'tech' ? [
@@ -277,7 +290,7 @@ export default function Home() {
           {/* Елементи заголовків */}
           <div 
             className="absolute top-[18%] flex flex-col items-center z-10 transition-transform duration-75"
-            style={{ opacity: textOpacity, transform: `translateY(${scrollProgress * -60}px)` }}
+            style={{ opacity: textOpacity, transform: `translateY(${safeProgress * -60}px)` }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] uppercase tracking-widest text-emerald-400 mb-6 font-mono">
               <Sparkles size={12} />
@@ -334,7 +347,7 @@ export default function Home() {
             <div className="w-[86%] h-full bg-[#bf9867] relative shadow-[0_20px_50px_rgba(0,0,0,0.6)] border-t border-[#d8ad77] flex flex-col items-center justify-center">
               <div className="w-full h-28 bg-[#cca270] absolute -top-28 origin-bottom border-x border-[#96774c]" style={{ transform: `rotateX(${flapAngle}deg)` }}></div>
 
-              {scrollProgress > 0.78 && (
+              {safeProgress > 0.78 && (
                 <div className="absolute -top-3 w-[60%] h-6 bg-white/20 backdrop-blur-md border border-white/10 z-50 rounded-sm"></div>
               )}
 
@@ -352,7 +365,7 @@ export default function Home() {
             className="absolute inset-0 bg-[#060606]/85 backdrop-blur-xl z-40 flex items-center justify-center transition-all duration-75 pointer-events-none"
             style={{ 
               opacity: uiOpacity,
-              pointerEvents: scrollProgress > 0.88 ? 'auto' : 'none'
+              pointerEvents: safeProgress > 0.88 ? 'auto' : 'none'
             }}
           >
             <div className="bg-zinc-950 border border-zinc-800 p-8 rounded-3xl shadow-[0_30px_70px_rgba(0,0,0,0.8)] w-[92vw] max-w-md flex flex-col gap-6">
