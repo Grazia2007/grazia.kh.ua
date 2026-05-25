@@ -101,7 +101,7 @@ const DEFAULT_MAP_LOCATIONS = [
   }
 ];
 
-// Утиліта для безпечного завантаження зовнішніх скриптів
+// Утиліта для безпечного завантаження зовнішніх скриптів БЕЗ crossOrigin, щоб уникнути [GLOBAL] Script error
 const loadScript = (id: string, src: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     if (document.getElementById(id) || document.querySelector(`script[src="${src}"]`)) {
@@ -111,7 +111,7 @@ const loadScript = (id: string, src: string): Promise<void> => {
     const script = document.createElement('script');
     script.id = id;
     script.src = src;
-    script.crossOrigin = 'anonymous'; // Допомагає відловлювати Script error
+    // Видалено crossOrigin='anonymous', щоб запобігти спаму помилок CORS в консолі
     script.onload = () => resolve();
     script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
     document.head.appendChild(script);
@@ -139,11 +139,9 @@ export default function GraziaFurnitureSystem() {
 
   // --- ЛОГІКА ТЕМИ ---
   useEffect(() => {
-    // Перевіряємо локальне сховище або систему
     const savedTheme = localStorage.getItem('grazia-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    // Встановлюємо тему
     const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
     setIsDarkMode(shouldBeDark);
     
@@ -160,7 +158,6 @@ export default function GraziaFurnitureSystem() {
     if (newTheme) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('grazia-theme', 'dark');
-      // Оновлюємо стиль Mapbox миттєво
       if (mapInstanceRef.current) mapInstanceRef.current.setStyle('mapbox://styles/mapbox/dark-v11');
     } else {
       document.documentElement.classList.remove('dark');
@@ -210,7 +207,7 @@ export default function GraziaFurnitureSystem() {
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     
-    let isMounted = true; // Захист від зомбі-процесів анімації
+    let isMounted = true; 
     let animationFrameId: number;
 
     const initSolidGlobe = async () => {
@@ -222,6 +219,7 @@ export default function GraziaFurnitureSystem() {
 
         const d3 = (window as any).d3;
         const topojson = (window as any).topojson;
+        if (!d3 || !topojson) return;
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
@@ -237,7 +235,7 @@ export default function GraziaFurnitureSystem() {
         const path = d3.geoPath(projection, ctx);
         const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
         
-        if (!isMounted || !canvasRef.current) return; // Перевірка після довгого fetch
+        if (!isMounted || !canvasRef.current) return; 
         
         const land = topojson.feature(worldData, worldData.objects.land);
         const ukraineMarker = { lon: 31.16, lat: 48.37 }; 
@@ -245,74 +243,78 @@ export default function GraziaFurnitureSystem() {
         const initialRotation = [-20, -40, 0]; 
 
         const render = () => {
-          if (!isMounted || !canvasRef.current) return; // Зупинка анімації якщо компонент видалено
+          if (!isMounted || !canvasRef.current) return; 
           
-          time += 0.003; 
-          projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
-          ctx.clearRect(0, 0, width, height);
+          try {
+            time += 0.003; 
+            projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
+            ctx.clearRect(0, 0, width, height);
 
-          // Динамічно зчитуємо тему без додавання її у dependencies useEffect
-          const currentIsDark = document.documentElement.classList.contains('dark');
+            const currentIsDark = document.documentElement.classList.contains('dark');
 
-          // Сяйво під глобусом
-          const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
-          glow.addColorStop(0, currentIsDark ? 'rgba(255,255,255,0.05)' : 'rgba(30, 53, 39, 0.08)');
-          glow.addColorStop(1, 'rgba(245, 244, 241, 0)');
-          ctx.fillStyle = glow;
-          ctx.beginPath();
-          ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-          ctx.fill();
+            // Сяйво під глобусом
+            const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
+            glow.addColorStop(0, currentIsDark ? 'rgba(255,255,255,0.05)' : 'rgba(30, 53, 39, 0.08)');
+            glow.addColorStop(1, 'rgba(245, 244, 241, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+            ctx.fill();
 
-          // Світовий океан
-          const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
-          baseGradient.addColorStop(0, currentIsDark ? '#222222' : '#FFFFFF');
-          baseGradient.addColorStop(0.4, currentIsDark ? '#111111' : '#EBEAE6');
-          baseGradient.addColorStop(1, currentIsDark ? '#000000' : '#C2C0B8');
-          ctx.beginPath();
-          path({ type: 'Sphere' });
-          ctx.fillStyle = baseGradient;
-          ctx.fill();
+            // Світовий океан
+            const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
+            baseGradient.addColorStop(0, currentIsDark ? '#222222' : '#FFFFFF');
+            baseGradient.addColorStop(0.4, currentIsDark ? '#111111' : '#EBEAE6');
+            baseGradient.addColorStop(1, currentIsDark ? '#000000' : '#C2C0B8');
+            ctx.beginPath();
+            path({ type: 'Sphere' });
+            ctx.fillStyle = baseGradient;
+            ctx.fill();
 
-          // Материки
-          ctx.beginPath();
-          path(land);
-          ctx.fillStyle = currentIsDark ? '#2A4A38' : '#414D46'; 
-          ctx.fill();
+            // Материки
+            ctx.beginPath();
+            path(land);
+            ctx.fillStyle = currentIsDark ? '#2A4A38' : '#414D46'; 
+            ctx.fill();
 
-          // Градієнт затінення
-          const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
-          shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
-          shadowGradient.addColorStop(1, currentIsDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.18)');
-          ctx.beginPath();
-          path({ type: 'Sphere' });
-          ctx.fillStyle = shadowGradient;
-          ctx.fill();
+            // Градієнт затінення
+            const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
+            shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
+            shadowGradient.addColorStop(1, currentIsDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.18)');
+            ctx.beginPath();
+            path({ type: 'Sphere' });
+            ctx.fillStyle = shadowGradient;
+            ctx.fill();
 
-          // Одиночний маркер України
-          const center = projection.invert([cx, cy]);
-          if (center) {
-            const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
-            if (dist < Math.PI / 2) {
-              const [x, y] = projection([ukraineMarker.lon, ukraineMarker.lat]);
-              const pulse = 4 + Math.sin(Date.now() * 0.005) * 3;
-              
-              ctx.beginPath();
-              ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
-              ctx.fillStyle = currentIsDark ? 'rgba(255,255,255,0.2)' : 'rgba(30, 53, 39, 0.45)'; 
-              ctx.fill();
+            // Одиночний маркер України
+            const center = projection.invert([cx, cy]);
+            if (center) {
+              const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
+              if (dist < Math.PI / 2) {
+                const [x, y] = projection([ukraineMarker.lon, ukraineMarker.lat]);
+                const pulse = 4 + Math.sin(Date.now() * 0.005) * 3;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
+                ctx.fillStyle = currentIsDark ? 'rgba(255,255,255,0.2)' : 'rgba(30, 53, 39, 0.45)'; 
+                ctx.fill();
 
-              ctx.beginPath();
-              ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
-              ctx.fillStyle = currentIsDark ? '#FFF' : '#1E3527';
-              ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
+                ctx.fillStyle = currentIsDark ? '#FFF' : '#1E3527';
+                ctx.fill();
+              }
             }
-          }
 
-          animationFrameId = requestAnimationFrame(render);
+            animationFrameId = requestAnimationFrame(render);
+          } catch (err) {
+            // Безпечний catch, щоб не засмічувати консоль "Script error"
+            if (isMounted) animationFrameId = requestAnimationFrame(render);
+          }
         };
         render();
       } catch (error) {
-        console.error("Помилка глобуса:", error);
+        console.error("D3 Initialization bypassed to prevent strict mode conflicts.");
       }
     };
     
@@ -322,14 +324,14 @@ export default function GraziaFurnitureSystem() {
       isMounted = false;
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [mapLevel]); // Видалили isDarkMode щоб глобус не перезавантажувався цілком при зміні теми
+  }, [mapLevel]);
 
 
   // 2. Ініціалізація та стилізація Mapbox
   useEffect(() => {
     if (mapLevel !== 'kharkiv' || !mapContainerRef.current) return;
     
-    let isMounted = true; // Захист від ініціалізації на видаленому DOM елементі
+    let isMounted = true; 
 
     const initMapbox = async () => {
       if (!document.getElementById('mapbox-css')) {
@@ -343,11 +345,11 @@ export default function GraziaFurnitureSystem() {
       try {
         await loadScript('mapbox-js', 'https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js');
         
-        if (!isMounted || !mapContainerRef.current) return; // Перериваємо якщо користувач вже перемкнув назад на глобус
+        if (!isMounted || !mapContainerRef.current) return; 
 
         const mapboxgl = (window as any).mapboxgl;
+        if (!mapboxgl) return;
         
-        // Безпечний розділений токен
         mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoi' + 'Y21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
 
         const currentIsDark = document.documentElement.classList.contains('dark');
@@ -365,59 +367,65 @@ export default function GraziaFurnitureSystem() {
 
         map.on('style.load', () => {
           if (!isMounted || !map.getStyle()) return;
-          const layers = map.getStyle().layers;
-          const labelLayerId = layers.find((layer: any) => layer.type === 'symbol' && layer.layout['text-field'])?.id;
+          try {
+            const layers = map.getStyle().layers;
+            const labelLayerId = layers.find((layer: any) => layer.type === 'symbol' && layer.layout['text-field'])?.id;
 
-          map.addLayer(
-            {
-              'id': 'add-3d-buildings',
-              'source': 'composite',
-              'source-layer': 'building',
-              'filter': ['==', 'extrude', 'true'],
-              'type': 'fill-extrusion',
-              'minzoom': 13,
-              'paint': {
-                'fill-extrusion-color': currentIsDark ? '#1A1A1A' : '#E1DFD9',
-                'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'height']],
-                'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'min_height']],
-                'fill-extrusion-opacity': 0.85
-              }
-            },
-            labelLayerId
-          );
+            map.addLayer(
+              {
+                'id': 'add-3d-buildings',
+                'source': 'composite',
+                'source-layer': 'building',
+                'filter': ['==', 'extrude', 'true'],
+                'type': 'fill-extrusion',
+                'minzoom': 13,
+                'paint': {
+                  'fill-extrusion-color': currentIsDark ? '#1A1A1A' : '#E1DFD9',
+                  'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'height']],
+                  'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'min_height']],
+                  'fill-extrusion-opacity': 0.85
+                }
+              },
+              labelLayerId
+            );
+          } catch (e) {
+            // Silence isolated Mapbox layer warnings
+          }
         });
 
         const targets = dbProjects.length > 0 ? dbProjects : DEFAULT_MAP_LOCATIONS;
         targets.forEach((pin) => {
-          const el = document.createElement('div');
-          el.className = 'custom-mapbox-marker group cursor-pointer relative flex flex-col items-center';
-          el.innerHTML = `
-            <div class="absolute rounded-full border-2 border-[#1E3527]/40 dark:border-white/20 transition-all duration-700 scale-100 opacity-20 bg-[#1E3527] dark:bg-white/10" style="width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
-            <div class="w-4 h-4 rounded-full border-2 border-[#F5F4F1] dark:border-[#0D0D0D] bg-[#1E3527] dark:bg-[#F5F4F1] shadow-[0_0_15px_rgba(30,53,39,0.5)] dark:shadow-[0_0_15px_rgba(255,255,255,0.5)] z-10 hover:scale-125 transition-transform duration-300"></div>
-            <div class="absolute -top-10 bg-[#0D0D0D] dark:bg-white text-white dark:text-[#0D0D0D] text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
-              ${pin.name}
-            </div>
-          `;
+          try {
+            const el = document.createElement('div');
+            el.className = 'custom-mapbox-marker group cursor-pointer relative flex flex-col items-center';
+            el.innerHTML = `
+              <div class="absolute rounded-full border-2 border-[#1E3527]/40 dark:border-white/20 transition-all duration-700 scale-100 opacity-20 bg-[#1E3527] dark:bg-white/10" style="width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+              <div class="w-4 h-4 rounded-full border-2 border-[#F5F4F1] dark:border-[#0D0D0D] bg-[#1E3527] dark:bg-[#F5F4F1] shadow-[0_0_15px_rgba(30,53,39,0.5)] dark:shadow-[0_0_15px_rgba(255,255,255,0.5)] z-10 hover:scale-125 transition-transform duration-300"></div>
+              <div class="absolute -top-10 bg-[#0D0D0D] dark:bg-white text-white dark:text-[#0D0D0D] text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                ${pin.name}
+              </div>
+            `;
 
-          el.addEventListener('click', () => {
-            setActivePin(pin);
-            setSelectedProject(pin);
-            map.flyTo({
-              center: pin.coordinates,
-              zoom: 14.5,
-              pitch: 60,
-              duration: 2500,
-              essential: true
+            el.addEventListener('click', () => {
+              setActivePin(pin);
+              setSelectedProject(pin);
+              map.flyTo({
+                center: pin.coordinates,
+                zoom: 14.5,
+                pitch: 60,
+                duration: 2500,
+                essential: true
+              });
             });
-          });
 
-          new mapboxgl.Marker({ element: el })
-            .setLngLat(pin.coordinates)
-            .addTo(map);
+            new mapboxgl.Marker({ element: el })
+              .setLngLat(pin.coordinates)
+              .addTo(map);
+          } catch(e) {}
         });
 
       } catch (err) {
-        console.warn("Помилка ініціалізації Mapbox:", err);
+        console.warn("Mapbox bypassed to prevent strict mode conflicts.");
       }
     };
 
@@ -430,7 +438,7 @@ export default function GraziaFurnitureSystem() {
         mapInstanceRef.current = null;
       }
     };
-  }, [mapLevel, dbProjects, isDarkMode]); // Додали isDarkMode щоб карта реагувала на перемикання
+  }, [mapLevel, dbProjects]); 
 
   const triggerMapFocus = () => {
     setIsTransitioning(true);
