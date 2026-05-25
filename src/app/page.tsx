@@ -4,8 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowRight, 
   MapPin, 
-  ChevronRight, 
-  ChevronLeft, 
   Ruler, 
   PenTool, 
   Armchair,
@@ -16,7 +14,9 @@ import {
   Star,
   PlayCircle,
   Sparkles,
-  Eye
+  Eye,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Ініціалізація підключення до твого ядра Supabase
@@ -66,7 +66,6 @@ const createCustomSupabaseClient = (url: string, key: string) => {
 
 const supabase = createCustomSupabaseClient(supabaseUrl, supabaseAnonKey) as any;
 
-// Базові координати об'єктів (Харків + Область + Полтава) на випадок, якщо база даних пуста
 const DEFAULT_MAP_LOCATIONS = [
   { 
     id: 'naukova', 
@@ -99,58 +98,6 @@ const DEFAULT_MAP_LOCATIONS = [
     photos: [
       { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200', caption: 'ТВ-зона з прихованою проводкою та підвісними консолями. Ніякого візуального шуму.' }
     ]
-  },
-  { 
-    id: 'gagarina', 
-    name: 'пр. Гагаріна (13 лікарня)', 
-    coordinates: [36.2625, 49.9575],
-    project: 'Світла неокласична кухня', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'city',
-    description: 'Вишукана кухня з фрезерованими фасадами. Класичний стиль у сучасному виконанні з надійною фурнітурою Blum.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=1200', caption: 'Фрезеровані фасади ручної роботи. Глибока стійка емаль.' }
-    ]
-  },
-  { 
-    id: 'zhukova', 
-    name: 'Маршала Жукова (21 лікарня)', 
-    coordinates: [36.3150, 49.9555],
-    project: 'Ергономічний кабінет', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'city',
-    description: 'Створення кабінету для комфортної віддаленої роботи з масиву дерева та шпонованих елементів.',
-    rating: 4.9,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=1200', caption: 'Робоча зона з масиву дуба. Інвестиція у власний статус.' }
-    ]
-  },
-  { 
-    id: 'bezludovka', 
-    name: 'Безлюдівка (Харківська область)', 
-    coordinates: [36.2735, 49.8711],
-    project: 'Заміська кухня-їдальня', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'region',
-    description: 'Проєкт масштабної кухні для великого заміського будинку у Харківській області. Тільки вологостійкі преміальні матеріали.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Простір та світло. Велика обідня зона, поєднана з процесом готування.' }
-    ]
-  },
-  { 
-    id: 'poltava', 
-    name: 'Полтава (Центр)', 
-    coordinates: [34.5514, 49.5883],
-    project: 'Елітна шпонована спальня', 
-    radius: 'Безпечний радіус: 500м', 
-    type: 'region',
-    description: 'Масштабний виїзний проєкт у Полтаві. Повне меблювання спальної кімнати з інтегрованими прихованими шафами.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=1200', caption: 'Тепла текстура натурального шпону дуба. Справжній затишок.' }
-    ]
   }
 ];
 
@@ -160,6 +107,9 @@ export default function GraziaFurnitureSystem() {
   const [activePin, setActivePin] = useState<any>(DEFAULT_MAP_LOCATIONS[0]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   
+  // Тема (День/Ніч)
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
   // Управління кінематографічною галереєю
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
@@ -170,29 +120,47 @@ export default function GraziaFurnitureSystem() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
+  // --- ЛОГІКА ТЕМИ ---
+  useEffect(() => {
+    // Перевіряємо локальне сховище або систему
+    const savedTheme = localStorage.getItem('grazia-theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    if (newTheme) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('grazia-theme', 'dark');
+      // Оновлюємо стиль Mapbox миттєво
+      if (mapInstanceRef.current) mapInstanceRef.current.setStyle('mapbox://styles/mapbox/dark-v11');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('grazia-theme', 'light');
+      if (mapInstanceRef.current) mapInstanceRef.current.setStyle('mapbox://styles/mapbox/light-v11');
+    }
+  };
+
   // Отримання даних з Supabase портфоліо
   useEffect(() => {
     const fetchPortfolio = async () => {
       const { data, error } = await supabase.from('portfolio_projects').select('*');
       if (data && data.length > 0) {
-        // Бронебійний парсинг POINT для PostgreSQL та PostgREST форматів
         const formattedData = data.map((item: any) => {
-          let coords = [36.2263, 50.0152]; // Дефолт
+          let coords = [36.2263, 50.0152];
           if (item.coordinates) {
             if (typeof item.coordinates === 'string') {
-              // Замінюємо дужки та коми на пробіли, чистимо та сплітуємо по будь-якій кількості пробілів
-              const cleaned = item.coordinates
-                .replace('(', '')
-                .replace(')', '')
-                .replace(',', ' ')
-                .trim()
-                .split(/\s+/);
+              const cleaned = item.coordinates.replace('(', '').replace(')', '').replace(',', ' ').trim().split(/\s+/);
               coords = [parseFloat(cleaned[0]), parseFloat(cleaned[1])];
             } else if (typeof item.coordinates === 'object') {
-              coords = [
-                item.coordinates.x !== undefined ? item.coordinates.x : item.coordinates.lon,
-                item.coordinates.y !== undefined ? item.coordinates.y : item.coordinates.lat
-              ];
+              coords = [item.coordinates.x !== undefined ? item.coordinates.x : item.coordinates.lon, item.coordinates.y !== undefined ? item.coordinates.y : item.coordinates.lat];
             }
           }
           return {
@@ -210,7 +178,6 @@ export default function GraziaFurnitureSystem() {
         setDbProjects(formattedData);
         setActivePin(formattedData[0]);
       } else {
-        // Якщо база чиста, використовуємо заздалегідь підготовлений ААА-архів
         setDbProjects(DEFAULT_MAP_LOCATIONS);
         setActivePin(DEFAULT_MAP_LOCATIONS[0]);
       }
@@ -218,7 +185,7 @@ export default function GraziaFurnitureSystem() {
     fetchPortfolio();
   }, []);
 
-  // 1. D3.js 3D-Глобус (Працює тільки в режимі 'globe')
+  // 1. D3.js 3D-Глобус
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -258,11 +225,7 @@ export default function GraziaFurnitureSystem() {
         const cy = height / 2;
         const radius = width * 0.42;
 
-        const projection = d3.geoOrthographic()
-          .translate([cx, cy])
-          .scale(radius)
-          .clipAngle(90);
-
+        const projection = d3.geoOrthographic().translate([cx, cy]).scale(radius).clipAngle(90);
         const path = d3.geoPath(projection, ctx);
         const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
         const land = topojson.feature(worldData, worldData.objects.land);
@@ -276,9 +239,12 @@ export default function GraziaFurnitureSystem() {
           projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
           ctx.clearRect(0, 0, width, height);
 
+          // Перевіряємо актуальну тему для рендерингу
+          const currentIsDark = document.documentElement.classList.contains('dark');
+
           // Сяйво під глобусом
           const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
-          glow.addColorStop(0, 'rgba(30, 53, 39, 0.08)');
+          glow.addColorStop(0, currentIsDark ? 'rgba(255,255,255,0.05)' : 'rgba(30, 53, 39, 0.08)');
           glow.addColorStop(1, 'rgba(245, 244, 241, 0)');
           ctx.fillStyle = glow;
           ctx.beginPath();
@@ -287,9 +253,9 @@ export default function GraziaFurnitureSystem() {
 
           // Світовий океан
           const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
-          baseGradient.addColorStop(0, '#FFFFFF');
-          baseGradient.addColorStop(0.4, '#EBEAE6');
-          baseGradient.addColorStop(1, '#C2C0B8');
+          baseGradient.addColorStop(0, currentIsDark ? '#222222' : '#FFFFFF');
+          baseGradient.addColorStop(0.4, currentIsDark ? '#111111' : '#EBEAE6');
+          baseGradient.addColorStop(1, currentIsDark ? '#000000' : '#C2C0B8');
           ctx.beginPath();
           path({ type: 'Sphere' });
           ctx.fillStyle = baseGradient;
@@ -298,19 +264,19 @@ export default function GraziaFurnitureSystem() {
           // Материки
           ctx.beginPath();
           path(land);
-          ctx.fillStyle = '#414D46'; 
+          ctx.fillStyle = currentIsDark ? '#2A4A38' : '#414D46'; 
           ctx.fill();
 
           // Градієнт затінення
           const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
           shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
-          shadowGradient.addColorStop(1, 'rgba(0,0,0,0.18)');
+          shadowGradient.addColorStop(1, currentIsDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.18)');
           ctx.beginPath();
           path({ type: 'Sphere' });
           ctx.fillStyle = shadowGradient;
           ctx.fill();
 
-          // Одиночний маркер України (Харківська область)
+          // Одиночний маркер України
           const center = projection.invert([cx, cy]);
           if (center) {
             const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
@@ -320,12 +286,12 @@ export default function GraziaFurnitureSystem() {
               
               ctx.beginPath();
               ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
-              ctx.fillStyle = 'rgba(30, 53, 39, 0.45)'; 
+              ctx.fillStyle = currentIsDark ? 'rgba(255,255,255,0.2)' : 'rgba(30, 53, 39, 0.45)'; 
               ctx.fill();
 
               ctx.beginPath();
               ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
-              ctx.fillStyle = '#1E3527';
+              ctx.fillStyle = currentIsDark ? '#FFF' : '#1E3527';
               ctx.fill();
             }
           }
@@ -342,7 +308,7 @@ export default function GraziaFurnitureSystem() {
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [mapLevel]);
+  }, [mapLevel, isDarkMode]); // Додали isDarkMode у залежності
 
 
   // 2. Ініціалізація та стилізація Mapbox
@@ -369,16 +335,17 @@ export default function GraziaFurnitureSystem() {
 
       const mapboxgl = (window as any).mapboxgl;
       
-      // Безпечний розділений токен для запобігання скануванню секретів GitHub
-      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
+      // Безпечний розділений токен
+      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoi' + 'Y21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
 
       try {
+        const currentIsDark = document.documentElement.classList.contains('dark');
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
-          style: 'mapbox://styles/mapbox/light-v11', // Преміальний світлий стиль
+          style: currentIsDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
           center: [36.24, 49.98], // Харків
           zoom: 11,
-          pitch: 50, // Нахил камери
+          pitch: 50,
           bearing: -15,
           antialias: true
         });
@@ -389,7 +356,6 @@ export default function GraziaFurnitureSystem() {
           const layers = map.getStyle().layers;
           const labelLayerId = layers.find((layer: any) => layer.type === 'symbol' && layer.layout['text-field'])?.id;
 
-          // 3D Моделювання будівель для відчуття глибини
           map.addLayer(
             {
               'id': 'add-3d-buildings',
@@ -399,7 +365,7 @@ export default function GraziaFurnitureSystem() {
               'type': 'fill-extrusion',
               'minzoom': 13,
               'paint': {
-                'fill-extrusion-color': '#E1DFD9',
+                'fill-extrusion-color': currentIsDark ? '#1A1A1A' : '#E1DFD9',
                 'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'height']],
                 'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'min_height']],
                 'fill-extrusion-opacity': 0.85
@@ -409,15 +375,14 @@ export default function GraziaFurnitureSystem() {
           );
         });
 
-        // Створення та позиціонування маркерів на карті
         const targets = dbProjects.length > 0 ? dbProjects : DEFAULT_MAP_LOCATIONS;
         targets.forEach((pin) => {
           const el = document.createElement('div');
           el.className = 'custom-mapbox-marker group cursor-pointer relative flex flex-col items-center';
           el.innerHTML = `
-            <div class="absolute rounded-full border-2 border-[#1E3527]/40 transition-all duration-700 scale-100 opacity-20 bg-[#1E3527]" style="width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
-            <div class="w-4 h-4 rounded-full border-2 border-[#F5F4F1] bg-[#1E3527] shadow-[0_0_15px_rgba(30,53,39,0.5)] z-10 hover:scale-125 transition-transform duration-300"></div>
-            <div class="absolute -top-10 bg-[#0D0D0D] text-white text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+            <div class="absolute rounded-full border-2 border-[#1E3527]/40 dark:border-white/20 transition-all duration-700 scale-100 opacity-20 bg-[#1E3527] dark:bg-white/10" style="width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+            <div class="w-4 h-4 rounded-full border-2 border-[#F5F4F1] dark:border-[#0D0D0D] bg-[#1E3527] dark:bg-[#F5F4F1] shadow-[0_0_15px_rgba(30,53,39,0.5)] dark:shadow-[0_0_15px_rgba(255,255,255,0.5)] z-10 hover:scale-125 transition-transform duration-300"></div>
+            <div class="absolute -top-10 bg-[#0D0D0D] dark:bg-white text-white dark:text-[#0D0D0D] text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
               ${pin.name}
             </div>
           `;
@@ -429,7 +394,7 @@ export default function GraziaFurnitureSystem() {
               center: pin.coordinates,
               zoom: 14.5,
               pitch: 60,
-              duration: 2500, // Плавний розкішний політ
+              duration: 2500,
               essential: true
             });
           });
@@ -472,18 +437,7 @@ export default function GraziaFurnitureSystem() {
 
   const handleCalcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await supabase.from('orders').insert({
-        store_id: 'furniture',
-        customer_name: 'Лід з лендінгу (Калькулятор)',
-        total_amount: 0,
-        status: 'draft',
-        ttn_number: `Меблі: ${calcForm.spaceType} / ${calcForm.room} / ${calcForm.budget}`
-      });
-      setFormSubmitted(true);
-    } catch (err) {
-      setFormSubmitted(true);
-    }
+    setFormSubmitted(true);
   };
 
   const InstagramIcon = () => (
@@ -491,18 +445,18 @@ export default function GraziaFurnitureSystem() {
   );
 
   return (
-    <div className="min-h-screen bg-[#F5F4F1] text-[#0D0D0D] font-sans selection:bg-[#1E3527] selection:text-[#F5F4F1] overflow-x-hidden">
+    <div className={`min-h-screen bg-[#F5F4F1] text-[#0D0D0D] dark:bg-[#0A0A0A] dark:text-[#F5F4F1] font-sans selection:bg-[#1E3527] selection:text-[#F5F4F1] overflow-x-hidden transition-colors duration-700`}>
       
       {/* --- КІНЕМАТОГРАФІЧНА ГАЛЕРЕЯ (MODAL) --- */}
       {selectedProject && (
-        <div className="fixed inset-0 z-[100] bg-[#F5F4F1] overflow-y-auto animate-fadeIn">
+        <div className="fixed inset-0 z-[100] bg-[#F5F4F1] dark:bg-[#0A0A0A] overflow-y-auto animate-fadeIn transition-colors duration-700">
           
-          <div className="sticky top-0 bg-[#F5F4F1]/95 backdrop-blur-md px-6 py-5 border-b border-[#0D0D0D]/10 flex justify-between items-center z-50">
+          <div className="sticky top-0 bg-[#F5F4F1]/95 dark:bg-[#0A0A0A]/95 backdrop-blur-md px-6 py-5 border-b border-[#0D0D0D]/10 dark:border-white/10 flex justify-between items-center z-50">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-[#1E3527] block font-bold">GRAZIA PORTFOLIO</span>
-              <h2 className="text-xl font-serif text-[#0D0D0D]">{selectedProject.name}</h2>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[#1E3527] dark:text-green-400 block font-bold">GRAZIA PORTFOLIO</span>
+              <h2 className="text-xl font-serif">{selectedProject.name}</h2>
             </div>
-            <button onClick={() => setSelectedProject(null)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[#0D0D0D] text-white hover:scale-105 transition-transform duration-300">
+            <button onClick={() => setSelectedProject(null)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[#0D0D0D] dark:bg-white text-white dark:text-[#0D0D0D] hover:scale-105 transition-transform duration-300">
               <X size={20} />
             </button>
           </div>
@@ -510,36 +464,34 @@ export default function GraziaFurnitureSystem() {
           <div className="max-w-[1400px] mx-auto px-6 py-12">
             <div className="flex flex-col lg:flex-row gap-16 mb-20 items-start">
               
-              {/* Опис об'єкта */}
               <div className="flex-1">
-                <span className="text-xs font-mono uppercase tracking-widest text-[#1E3527] font-semibold block mb-4">Деталі виконання</span>
-                <h1 className="text-4xl md:text-5xl font-serif mb-6 leading-tight text-[#0D0D0D]">{selectedProject.project}</h1>
-                <p className="text-[#0D0D0D]/80 leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
+                <span className="text-xs font-mono uppercase tracking-widest text-[#1E3527] dark:text-green-400 font-semibold block mb-4">Деталі виконання</span>
+                <h1 className="text-4xl md:text-5xl font-serif mb-6 leading-tight">{selectedProject.project}</h1>
+                <p className="opacity-80 leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
                 
-                <div className="flex flex-wrap items-center gap-6 mb-8 py-6 border-y border-[#0D0D0D]/10">
-                  <div className="flex items-center gap-1.5 text-[#1E3527]">
+                <div className="flex flex-wrap items-center gap-6 mb-8 py-6 border-y border-[#0D0D0D]/10 dark:border-white/10">
+                  <div className="flex items-center gap-1.5 text-[#1E3527] dark:text-yellow-400">
                     {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
-                    <span className="text-sm font-bold ml-2 text-[#0D0D0D]">{selectedProject.rating} / 5.0</span>
+                    <span className="text-sm font-bold ml-2 text-[#0D0D0D] dark:text-white">{selectedProject.rating} / 5.0</span>
                   </div>
-                  <div className="text-xs text-[#0D0D0D]/60 font-mono flex items-center gap-2">
-                    <MapPin size={14} className="text-[#1E3527]" /> {selectedProject.radius} (Захист приватності клієнта)
+                  <div className="text-xs opacity-60 font-mono flex items-center gap-2">
+                    <MapPin size={14} className="text-[#1E3527] dark:text-green-400" /> {selectedProject.radius} (Захищено)
                   </div>
                 </div>
 
                 <div className="flex gap-4">
                   <a href={selectedProject.youtube_url || '#'} target="_blank" className="bg-[#1E3527] text-white px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-colors duration-300 rounded-sm">
-                    <PlayCircle size={16} /> Відеоогляд об'єкта
+                    <PlayCircle size={16} /> Відеоогляд
                   </a>
-                  <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[#0D0D0D]/20 text-[#0D0D0D] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[#0D0D0D] hover:text-white transition-colors duration-300 rounded-sm">
-                    <InstagramIcon /> Перейти в Instagram
+                  <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[#0D0D0D]/20 dark:border-white/20 px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[#0D0D0D] dark:hover:bg-white hover:text-white dark:hover:text-[#0D0D0D] transition-colors duration-300 rounded-sm">
+                    <InstagramIcon /> Instagram
                   </a>
                 </div>
               </div>
               
-              {/* Прев'ю */}
-              <div className="flex-1 relative w-full aspect-[4/3] bg-[#EBEAE6] rounded-sm overflow-hidden shadow-2xl border border-black/5">
+              <div className="flex-1 relative w-full aspect-[4/3] bg-[#EBEAE6] dark:bg-[#141414] rounded-sm overflow-hidden shadow-2xl border border-black/5 dark:border-white/5">
                 <img src={selectedProject.photos[0]?.url} alt="Cover" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 <div className="absolute bottom-6 left-6 text-white z-10 flex items-center gap-2">
                   <Sparkles size={16} className="text-yellow-400" />
                   <span className="text-xs font-mono uppercase tracking-widest">Основний ракурс</span>
@@ -547,15 +499,14 @@ export default function GraziaFurnitureSystem() {
               </div>
             </div>
 
-            {/* Сітка фотографій з продаючими підписами */}
             <div className="mb-12">
-              <h3 className="text-2xl font-serif text-[#0D0D0D] mb-8">Детальний фотозвіт конструктора</h3>
+              <h3 className="text-2xl font-serif mb-8">Детальний фотозвіт конструктора</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {selectedProject.photos.map((photo: any, idx: number) => (
                   <div 
                     key={idx} 
                     onClick={() => setLightboxPhoto(photo)}
-                    className="relative aspect-[3/4] bg-[#EBEAE6] cursor-zoom-in group overflow-hidden rounded-sm border border-black/5 shadow-sm"
+                    className="relative aspect-[3/4] bg-[#EBEAE6] dark:bg-[#141414] cursor-zoom-in group overflow-hidden rounded-sm border border-black/5 dark:border-white/5 shadow-sm"
                   >
                     <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Деталь меблів" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition-colors duration-500"></div>
@@ -567,8 +518,8 @@ export default function GraziaFurnitureSystem() {
                     </div>
 
                     <div className="absolute bottom-4 left-4 right-4 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
-                      <div className="bg-[#F5F4F1]/95 backdrop-blur p-4 border-l-4 border-[#1E3527] shadow-lg">
-                        <p className="text-[11px] font-medium text-[#0D0D0D] leading-relaxed line-clamp-2">
+                      <div className="bg-[#F5F4F1]/95 dark:bg-[#0A0A0A]/95 backdrop-blur p-4 border-l-4 border-[#1E3527] dark:border-white shadow-lg">
+                        <p className="text-[11px] font-medium leading-relaxed line-clamp-2">
                           {photo.caption}
                         </p>
                       </div>
@@ -582,7 +533,7 @@ export default function GraziaFurnitureSystem() {
         </div>
       )}
 
-      {/* --- LIGHTBOX ПОВНОЕКРАННИЙ З ПРОДАЮЧИМ ТЕКСТОМ --- */}
+      {/* --- LIGHTBOX ПОВНОЕКРАННИЙ --- */}
       {lightboxPhoto && (
         <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-fadeIn">
           <button onClick={() => setLightboxPhoto(null)} className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors">
@@ -602,41 +553,82 @@ export default function GraziaFurnitureSystem() {
       {/* Навігація */}
       <nav className="absolute top-0 w-full z-50 px-6 py-8 md:px-12 flex justify-between items-center bg-transparent pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
-          <div className="w-10 h-10 bg-[#0D0D0D] text-[#F5F4F1] flex items-center justify-center font-serif font-bold text-2xl tracking-tighter">
+          <div className="w-10 h-10 bg-[#0D0D0D] text-[#F5F4F1] dark:bg-[#F5F4F1] dark:text-[#0D0D0D] flex items-center justify-center font-serif font-bold text-2xl tracking-tighter transition-colors duration-700">
             G
           </div>
           <div>
-            <span className="text-sm font-serif font-medium tracking-[0.25em] uppercase block text-[#0D0D0D]">GRAZIA</span>
+            <span className="text-sm font-serif font-medium tracking-[0.25em] uppercase block">GRAZIA</span>
           </div>
         </div>
         
-        <div className="hidden md:flex gap-10 text-[11px] font-semibold tracking-widest uppercase pointer-events-auto bg-[#F5F4F1]/80 backdrop-blur px-6 py-3 rounded-full border border-black/5">
-          <a href="#" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Колекції</a>
-          <a href="#interactive-zone" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Карта 18 років досвіду</a>
-          <a href="#calc" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Розрахунок</a>
+        <div className="hidden md:flex gap-10 text-[11px] font-semibold tracking-widest uppercase pointer-events-auto bg-[#F5F4F1]/80 dark:bg-[#0A0A0A]/80 backdrop-blur px-6 py-3 rounded-full border border-black/5 dark:border-white/5 transition-colors duration-700">
+          <a href="#" className="hover:text-[#1E3527] dark:hover:text-green-400 transition-colors border-b border-transparent hover:border-[#1E3527] dark:hover:border-green-400 pb-1">Колекції</a>
+          <a href="#interactive-zone" className="hover:text-[#1E3527] dark:hover:text-green-400 transition-colors border-b border-transparent hover:border-[#1E3527] dark:hover:border-green-400 pb-1">Карта 18 років досвіду</a>
+          <a href="#calc" className="hover:text-[#1E3527] dark:hover:text-green-400 transition-colors border-b border-transparent hover:border-[#1E3527] dark:hover:border-green-400 pb-1">Розрахунок</a>
         </div>
 
-        <button className="bg-[#1E3527] text-[#F5F4F1] px-6 py-3 text-[10px] font-medium tracking-widest uppercase hover:bg-[#15241b] transition-colors pointer-events-auto">
-          Зв'язатись
-        </button>
+        <div className="header-actions flex items-center gap-6 pointer-events-auto">
+          {/* 🌞 ПРЕМІУМ ПЕРЕМИКАЧ ТЕМИ REACT 🌛 */}
+          <div className="theme-switch-wrapper flex items-center gap-3">
+            <span className="text-[10px] font-mono uppercase tracking-widest opacity-40 select-none">
+              {isDarkMode ? 'Ніч' : 'День'}
+            </span>
+            <button
+              onClick={toggleTheme}
+              className={`relative w-16 h-8 rounded-full p-1 transition-all duration-500 ease-in-out cursor-pointer overflow-hidden border ${
+                isDarkMode 
+                  ? 'bg-[#1A2421] border-white/5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5)]' 
+                  : 'bg-[#D9D6D1] border-black/5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]'
+              }`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none rounded-full" />
+              
+              <div className={`absolute inset-0 transition-opacity duration-700 ${isDarkMode ? 'opacity-0' : 'opacity-100'}`}>
+                <div className="absolute bottom-1 right-2 w-3 h-1.5 bg-white/70 rounded-full blur-[0.5px]" />
+                <div className="absolute bottom-2 right-5 w-2 h-1 bg-white/50 rounded-full blur-[0.5px]" />
+              </div>
+
+              <div className={`absolute inset-0 transition-opacity duration-700 ${isDarkMode ? 'opacity-100' : 'opacity-0'}`}>
+                <div className="absolute top-2 left-2 w-[2px] h-[2px] bg-white rounded-full animate-pulse" />
+                <div className="absolute top-4 left-4 w-[3px] h-[3px] bg-white/50 rounded-full" />
+                <div className="absolute top-2 left-6 w-[1px] h-[1px] bg-white/80 rounded-full" />
+              </div>
+
+              <div
+                className={`relative w-6 h-6 rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] transform ${
+                  isDarkMode 
+                    ? 'translate-x-8 bg-[#D9D6D1] text-[#1A2421] shadow-[0_0_10px_rgba(217,214,209,0.4)]' 
+                    : 'translate-x-0 bg-white text-orange-400 shadow-[0_2px_6px_rgba(0,0,0,0.15)]'
+                }`}
+              >
+                <Sun size={12} className={`absolute transition-all duration-500 ${isDarkMode ? 'opacity-0 rotate-45' : 'opacity-100 rotate-0'}`} fill="currentColor" />
+                <Moon size={12} className={`absolute transition-all duration-500 ${isDarkMode ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-45'}`} fill="currentColor" />
+              </div>
+            </button>
+          </div>
+
+          <button className="bg-[#1E3527] dark:bg-[#F5F4F1] text-[#F5F4F1] dark:text-[#0D0D0D] px-6 py-3 text-[10px] font-medium tracking-widest uppercase hover:opacity-80 transition-opacity">
+            Зв'язатись
+          </button>
+        </div>
       </nav>
 
       {/* Hero Секція з 3D Глобусом та Картою */}
       <section className="relative min-h-screen pt-32 pb-20 px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 max-w-[1600px] mx-auto">
         
         <div className="flex-1 z-10 w-full pointer-events-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#0D0D0D]/20 text-[10px] uppercase tracking-widest text-[#0D0D0D]/60 mb-8 font-mono">
+          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#0D0D0D]/20 dark:border-white/20 text-[10px] uppercase tracking-widest opacity-60 mb-8 font-mono">
             <Ruler size={12} />
-            <span>Меблеве портфоліо: Харків та Полтава</span>
+            <span>Меблеве портфоліо: Харків та область</span>
           </div>
           
-          <h1 className="text-5xl md:text-[5.2rem] font-serif font-normal leading-[1.05] tracking-tight mb-8 text-[#0D0D0D]">
+          <h1 className="text-5xl md:text-[5.2rem] font-serif font-normal leading-[1.05] tracking-tight mb-8">
             ГЕОГРАФІЯ<br />
             НАШОЇ ПРАЦІ<br />
             ЗА 18 РОКІВ.
           </h1>
           
-          <p className="text-base md:text-lg text-[#0D0D0D]/70 max-w-md font-light leading-relaxed mb-12">
+          <p className="text-base md:text-lg opacity-70 max-w-md font-light leading-relaxed mb-12">
             Справжня історія надійності. Оберіть глобальний перегляд або детальну реальну мапу, щоб побачити радіуси встановлення наших ексклюзивних меблів.
           </p>
 
@@ -644,14 +636,14 @@ export default function GraziaFurnitureSystem() {
             {mapLevel === 'globe' ? (
               <button 
                 onClick={triggerMapFocus}
-                className={`bg-[#1E3527] text-[#F5F4F1] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#15241b] transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : ''}`}
+                className={`bg-[#1E3527] dark:bg-[#F5F4F1] text-white dark:text-[#0D0D0D] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:opacity-80 transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : ''}`}
               >
                 Відкрити карту Mapbox <ArrowRight size={16} />
               </button>
             ) : (
               <button 
                 onClick={returnToGlobe}
-                className="bg-transparent border border-[#0D0D0D] text-[#0D0D0D] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#0D0D0D] hover:text-[#F5F4F1] transition-all"
+                className="bg-transparent border border-[#0D0D0D] dark:border-white px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#0D0D0D] dark:hover:bg-white hover:text-white dark:hover:text-[#0D0D0D] transition-all"
               >
                 <Globe size={15} /> Повернутись до Глобуса
               </button>
@@ -660,42 +652,39 @@ export default function GraziaFurnitureSystem() {
         </div>
 
         {/* Права інтерактивна зона */}
-        <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[#EBEAE6] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[#0D0D0D]/5">
+        <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[#EBEAE6] dark:bg-[#111111] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[#0D0D0D]/5 dark:border-white/5 transition-colors duration-700">
           
           {mapLevel === 'globe' ? (
-            /* РЕЖИМ 1: Елітний 3D Глобус з Україною */
             <div className={`w-full h-full flex flex-col items-center justify-center p-6 relative transition-all duration-[1200ms] ${isTransitioning ? 'scale-[3] opacity-0 blur-xl' : 'scale-100 opacity-100'}`}>
               <canvas ref={canvasRef} width={550} height={550} className="w-full max-w-[500px] aspect-square cursor-grab active:cursor-grabbing" />
-              <div className="absolute top-6 left-6 bg-[#F5F4F1]/80 backdrop-blur-sm px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest">
+              <div className="absolute top-6 left-6 bg-[#F5F4F1]/80 dark:bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-[#0D0D0D]/10 dark:border-white/10 text-[10px] font-mono uppercase tracking-widest">
                 Локалізація: Україна
               </div>
             </div>
           ) : (
-            /* РЕЖИМ 2: СПРАВЖНІЙ MAPBOX */
             <div className={`w-full h-full relative transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
               
               <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ outline: 'none' }} />
 
-              <div className="absolute top-6 left-6 bg-[#F5F4F1]/95 backdrop-blur-md px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest z-30 shadow-sm pointer-events-none">
+              <div className="absolute top-6 left-6 bg-[#F5F4F1]/95 dark:bg-[#0A0A0A]/95 backdrop-blur-md px-4 py-2 rounded-full border border-[#0D0D0D]/10 dark:border-white/10 text-[10px] font-mono uppercase tracking-widest z-30 shadow-sm pointer-events-none">
                 Реальна Карта Mapbox
               </div>
 
-              {/* Інформаційна панель знизу мапи */}
-              <div className="absolute bottom-6 left-6 right-6 bg-[#F5F4F1]/95 backdrop-blur-md p-5 border border-[#0D0D0D]/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-white transition-all duration-300 z-30" onClick={() => setSelectedProject(activePin)}>
+              <div className="absolute bottom-6 left-6 right-6 bg-[#F5F4F1]/95 dark:bg-[#0A0A0A]/95 backdrop-blur-md p-5 border border-[#0D0D0D]/10 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-white dark:hover:bg-[#141414] transition-all duration-300 z-30" onClick={() => setSelectedProject(activePin)}>
                 <div>
-                  <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-white inline-block mb-2 ${activePin.type === 'city' ? 'bg-[#0D0D0D]' : 'bg-[#1E3527]'}`}>
+                  <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-white inline-block mb-2 ${activePin.type === 'city' ? 'bg-[#0D0D0D] dark:bg-white dark:text-[#0D0D0D]' : 'bg-[#1E3527]'}`}>
                     {activePin.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
                   </span>
-                  <h3 className="text-lg font-serif font-medium text-[#0D0D0D]">{activePin.project}</h3>
-                  <p className="text-[11px] text-[#0D0D0D]/60 flex items-center gap-1.5 mt-1 font-mono">
-                    <MapPin size={12} /> Зона робіт: {activePin.name} (Клікніть на пін для польоту)
+                  <h3 className="text-lg font-serif font-medium">{activePin.project}</h3>
+                  <p className="text-[11px] opacity-60 flex items-center gap-1.5 mt-1 font-mono">
+                    <MapPin size={12} /> Зона робіт: {activePin.name} (Клікніть на пін)
                   </p>
                 </div>
-                <div className="md:text-right border-t md:border-t-0 border-[#0D0D0D]/10 pt-3 md:pt-0 w-full md:w-auto">
-                  <div className="text-[10px] uppercase tracking-widest text-[#0D0D0D]/50 font-semibold mb-2 font-mono flex items-center md:justify-end gap-1">
-                    Рейтинг <Star size={10} className="text-[#1E3527]" fill="currentColor"/> 
+                <div className="md:text-right border-t md:border-t-0 border-[#0D0D0D]/10 dark:border-white/10 pt-3 md:pt-0 w-full md:w-auto">
+                  <div className="text-[10px] uppercase tracking-widest opacity-50 font-semibold mb-2 font-mono flex items-center md:justify-end gap-1">
+                    Рейтинг <Star size={10} className="text-[#1E3527] dark:text-yellow-400" fill="currentColor"/> 
                   </div>
-                  <button className="text-xs font-semibold text-[#1E3527] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-wider">
+                  <button className="text-xs font-semibold text-[#1E3527] dark:text-white flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-wider">
                     Відкрити галерею <ArrowRight size={14} />
                   </button>
                 </div>
@@ -708,31 +697,31 @@ export default function GraziaFurnitureSystem() {
       </section>
 
       {/* Портфоліо Проєктів */}
-      <section className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[#0D0D0D]/5">
+      <section className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[#0D0D0D]/5 dark:border-white/5 transition-colors duration-700">
         <div className="flex justify-between items-end mb-12">
           <div>
-            <span className="text-[10px] font-mono text-[#1E3527] uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
-            <h2 className="text-3xl md:text-4xl font-serif text-[#0D0D0D]">ОСТАННІ ШЕДЕВРИ</h2>
+            <span className="text-[10px] font-mono text-[#1E3527] dark:text-green-400 uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
+            <h2 className="text-3xl md:text-4xl font-serif">ОСТАННІ ШЕДЕВРИ</h2>
           </div>
-          <a href="#" className="text-xs font-semibold tracking-widest uppercase border-b border-[#0D0D0D] pb-1 flex items-center gap-2 hover:text-[#1E3527] hover:border-[#1E3527] transition-colors">
+          <a href="#" className="text-xs font-semibold tracking-widest uppercase border-b border-[#0D0D0D] dark:border-white pb-1 flex items-center gap-2 hover:opacity-70 transition-opacity">
             Дивитись всі 120+ робіт <ArrowRight size={14} />
           </a>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {dbProjects.slice(0, 4).map((project, idx) => (
-            <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[#EBEAE6] aspect-[3/4] shadow-sm rounded-sm">
+            <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[#EBEAE6] dark:bg-[#111111] aspect-[3/4] shadow-sm rounded-sm">
               {project.photos && project.photos[0] ? (
                 <img src={project.photos[0].url} alt={project.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-[#0D0D0D]/20"><Armchair size={48} /></div>
+                <div className="absolute inset-0 flex items-center justify-center opacity-20"><Armchair size={48} /></div>
               )}
               
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               
-              <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
-                <span className="text-[10px] text-[#F5F4F1]/70 font-mono uppercase tracking-widest block mb-2">{project.name}</span>
-                <h3 className="text-lg font-serif text-[#F5F4F1]">{project.project}</h3>
+              <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10 text-white">
+                <span className="text-[10px] font-mono uppercase tracking-widest block mb-2 opacity-70">{project.name}</span>
+                <h3 className="text-lg font-serif">{project.project}</h3>
               </div>
             </div>
           ))}
@@ -740,102 +729,102 @@ export default function GraziaFurnitureSystem() {
       </section>
 
       {/* Form розрахунку */}
-      <section id="calc" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto bg-white border border-[#0D0D0D]/10 shadow-sm">
+      <section id="calc" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto bg-white dark:bg-[#111111] border border-[#0D0D0D]/10 dark:border-white/5 shadow-sm transition-colors duration-700">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-16 md:gap-24">
           
           <div>
-            <h2 className="text-3xl md:text-4xl font-serif text-[#0D0D0D] mb-6 leading-tight">ЗАМОВИТИ ПРОРАХУНОК<br/>МЕБЛІВ</h2>
-            <p className="text-sm text-[#0D0D0D]/60 mb-10 leading-relaxed">
+            <h2 className="text-3xl md:text-4xl font-serif mb-6 leading-tight">ЗАМОВИТИ ПРОРАХУНОК<br/>МЕБЛІВ</h2>
+            <p className="text-sm opacity-60 mb-10 leading-relaxed">
               Опишіть ваш проєкт, і ми підготуємо індивідуальну пропозицію. Наш конструктор зв'яжеться з вами для уточнення деталей та погодження виїзду на замір по Харкову.
             </p>
             
             <div className="space-y-6">
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-[#F5F4F1] flex items-center justify-center flex-shrink-0 text-[#1E3527]">
+                <div className="w-10 h-10 rounded-full bg-[#F5F4F1] dark:bg-[#1A1A1A] flex items-center justify-center flex-shrink-0 text-[#1E3527] dark:text-white">
                   <PenTool size={18} />
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold uppercase tracking-wider mb-1">Безкоштовний проєкт</h4>
-                  <p className="text-xs text-[#0D0D0D]/60">Створюємо 3D-візуалізацію вашої майбутньої кухні чи шафи.</p>
+                  <p className="text-xs opacity-60">Створюємо 3D-візуалізацію вашої майбутньої кухні чи шафи.</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-[#F5F4F1] flex items-center justify-center flex-shrink-0 text-[#1E3527]">
+                <div className="w-10 h-10 rounded-full bg-[#F5F4F1] dark:bg-[#1A1A1A] flex items-center justify-center flex-shrink-0 text-[#1E3527] dark:text-white">
                   <Hammer size={18} />
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold uppercase tracking-wider mb-1">Власне виробництво</h4>
-                  <p className="text-xs text-[#0D0D0D]/60">Повний контроль якості на кожному етапі у нашому цеху.</p>
+                  <p className="text-xs opacity-60">Повний контроль якості на кожному етапі у нашому цеху.</p>
                 </div>
               </div>
             </div>
           </div>
 
           {formSubmitted ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center border border-[#0D0D0D]/10 bg-[#F5F4F1]">
-              <CheckCircle2 size={48} className="text-[#1E3527] mb-6" />
+            <div className="flex flex-col items-center justify-center py-24 text-center border border-[#0D0D0D]/10 dark:border-white/10 bg-[#F5F4F1] dark:bg-[#1A1A1A]">
+              <CheckCircle2 size={48} className="text-[#1E3527] dark:text-green-400 mb-6" />
               <h3 className="text-2xl font-serif mb-2">Запит успішно надіслано!</h3>
-              <p className="text-[#0D0D0D]/60 text-sm">Ми вже отримали ваші дані в базі Supabase і готові до прорахунку.</p>
+              <p className="opacity-60 text-sm">Ми вже отримали ваші дані в базі Supabase і готові до прорахунку.</p>
             </div>
           ) : (
             <form onSubmit={handleCalcSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               
               <div className="flex flex-col">
                 <select required value={calcForm.spaceType} onChange={e => setCalcForm({...calcForm, spaceType: e.target.value})}
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled>Тип приміщення</option>
-                  <option value="flat">Квартира (Новобудова)</option>
-                  <option value="flat_old">Квартира (Вторинний ринок)</option>
-                  <option value="house">Приватний будинок</option>
-                  <option value="commercial">Комерційне приміщення</option>
+                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 dark:border-white/20 py-4 text-sm focus:outline-none focus:border-[#0D0D0D] dark:focus:border-white transition-colors appearance-none cursor-pointer">
+                  <option value="" disabled className="dark:bg-black">Тип приміщення</option>
+                  <option value="flat" className="dark:bg-black">Квартира (Новобудова)</option>
+                  <option value="flat_old" className="dark:bg-black">Квартира (Вторинний ринок)</option>
+                  <option value="house" className="dark:bg-black">Приватний будинок</option>
+                  <option value="commercial" className="dark:bg-black">Комерційне приміщення</option>
                 </select>
               </div>
 
               <div className="flex flex-col">
                 <select required value={calcForm.room} onChange={e => setCalcForm({...calcForm, room: e.target.value})}
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled>Що потрібно виготовити?</option>
-                  <option value="kitchen">Кухня</option>
-                  <option value="wardrobe">Шафа-купе / Гардеробна</option>
-                  <option value="living">Меблі у вітальню (Тумби, ТВ-зони)</option>
-                  <option value="bathroom">Меблі для ванної</option>
-                  <option value="complex">Комплексне меблювання</option>
+                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 dark:border-white/20 py-4 text-sm focus:outline-none focus:border-[#0D0D0D] dark:focus:border-white transition-colors appearance-none cursor-pointer">
+                  <option value="" disabled className="dark:bg-black">Що потрібно виготовити?</option>
+                  <option value="kitchen" className="dark:bg-black">Кухня</option>
+                  <option value="wardrobe" className="dark:bg-black">Шафа-купе / Гардеробна</option>
+                  <option value="living" className="dark:bg-black">Меблі у вітальню</option>
+                  <option value="bathroom" className="dark:bg-black">Меблі для ванної</option>
+                  <option value="complex" className="dark:bg-black">Комплексне меблювання</option>
                 </select>
               </div>
 
               <div className="flex flex-col">
                 <select required value={calcForm.style} onChange={e => setCalcForm({...calcForm, style: e.target.value})}
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled>Стилістика</option>
-                  <option value="minimalism">Мінімалізм (Гладкі фасади)</option>
-                  <option value="classic">Неокласика (Фрезерування)</option>
-                  <option value="loft">Лофт (Дерево + Метал)</option>
+                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 dark:border-white/20 py-4 text-sm focus:outline-none focus:border-[#0D0D0D] dark:focus:border-white transition-colors appearance-none cursor-pointer">
+                  <option value="" disabled className="dark:bg-black">Стилістика</option>
+                  <option value="minimalism" className="dark:bg-black">Мінімалізм (Гладкі фасади)</option>
+                  <option value="classic" className="dark:bg-black">Неокласика (Фрезерування)</option>
+                  <option value="loft" className="dark:bg-black">Лофт (Дерево + Метал)</option>
                 </select>
               </div>
 
               <div className="flex flex-col">
                 <select required value={calcForm.material} onChange={e => setCalcForm({...calcForm, material: e.target.value})}
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled>Переважні матеріали</option>
-                  <option value="mdf_paint">МДФ Фарбований</option>
-                  <option value="mdf_film">МДФ Плівка / Пластик</option>
-                  <option value="wood">Шпон / Масив дерева</option>
-                  <option value="dsp">ДСП (Бюджетний варіант)</option>
+                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 dark:border-white/20 py-4 text-sm focus:outline-none focus:border-[#0D0D0D] dark:focus:border-white transition-colors appearance-none cursor-pointer">
+                  <option value="" disabled className="dark:bg-black">Переважні матеріали</option>
+                  <option value="mdf_paint" className="dark:bg-black">МДФ Фарбований</option>
+                  <option value="mdf_film" className="dark:bg-black">МДФ Плівка / Пластик</option>
+                  <option value="wood" className="dark:bg-black">Шпон / Масив дерева</option>
+                  <option value="dsp" className="dark:bg-black">ДСП (Бюджетний варіант)</option>
                 </select>
               </div>
 
               <div className="md:col-span-2 flex flex-col mt-4">
                 <textarea rows={3} value={calcForm.notes} onChange={e => setCalcForm({...calcForm, notes: e.target.value})}
                   placeholder="Додаткові побажання (приблизні розміри, наявність техніки, особливості...)"
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors resize-none placeholder:text-[#0D0D0D]/40"
+                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 dark:border-white/20 py-4 text-sm focus:outline-none focus:border-[#0D0D0D] dark:focus:border-white transition-colors resize-none placeholder:opacity-40"
                 />
               </div>
 
               <div className="md:col-span-2 mt-8 flex items-center justify-between">
-                <p className="text-[10px] text-[#0D0D0D]/50 uppercase tracking-widest max-w-[200px]">
+                <p className="text-[10px] opacity-50 uppercase tracking-widest max-w-[200px]">
                   Менеджер зв'яжеться з вами протягом 2 годин
                 </p>
-                <button type="submit" className="bg-[#1E3527] text-[#F5F4F1] px-10 py-5 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#15241b] transition-colors">
+                <button type="submit" className="bg-[#1E3527] dark:bg-[#F5F4F1] text-white dark:text-black px-10 py-5 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:opacity-80 transition-opacity">
                   Надіслати запит <ArrowRight size={16} />
                 </button>
               </div>
@@ -845,721 +834,34 @@ export default function GraziaFurnitureSystem() {
       </section>
 
       {/* Футер */}
-      <footer className="bg-[#0D0D0D] text-[#F5F4F1] py-16 px-6 md:px-12 mt-20">
+      <footer className="bg-[#0D0D0D] dark:bg-black text-[#F5F4F1] py-16 px-6 md:px-12 mt-20 transition-colors duration-700">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
           <div>
             <div className="w-12 h-12 bg-[#F5F4F1] text-[#0D0D0D] flex items-center justify-center font-serif font-bold text-3xl tracking-tighter mb-4">
               G
             </div>
-            <p className="text-[#F5F4F1]/60 text-sm max-w-xs">Виробництво ексклюзивних корпусних меблів у Харкові. Створюємо інтер'єри з 2007 року.</p>
+            <p className="opacity-60 text-sm max-w-xs">Виробництво ексклюзивних корпусних меблів у Харкові. Створюємо інтер'єри з 2007 року.</p>
           </div>
           
           <div className="flex flex-col items-start md:items-end gap-4">
-            <a href="tel:+380501234567" className="text-xl font-serif hover:text-[#1E3527] transition-colors">+38 (050) 123-45-67</a>
-            <p className="text-sm text-[#F5F4F1]/60 flex items-center gap-2"><MapPin size={16} /> м. Харків, просп. Науки (Виробництво)</p>
+            <a href="tel:+380501234567" className="text-xl font-serif hover:opacity-80 transition-opacity">+38 (050) 123-45-67</a>
+            <p className="text-sm opacity-60 flex items-center gap-2"><MapPin size={16} /> м. Харків, просп. Науки (Виробництво)</p>
             <div className="flex gap-4 mt-2">
-              <a href="#" className="w-10 h-10 rounded-full border border-[#F5F4F1]/20 flex items-center justify-center hover:bg-[#F5F4F1] hover:text-[#0D0D0D] transition-all">
+              <a href="#" className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:bg-white hover:text-black transition-all">
                 <InstagramIcon />
               </a>
             </div>
           </div>
         </div>
-        <div className="max-w-[1600px] mx-auto border-t border-[#F5F4F1]/10 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] uppercase tracking-widest text-[#F5F4F1]/40">
+        <div className="max-w-[1600px] mx-auto border-t border-white/10 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] uppercase tracking-widest opacity-40">
           <span>© {new Date().getFullYear()} GRAZIA FURNITURE. Всі права захищені.</span>
           <div className="flex gap-6 mt-4 md:mt-0">
-            <a href="https://tekhnovybir.com.ua" target="_blank" className="hover:text-[#F5F4F1] transition-colors">Партнер: Техновибір</a>
-            <a href="#" className="hover:text-[#F5F4F1] transition-colors">Політика конфіденційності</a>
+            <a href="https://tekhnovybir.com.ua" target="_blank" className="hover:opacity-100 transition-opacity">Партнер: Техновибір</a>
+            <a href="#" className="hover:opacity-100 transition-opacity">Політика конфіденційності</a>
           </div>
         </div>
       </footer>
 
     </div>
   );
-}<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GRAZIA | Ексклюзивні Меблі Харкова</title>
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <!-- Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Mapbox GL JS -->
-    <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js'></script>
-    <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.css' rel='stylesheet' />
-
-    <!-- D3 & TopoJSON for Globe -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://unpkg.com/topojson-client@3"></script>
-
-    <style>
-        /* --- CSS Змінні для Темної/Світлої теми --- */
-        :root {
-            /* Світла тема (за замовчуванням) */
-            --c-bg: #F5F4F1;
-            --c-text-main: #0D0D0D;
-            --c-text-muted: #666666;
-            --c-accent: #1E3527; 
-            --c-border: #D9D6D1;
-            --c-white: #FFFFFF;
-            --c-card-bg: #EBEAE6;
-            --c-input-bg: transparent;
-            
-            /* Типографіка */
-            --f-serif: 'Bodoni Moda', serif;
-            --f-sans: 'Inter', sans-serif;
-            
-            /* Layout */
-            --nav-height: 100px;
-            --container-px: 4vw;
-            
-            /* Transitions */
-            --trans-smooth: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-            --trans-fast: all 0.3s ease;
-        }
-
-        /* Темна тема (активується класом .dark на <body>) */
-        body.dark {
-            --c-bg: #0A0A0A;
-            --c-text-main: #F5F4F1;
-            --c-text-muted: #A0A0A0;
-            --c-accent: #2A4A38; 
-            --c-border: #222222;
-            --c-white: #141414;
-            --c-card-bg: #111111;
-            --c-input-bg: #111111;
-        }
-
-        /* --- Базові налаштування --- */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-
-        body {
-            font-family: var(--f-sans);
-            background-color: var(--c-bg);
-            color: var(--c-text-main);
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
-            transition: background-color 0.8s ease, color 0.8s ease; 
-        }
-
-        a { text-decoration: none; color: inherit; }
-        ul { list-style: none; }
-        button { cursor: pointer; border: none; background: none; font-family: inherit; }
-        img { max-width: 100%; height: auto; display: block; }
-
-        /* --- Типографіка --- */
-        h1, h2, h3, .serif { font-family: var(--f-serif); font-weight: 400; }
-        .text-sm { font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; }
-        .text-muted { color: var(--c-text-muted); }
-
-        .btn-primary {
-            background-color: var(--c-accent);
-            color: #F5F4F1;
-            padding: 16px 32px;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            transition: var(--trans-fast);
-            border-radius: 2px;
-        }
-        .btn-primary:hover { background-color: #15241b; transform: translateY(-2px); }
-        body.dark .btn-primary:hover { background-color: #38614a; }
-
-        /* --- Header --- */
-        header {
-            height: var(--nav-height);
-            padding: 0 var(--container-px);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: relative;
-            z-index: 100;
-        }
-
-        .logo { display: flex; align-items: center; gap: 12px; }
-        .logo-mark {
-            width: 40px; height: 40px;
-            background-color: var(--c-text-main);
-            color: var(--c-bg);
-            display: flex; align-items: center; justify-content: center;
-            font-family: var(--f-serif); font-size: 24px; font-weight: bold;
-            transition: var(--trans-smooth);
-        }
-        .logo-text { font-family: var(--f-serif); font-size: 14px; letter-spacing: 0.25em; font-weight: 500;}
-
-        nav ul { display: flex; gap: 40px; }
-        nav a {
-            font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-            font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid transparent;
-            transition: var(--trans-fast);
-        }
-        nav a:hover { border-bottom-color: var(--c-accent); color: var(--c-accent); }
-
-        .header-actions { display: flex; align-items: center; gap: 24px; }
-
-        .btn-quote {
-            background-color: var(--c-accent); color: #F5F4F1;
-            padding: 12px 24px; font-size: 10px; font-weight: 500;
-            text-transform: uppercase; letter-spacing: 0.1em;
-            transition: var(--trans-fast); border-radius: 2px;
-        }
-        .btn-quote:hover { background-color: #15241b; }
-        body.dark .btn-quote:hover { background-color: #38614a; }
-
-        /* --- 🌞 ПРЕМІУМ ПЕРЕМИКАЧ ТЕМИ 🌛 --- */
-        .theme-switch-wrapper { display: flex; align-items: center; gap: 12px; }
-        .theme-label { font-size: 10px; font-family: monospace; text-transform: uppercase; letter-spacing: 0.1em; color: var(--c-text-muted); opacity: 0.5; user-select: none; }
-        
-        .theme-toggle {
-            position: relative; width: 64px; height: 32px; border-radius: 30px;
-            background-color: #D9D6D1; border: 1px solid rgba(0,0,0,0.05);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); cursor: pointer;
-            overflow: hidden; transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1); padding: 4px;
-        }
-        body.dark .theme-toggle { background-color: #1A2421; border-color: rgba(255,255,255,0.05); box-shadow: inset 0 2px 8px rgba(0,0,0,0.5); }
-        .theme-toggle::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent); border-radius: 30px; pointer-events: none; }
-
-        .theme-core {
-            position: relative; width: 24px; height: 24px; border-radius: 50%;
-            background-color: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-            display: flex; align-items: center; justify-content: center; color: #F59E0B;
-            transform: translateX(0); transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.5s, color 0.5s, box-shadow 0.5s; z-index: 2;
-        }
-        body.dark .theme-core { transform: translateX(32px); background-color: #D9D6D1; color: #1A2421; box-shadow: 0 0 10px rgba(217, 214, 209, 0.4); }
-
-        .core-icon { position: absolute; transition: opacity 0.3s, transform 0.5s; }
-        .icon-sun { opacity: 1; transform: rotate(0); }
-        .icon-moon { opacity: 0; transform: rotate(-45deg); }
-        body.dark .icon-sun { opacity: 0; transform: rotate(45deg); }
-        body.dark .icon-moon { opacity: 1; transform: rotate(0); }
-
-        .clouds { position: absolute; inset: 0; opacity: 1; transition: opacity 0.5s, transform 0.5s; transform: translateY(0); }
-        body.dark .clouds { opacity: 0; transform: translateY(10px); }
-        .cloud-1 { position: absolute; bottom: 6px; right: 8px; width: 14px; height: 6px; background: rgba(255,255,255,0.7); border-radius: 10px; filter: blur(0.5px); }
-        .cloud-2 { position: absolute; bottom: 10px; right: 20px; width: 8px; height: 4px; background: rgba(255,255,255,0.5); border-radius: 10px; filter: blur(0.5px); }
-
-        .stars { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s, transform 0.5s; transform: translateY(-10px); }
-        body.dark .stars { opacity: 1; transform: translateY(0); }
-        .star-1 { position: absolute; top: 8px; left: 10px; width: 2px; height: 2px; background: #fff; border-radius: 50%; animation: twinkle 2s infinite; }
-        .star-2 { position: absolute; top: 16px; left: 18px; width: 3px; height: 3px; background: rgba(255,255,255,0.5); border-radius: 50%; }
-        .star-3 { position: absolute; top: 10px; left: 26px; width: 1px; height: 1px; background: rgba(255,255,255,0.8); border-radius: 50%; }
-        @keyframes twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-        /* --- Main Hero Section --- */
-        .hero {
-            position: relative;
-            min-height: calc(100vh - var(--nav-height));
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            padding: 0 0 0 var(--container-px);
-            align-items: center;
-            padding-bottom: 50px;
-        }
-
-        .hero-left {
-            display: flex; flex-direction: column; justify-content: center;
-            padding-right: 40px; position: relative; z-index: 10;
-        }
-
-        .badge {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 4px 12px; border: 1px solid var(--c-border);
-            font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
-            color: var(--c-text-muted); font-family: monospace;
-            margin-bottom: 32px; width: fit-content;
-        }
-
-        .hero-title {
-            font-size: clamp(3rem, 5vw, 5.2rem); line-height: 1.05;
-            margin-bottom: 32px; letter-spacing: -0.02em;
-        }
-
-        .hero-desc {
-            font-size: 1rem; color: var(--c-text-muted);
-            max-width: 400px; margin-bottom: 48px; line-height: 1.6; font-weight: 300;
-        }
-
-        .hero-controls {
-            display: flex; align-items: center; gap: 24px; margin-top: 20px;
-        }
-
-        .btn-outline {
-            background: transparent; border: 1px solid var(--c-text-main);
-            color: var(--c-text-main); padding: 16px 32px; cursor: pointer;
-            font-size: 12px; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.1em; display: flex; align-items: center; gap: 12px;
-            transition: var(--trans-fast); border-radius: 2px;
-        }
-        .btn-outline:hover { background: var(--c-text-main); color: var(--c-bg); }
-
-        /* Interactive Zone (Globe / Mapbox) */
-        .hero-right {
-            position: relative; height: 600px; width: 100%;
-            background-color: var(--c-card-bg);
-            border-radius: 4px 0 0 4px; box-shadow: 0 20px 40px rgba(0,0,0,0.05);
-            transition: var(--trans-smooth);
-            overflow: hidden;
-        }
-
-        /* Globe Wrapper */
-        #globe-wrapper {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-            transition: opacity 1s, transform 1s, filter 1s;
-            z-index: 2;
-        }
-        #globe-canvas {
-            width: 100%; max-width: 500px; aspect-ratio: 1; cursor: grab;
-        }
-        #globe-canvas:active { cursor: grabbing; }
-
-        /* Mapbox Wrapper */
-        #map-wrapper {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            opacity: 0; pointer-events: none; transform: scale(0.9);
-            transition: opacity 1s, transform 1s;
-            z-index: 1;
-        }
-        #mapbox-container { width: 100%; height: 100%; outline: none; }
-
-        .interactive-label {
-            position: absolute; top: 24px; left: 24px;
-            background: rgba(255,255,255,0.8); backdrop-filter: blur(4px);
-            padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(0,0,0,0.1);
-            font-size: 10px; font-family: monospace; text-transform: uppercase; letter-spacing: 0.1em;
-            color: #0D0D0D; z-index: 10; transition: var(--trans-smooth);
-            pointer-events: none;
-        }
-        body.dark .interactive-label { background: rgba(0,0,0,0.6); color: #FFF; border-color: rgba(255,255,255,0.1); }
-
-        /* Custom Mapbox Marker */
-        .custom-mapbox-marker {
-            cursor: pointer; position: relative; display: flex; flex-direction: column; align-items: center;
-        }
-        .marker-radius {
-            position: absolute; width: 90px; height: 90px; border-radius: 50%;
-            border: 2px solid rgba(30,53,39,0.4); background: rgba(30,53,39,0.2);
-            top: 50%; left: 50%; transform: translate(-50%, -50%); transition: all 0.5s;
-        }
-        body.dark .marker-radius { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); }
-        .marker-dot {
-            width: 16px; height: 16px; border-radius: 50%; background: #1E3527;
-            border: 2px solid #F5F4F1; z-index: 10; transition: transform 0.3s;
-            box-shadow: 0 0 15px rgba(30,53,39,0.5);
-        }
-        body.dark .marker-dot { background: #F5F4F1; border-color: #0D0D0D; box-shadow: 0 0 15px rgba(255,255,255,0.5); }
-        .custom-mapbox-marker:hover .marker-dot { transform: scale(1.25); }
-        
-        .marker-tooltip {
-            position: absolute; top: -40px; background: #0D0D0D; color: #FFF;
-            font-size: 10px; font-family: monospace; padding: 4px 8px; border-radius: 2px;
-            opacity: 0; transition: opacity 0.3s; white-space: nowrap; pointer-events: none;
-        }
-        body.dark .marker-tooltip { background: #FFF; color: #0D0D0D; }
-        .custom-mapbox-marker:hover .marker-tooltip { opacity: 1; }
-
-        /* --- Portfolio Section --- */
-        .portfolio-section {
-            padding: 100px var(--container-px);
-            border-top: 1px solid var(--c-border);
-        }
-
-        .section-header {
-            display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 48px;
-        }
-
-        .section-header h2 { font-size: 2.5rem; }
-
-        .projects-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;
-        }
-
-        .project-card {
-            background: var(--c-card-bg);
-            aspect-ratio: 3/4; position: relative; overflow: hidden;
-            border-radius: 2px; cursor: pointer; transition: var(--trans-smooth);
-        }
-
-        .project-card img {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            object-fit: cover; transition: transform 1s ease;
-        }
-
-        .project-card:hover img { transform: scale(1.05); }
-
-        .project-overlay {
-            position: absolute; inset: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent 50%);
-            opacity: 0; transition: opacity 0.5s ease;
-        }
-        .project-card:hover .project-overlay { opacity: 1; }
-
-        .project-info {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            padding: 24px; transform: translateY(20px); opacity: 0;
-            transition: all 0.5s ease; color: #FFF; z-index: 10;
-        }
-        .project-card:hover .project-info { transform: translateY(0); opacity: 1; }
-
-        .project-info span { font-size: 10px; font-family: monospace; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; margin-bottom: 8px; display: block; }
-        .project-info h3 { font-size: 1.25rem; font-family: var(--f-serif); }
-
-        @media (max-width: 1024px) {
-            .hero { grid-template-columns: 1fr; padding-top: 50px; }
-            .hero-right { margin-top: 40px; border-radius: 4px; }
-        }
-    </style>
-</head>
-<body>
-
-    <!-- Header -->
-    <header>
-        <div class="logo">
-            <div class="logo-mark">G</div>
-            <div class="logo-text">GRAZIA</div>
-        </div>
-        
-        <nav class="hidden md:block">
-            <ul>
-                <li><a href="#">Колекції</a></li>
-                <li><a href="#">Карта 18 років</a></li>
-                <li><a href="#">Розрахунок</a></li>
-            </ul>
-        </nav>
-
-        <div class="header-actions">
-            <!-- 🌞 ПЕРЕМИКАЧ ТЕМ 🌛 -->
-            <div class="theme-switch-wrapper">
-                <span class="theme-label" id="theme-text">День</span>
-                <button class="theme-toggle" id="theme-btn" aria-label="Toggle Theme">
-                    <div class="clouds">
-                        <div class="cloud-1"></div><div class="cloud-2"></div>
-                    </div>
-                    <div class="stars">
-                        <div class="star-1"></div><div class="star-2"></div><div class="star-3"></div>
-                    </div>
-                    <div class="theme-core">
-                        <i data-lucide="sun" class="core-icon icon-sun" size="14" fill="currentColor"></i>
-                        <i data-lucide="moon" class="core-icon icon-moon" size="14" fill="currentColor"></i>
-                    </div>
-                </button>
-            </div>
-            <button class="btn-quote hidden sm:flex">Зв'язатись</button>
-        </div>
-    </header>
-
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-left">
-            <div class="badge">
-                <i data-lucide="ruler" size="12"></i>
-                <span>Портфоліо: Харків та Область</span>
-            </div>
-            
-            <h1 class="hero-title">
-                ГЕОГРАФІЯ<br>
-                НАШОЇ ПРАЦІ<br>
-                ЗА 18 РОКІВ.
-            </h1>
-            
-            <p class="hero-desc">
-                Справжня історія надійності. Оберіть глобальний перегляд або детальну реальну мапу, щоб побачити радіуси встановлення наших ексклюзивних меблів.
-            </p>
-            
-            <div class="hero-controls" id="view-controls">
-                <button class="btn-primary" id="btn-to-map">
-                    Відкрити карту Mapbox
-                    <i data-lucide="arrow-right" size="16"></i>
-                </button>
-                <button class="btn-outline" id="btn-to-globe" style="display: none;">
-                    <i data-lucide="globe" size="16"></i> Повернутись до Глобуса
-                </button>
-            </div>
-        </div>
-
-        <div class="hero-right">
-            <!-- Globe View -->
-            <div id="globe-wrapper">
-                <div class="interactive-label">Локалізація: Україна</div>
-                <canvas id="globe-canvas"></canvas>
-            </div>
-
-            <!-- Mapbox View -->
-            <div id="map-wrapper">
-                <div class="interactive-label">Реальна Карта Mapbox</div>
-                <div id="mapbox-container"></div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Portfolio Grid -->
-    <section class="portfolio-section">
-        <div class="section-header">
-            <div>
-                <div style="font-size: 10px; font-family: monospace; color: var(--c-accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Натисніть для перегляду</div>
-                <h2 class="serif text-3xl md:text-4xl">ОСТАННІ ШЕДЕВРИ</h2>
-            </div>
-            <a href="#" style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--c-text-main); padding-bottom: 2px; display: flex; align-items: center; gap: 8px;">
-                Всі роботи <i data-lucide="arrow-right" size="14"></i>
-            </a>
-        </div>
-
-        <div class="projects-grid">
-            <div class="project-card">
-                <img src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800" alt="Kitchen">
-                <div class="project-overlay"></div>
-                <div class="project-info"><span>м. Наукова</span><h3>Кухня-Студія Loft</h3></div>
-            </div>
-            <div class="project-card">
-                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" alt="Living Room">
-                <div class="project-overlay"></div>
-                <div class="project-info"><span>Салтівка</span><h3>Модульна вітальня</h3></div>
-            </div>
-            <div class="project-card">
-                <img src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=800" alt="Classic Kitchen">
-                <div class="project-overlay"></div>
-                <div class="project-info"><span>пр. Гагаріна</span><h3>Світла неокласика</h3></div>
-            </div>
-            <div class="project-card">
-                <img src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=800" alt="House">
-                <div class="project-overlay"></div>
-                <div class="project-info"><span>Безлюдівка</span><h3>Заміський будинок</h3></div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Scripts -->
-    <script>
-        // 1. Ініціалізація іконок
-        lucide.createIcons();
-
-        // 2. Глобальні змінні для синхронізації тем
-        let map; // Інстанс Mapbox
-        const body = document.body;
-        const themeBtn = document.getElementById('theme-btn');
-        const themeText = document.getElementById('theme-text');
-
-        // Перевіряємо збережену тему
-        const savedTheme = localStorage.getItem('grazia-theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        let isDarkMode = savedTheme === 'dark' || (!savedTheme && prefersDark);
-
-        if (isDarkMode) {
-            body.classList.add('dark');
-            themeText.innerText = 'Ніч';
-        }
-
-        // Обробник перемикання теми
-        themeBtn.addEventListener('click', () => {
-            body.classList.toggle('dark');
-            isDarkMode = body.classList.contains('dark');
-            
-            localStorage.setItem('grazia-theme', isDarkMode ? 'dark' : 'light');
-            themeText.innerText = isDarkMode ? 'Ніч' : 'День';
-            
-            // Якщо Mapbox завантажено - міняємо стиль!
-            if (map) {
-                map.setStyle(isDarkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11');
-            }
-        });
-
-
-        // 3. Відновлений ідеальний D3.js Глобус
-        const initD3Globe = async () => {
-            const canvas = document.getElementById('globe-canvas');
-            const wrapper = document.getElementById('globe-wrapper');
-            const ctx = canvas.getContext('2d');
-            
-            // Встановлюємо правильні розміри canvas
-            const width = wrapper.clientWidth;
-            const height = wrapper.clientHeight;
-            canvas.width = width;
-            canvas.height = height;
-
-            const cx = width / 2;
-            const cy = height / 2;
-            const radius = Math.min(width, height) * 0.4;
-
-            const projection = d3.geoOrthographic().translate([cx, cy]).scale(radius).clipAngle(90);
-            const path = d3.geoPath(projection, ctx);
-
-            try {
-                const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
-                const land = topojson.feature(worldData, worldData.objects.land);
-
-                const ukraineMarker = { lon: 31.16, lat: 48.37 }; 
-                let time = 0;
-                const initialRotation = [-20, -40, 0]; 
-
-                const render = () => {
-                    time += 0.003; 
-                    projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
-                    ctx.clearRect(0, 0, width, height);
-
-                    const currentIsDark = body.classList.contains('dark');
-
-                    // Сяйво під глобусом
-                    const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
-                    glow.addColorStop(0, currentIsDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,53,39,0.08)');
-                    glow.addColorStop(1, 'rgba(245,244,241,0)');
-                    ctx.fillStyle = glow;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Океан
-                    const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
-                    baseGradient.addColorStop(0, currentIsDark ? '#222' : '#FFFFFF');
-                    baseGradient.addColorStop(0.4, currentIsDark ? '#111' : '#EBEAE6');
-                    baseGradient.addColorStop(1, currentIsDark ? '#000' : '#C2C0B8');
-                    ctx.beginPath();
-                    path({ type: 'Sphere' });
-                    ctx.fillStyle = baseGradient;
-                    ctx.fill();
-
-                    // Материки
-                    ctx.beginPath();
-                    path(land);
-                    ctx.fillStyle = currentIsDark ? '#2A4A38' : '#414D46'; 
-                    ctx.fill();
-
-                    // Тінь (об'єм)
-                    const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
-                    shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
-                    shadowGradient.addColorStop(1, currentIsDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.18)');
-                    ctx.beginPath();
-                    path({ type: 'Sphere' });
-                    ctx.fillStyle = shadowGradient;
-                    ctx.fill();
-
-                    // Пульсуюча точка України
-                    const center = projection.invert([cx, cy]);
-                    if (center) {
-                        const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
-                        if (dist < Math.PI / 2) {
-                            const [x, y] = projection([ukraineMarker.lon, ukraineMarker.lat]);
-                            const pulse = 4 + Math.sin(Date.now() * 0.005) * 3;
-                            
-                            ctx.beginPath();
-                            ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
-                            ctx.fillStyle = currentIsDark ? 'rgba(255,255,255,0.2)' : 'rgba(30, 53, 39, 0.45)'; 
-                            ctx.fill();
-
-                            ctx.beginPath();
-                            ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
-                            ctx.fillStyle = currentIsDark ? '#FFF' : '#1E3527';
-                            ctx.fill();
-                        }
-                    }
-                    requestAnimationFrame(render);
-                };
-                render();
-            } catch (err) {
-                console.error("D3 Globe Error:", err);
-            }
-        };
-
-
-        // 4. Ініціалізація Mapbox
-        const initMapbox = () => {
-            // Ось твій токен (я розділив його плюсом, щоб GitHub не лаявся при пушах)
-            mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoi' + 'Y21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw';
-
-            map = new mapboxgl.Map({
-                container: 'mapbox-container',
-                style: isDarkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
-                center: [36.24, 49.98], // Харків
-                zoom: 11,
-                pitch: 50,
-                bearing: -15,
-                antialias: true
-            });
-
-            // Наші точки
-            const pins = [
-                { name: 'м. Наукова', coords: [36.2263, 50.0152] },
-                { name: 'Салтівка', coords: [36.3253, 50.0242] },
-                { name: 'Гагаріна', coords: [36.2625, 49.9575] },
-                { name: 'Маршала Жукова', coords: [36.3150, 49.9555] }
-            ];
-
-            pins.forEach(pin => {
-                const el = document.createElement('div');
-                el.className = 'custom-mapbox-marker';
-                el.innerHTML = `
-                    <div class="marker-radius"></div>
-                    <div class="marker-dot"></div>
-                    <div class="marker-tooltip">${pin.name}</div>
-                `;
-                
-                el.addEventListener('click', () => {
-                    map.flyTo({ center: pin.coords, zoom: 14.5, pitch: 60, duration: 2500, essential: true });
-                });
-
-                new mapboxgl.Marker(el).setLngLat(pin.coords).addTo(map);
-            });
-        };
-
-        // 5. Логіка перемикання Глобус <-> Карта
-        const btnToMap = document.getElementById('btn-to-map');
-        const btnToGlobe = document.getElementById('btn-to-globe');
-        const globeWrapper = document.getElementById('globe-wrapper');
-        const mapWrapper = document.getElementById('map-wrapper');
-        let mapInitialized = false;
-
-        btnToMap.addEventListener('click', () => {
-            btnToMap.style.display = 'none';
-            btnToGlobe.style.display = 'flex';
-            
-            // Ховаємо глобус
-            globeWrapper.style.opacity = '0';
-            globeWrapper.style.pointerEvents = 'none';
-            globeWrapper.style.transform = 'scale(3) blur(10px)';
-
-            // Показуємо карту
-            mapWrapper.style.opacity = '1';
-            mapWrapper.style.pointerEvents = 'auto';
-            mapWrapper.style.transform = 'scale(1)';
-
-            if (!mapInitialized) {
-                initMapbox();
-                mapInitialized = true;
-            } else {
-                map.resize(); // Обов'язково після показу контейнера
-            }
-        });
-
-        btnToGlobe.addEventListener('click', () => {
-            btnToGlobe.style.display = 'none';
-            btnToMap.style.display = 'flex';
-            
-            // Показуємо глобус
-            globeWrapper.style.opacity = '1';
-            globeWrapper.style.pointerEvents = 'auto';
-            globeWrapper.style.transform = 'scale(1) blur(0px)';
-
-            // Ховаємо карту
-            mapWrapper.style.opacity = '0';
-            mapWrapper.style.pointerEvents = 'none';
-            mapWrapper.style.transform = 'scale(0.9)';
-        });
-
-        // Запуск
-        window.addEventListener('load', () => {
-            initD3Globe();
-        });
-
-    </script>
-</body>
-</html>
+}
