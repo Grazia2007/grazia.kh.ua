@@ -21,6 +21,9 @@ import {
   Moon
 } from 'lucide-react';
 
+// Глобальний кеш для географічних даних, щоб не завантажувати карту повторно при кожному перемиканні теми
+let cachedWorldData: any = null;
+
 // Ініціалізація підключення до твого ядра Supabase
 const supabaseUrl = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL) || 'https://gpxbzpqnpbbumtiyfstc.supabase.co';
 const supabaseAnonKey = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'sb_publishable_2VUpjTZW1Bf1Bg0Fs0vh6Q_6tIr5eP0';
@@ -117,10 +120,7 @@ const DEFAULT_MAP_LOCATIONS = [
 ];
 
 export default function GraziaFurnitureSystem() {
-  // Тема
   const [isDark, setIsDark] = useState(false);
-  const [themeLoaded, setThemeLoaded] = useState(false); // Для уникнення hydration mismatch
-  
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
   const [activePin, setActivePin] = useState<any>(DEFAULT_MAP_LOCATIONS[0]);
@@ -135,7 +135,7 @@ export default function GraziaFurnitureSystem() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
-  // 0. Ініціалізація теми
+  // Ініціалізація теми БЕЗ блокування основного рендеру сторінки
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -147,7 +147,6 @@ export default function GraziaFurnitureSystem() {
       setIsDark(false);
       document.documentElement.classList.remove('dark');
     }
-    setThemeLoaded(true);
   }, []);
 
   const toggleTheme = () => {
@@ -164,7 +163,6 @@ export default function GraziaFurnitureSystem() {
     });
   };
 
-  // Завантаження портфоліо
   useEffect(() => {
     const fetchPortfolio = async () => {
       const { data, error } = await supabase.from('portfolio_projects').select('*');
@@ -204,36 +202,48 @@ export default function GraziaFurnitureSystem() {
     fetchPortfolio();
   }, []);
 
-  // 1. D3.js 3D-Глобус (Тепер з підтримкою темної теми!)
+  // Безпечний завантажувач CDN скриптів, який запобігає дублюванню тегів
+  const loadScript = (src: string, globalName: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any)[globalName]) {
+        resolve(true);
+        return;
+      }
+      const existingScript = document.querySelector(`script[src="${src}"]`);
+      if (existingScript) {
+        const interval = setInterval(() => {
+          if ((window as any)[globalName]) {
+            clearInterval(interval);
+            resolve(true);
+          }
+        }, 50);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = () => resolve(true);
+      document.head.appendChild(script);
+    });
+  };
+
+  // Надійний рендер глобуса D3.js
   useEffect(() => {
-    if (mapLevel !== 'globe' || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
+    if (mapLevel !== 'globe') return;
+    
     let animationFrameId: number;
+    let isDestroyed = false;
 
-    const loadScripts = async () => {
-      if (!(window as any).d3) {
-        await new Promise((resolve) => {
-          const script = document.createElement('script');
-          script.src = 'https://d3js.org/d3.v7.min.js';
-          script.onload = resolve;
-          document.head.appendChild(script);
-        });
-      }
-      if (!(window as any).topojson) {
-        await new Promise((resolve) => {
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/topojson-client@3';
-          script.onload = resolve;
-          document.head.appendChild(script);
-        });
-      }
-      initSolidGlobe();
-    };
+    const startGlobeLogic = async () => {
+      await loadScript('https://d3js.org/d3.v7.min.js', 'd3');
+      await loadScript('https://unpkg.com/topojson-client@3', 'topojson');
 
-    const initSolidGlobe = async () => {
+      if (isDestroyed || !canvasRef.current) return;
+      
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
       try {
         const d3 = (window as any).d3;
         const topojson = (window as any).topojson;
@@ -250,19 +260,27 @@ export default function GraziaFurnitureSystem() {
           .clipAngle(90);
 
         const path = d3.geoPath(projection, ctx);
-        const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
-        const land = topojson.feature(worldData, worldData.objects.land);
 
+        // Отримання або завантаження гео-даних атласу з використанням кешу
+        let worldData;
+        if (cachedWorldData) {
+          worldData = cachedWorldData;
+        } else {
+          worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
+          cachedWorldData = worldData;
+        }
+
+        const land = topojson.feature(worldData, worldData.objects.land);
         const ukraineMarker = { lon: 31.16, lat: 48.37 }; 
         let time = 0;
         const initialRotation = [-20, -40, 0]; 
 
         const render = () => {
+          if (isDestroyed || !canvasRef.current) return;
           time += 0.003; 
           projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
           ctx.clearRect(0, 0, width, height);
 
-          // Динамічні кольори залежно від теми
           const oceanBase1 = isDark ? '#1a1a1a' : '#FFFFFF';
           const oceanBase2 = isDark ? '#121212' : '#EBEAE6';
           const oceanBase3 = isDark ? '#050505' : '#C2C0B8';
@@ -270,7 +288,6 @@ export default function GraziaFurnitureSystem() {
           const pulseOuter = isDark ? 'rgba(45, 80, 58, 0.45)' : 'rgba(30, 53, 39, 0.45)';
           const pulseInner = isDark ? '#2d503a' : '#1E3527';
 
-          // Сяйво під глобусом
           const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
           glow.addColorStop(0, isDark ? 'rgba(45, 80, 58, 0.15)' : 'rgba(30, 53, 39, 0.08)');
           glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -279,7 +296,6 @@ export default function GraziaFurnitureSystem() {
           ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
           ctx.fill();
 
-          // Світовий океан
           const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
           baseGradient.addColorStop(0, oceanBase1);
           baseGradient.addColorStop(0.4, oceanBase2);
@@ -289,13 +305,11 @@ export default function GraziaFurnitureSystem() {
           ctx.fillStyle = baseGradient;
           ctx.fill();
 
-          // Материки
           ctx.beginPath();
           path(land);
           ctx.fillStyle = landColor; 
           ctx.fill();
 
-          // Градієнт затінення
           const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
           shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
           shadowGradient.addColorStop(1, isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.18)');
@@ -304,7 +318,6 @@ export default function GraziaFurnitureSystem() {
           ctx.fillStyle = shadowGradient;
           ctx.fill();
 
-          // Маркер
           const center = projection.invert([cx, cy]);
           if (center) {
             const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
@@ -331,14 +344,16 @@ export default function GraziaFurnitureSystem() {
         console.error("Помилка глобуса:", error);
       }
     };
-    loadScripts();
+
+    startGlobeLogic();
 
     return () => {
+      isDestroyed = true;
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [mapLevel, isDark]); // Додали isDark в залежності
+  }, [mapLevel, isDark]);
 
-  // 2. Ініціалізація та стилізація Mapbox
+  // Ініціалізація Mapbox
   useEffect(() => {
     if (mapLevel !== 'kharkiv' || !mapContainerRef.current) return;
 
@@ -366,7 +381,7 @@ export default function GraziaFurnitureSystem() {
       try {
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
-          style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11', // Динамічна мапа!
+          style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11', 
           center: [36.24, 49.98],
           zoom: 11,
           pitch: 50,
@@ -403,7 +418,6 @@ export default function GraziaFurnitureSystem() {
         targets.forEach((pin) => {
           const el = document.createElement('div');
           el.className = 'custom-mapbox-marker group cursor-pointer relative flex flex-col items-center';
-          // Використовуємо CSS-змінні прямо в інлайн стилях маркерів
           el.innerHTML = `
             <div class="absolute rounded-full border-2 transition-all duration-700 scale-100 opacity-20" style="border-color: var(--accent-main); background-color: var(--accent-main); width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
             <div class="w-4 h-4 rounded-full border-2 z-10 hover:scale-125 transition-transform duration-300 shadow-lg" style="border-color: var(--bg-main); background-color: var(--accent-main);"></div>
@@ -442,7 +456,7 @@ export default function GraziaFurnitureSystem() {
         mapInstanceRef.current = null;
       }
     };
-  }, [mapLevel, dbProjects, isDark]); // Перезавантажуємо карту при зміні теми
+  }, [mapLevel, dbProjects, isDark]);
 
   const triggerMapFocus = () => {
     setIsTransitioning(true);
@@ -463,16 +477,14 @@ export default function GraziaFurnitureSystem() {
   const handleCalcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 1. Зберігаємо бекап ліда в Supabase (як і раніше)
       await supabase.from('orders').insert({
         store_id: 'furniture',
         customer_name: 'Лід з лендінгу (Калькулятор)',
         total_amount: 0,
         status: 'draft',
-        ttn_number: `Меблі: ${calcForm.spaceType} / ${calcForm.room} / ${calcForm.budget}`
+        ttn_number: `Меблі: ${calcForm.spaceType} / ${calcForm.room} / ${calcForm.material}`
       });
 
-      // 2. ВІДПРАВКА В TELEGRAM ЧЕРЕЗ НАШ API
       await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -482,7 +494,6 @@ export default function GraziaFurnitureSystem() {
       setFormSubmitted(true);
     } catch (err) {
       console.error("Помилка відправки:", err);
-      // Навіть якщо Supabase або Telegram впаде, показуємо успіх користувачеві
       setFormSubmitted(true);
     }
   };
@@ -490,9 +501,6 @@ export default function GraziaFurnitureSystem() {
   const InstagramIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
   );
-
-  // Ховаємо контент до ініціалізації теми, щоб уникнути блимання
-  if (!themeLoaded) return <div className="min-h-screen bg-[#F5F4F1] dark:bg-[#0a0a0a]" />;
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-[var(--accent-main)] selection:text-white overflow-x-hidden transition-colors duration-500">
@@ -583,7 +591,7 @@ export default function GraziaFurnitureSystem() {
         </div>
       )}
 
-      {/* --- LIGHTBOX ПОВНОЕКРАННИЙ З ПРОДАЮЧИМ ТЕКСТОМ --- */}
+      {/* --- LIGHTBOX --- */}
       {lightboxPhoto && (
         <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-fadeIn">
           <button onClick={() => setLightboxPhoto(null)} className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors">
@@ -618,7 +626,6 @@ export default function GraziaFurnitureSystem() {
         </div>
 
         <div className="flex items-center pointer-events-auto">
-          {/* Анімований перемикач теми */}
           <div 
             onClick={toggleTheme}
             className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
@@ -758,7 +765,7 @@ export default function GraziaFurnitureSystem() {
           <div>
             <h2 className="text-3xl md:text-4xl font-serif text-[var(--text-main)] mb-6 leading-tight">ЗАМОВИТИ ПРОРАХУНОК<br/>МЕБЛІВ</h2>
             <p className="text-sm text-[var(--text-muted)] mb-10 leading-relaxed">
-              Опишіть ваш проєкт, і ми підготуємо індивідуальну пропозицію. Наш конструктор зв'яжеться з вами для уточнення деталей та погодження виїзду на замір по Харкову.
+              Опишіть ваш проєкт, і ми підготуємо індивідуальну пропозицію. Наш constructor зв'яжеться з вами для уточнення деталей та погодження виїзду на замір по Харкову.
             </p>
             
             <div className="space-y-6">
@@ -856,7 +863,7 @@ export default function GraziaFurnitureSystem() {
         </div>
       </section>
 
-      {/* Футер адаптується до теми, але зберігає контрастність */}
+      {/* Футер */}
       <footer className="bg-[var(--btn-bg)] text-[var(--btn-text)] py-16 px-6 md:px-12 mt-20 transition-colors duration-500">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
           <div>
@@ -885,20 +892,18 @@ export default function GraziaFurnitureSystem() {
         </div>
       </footer>
 
-      {/* --- ПЛАВАЮЧА КНОПКА TELEGRAM --- */}
-      {/* Замініть 'твій_юзернейм' на ваш реальний юзернейм в Telegram (наприклад, @grazia_ua) */}
+      {/* --- ПЛАВАЮЧА КНОПКА TELEGRAM (З ПРЯМИМ ПОСИЛАННЯМ НА ТВІЙ ЧАТ) --- */}
       <a
-        href="https://t.me/твій_юзернейм"
+        href="https://t.me/Psycho66626"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] w-14 h-14 bg-[#2AABEE] text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(42,171,238,0.3)] hover:scale-110 hover:shadow-[0_0_25px_rgba(42,171,238,0.5)] transition-all duration-300 group"
-        title="Написати в Telegram"
+        title="Написати менеджеру в Telegram"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
           <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.539.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.615-.6.125-.89l10.736-4.135c.5-.186.953.114.81.93z" />
         </svg>
         
-        {/* Інтерактивна підказка, що виїжджає при наведенні курсору */}
         <span className="absolute right-[calc(100%+16px)] top-1/2 -translate-y-1/2 bg-[var(--modal-bg)] border border-[var(--border-color)] text-[var(--text-main)] px-4 py-2 rounded-xl text-xs font-medium opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl">
           Живий чат з конструктором
         </span>
