@@ -1064,7 +1064,7 @@ export default function GraziaFurnitureSystem() {
       
       {/* --- КІНЕМАТОГРАФІЧНА ГАЛЕРЕЯ (MODAL) --- */}
       {selectedProject && (
-        <div className="fixed inset0 z-[100] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
+        <div className="fixed inset-0 z-[100] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
           
           <div className="sticky top-0 bg-[var(--modal-bg)] backdrop-blur-md px-6 py-5 border-b border-[var(--border-color)] flex justify-between items-center z-50">
             <div>
