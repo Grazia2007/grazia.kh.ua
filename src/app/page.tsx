@@ -140,7 +140,7 @@ export default function GraziaFurnitureSystem() {
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
   
-  // НОВИЙ СТЕЙТ ДЛЯ 3D КОНФІГУРАТОРА
+  // СТЕЙТ ДЛЯ НОВОГО 3D КОНФІГУРАТОРА
   const [configStep, setConfigStep] = useState(1);
   const [configData, setConfigData] = useState({
     type: '',
@@ -150,7 +150,7 @@ export default function GraziaFurnitureSystem() {
     dimensions: { length: '', width: '', height: '' },
     gift: '',
     phone: '',
-    time: '10:00 - 12:00'
+    time: 'Найближчим часом'
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -162,9 +162,9 @@ export default function GraziaFurnitureSystem() {
   // 0. Ініціалізація теми
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    // Жорстко задаємо світлу тему за замовчуванням, ігноруючи системні налаштування
-    if (savedTheme === 'dark') {
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
       setIsDark(true);
       document.documentElement.classList.add('dark');
     } else {
@@ -507,7 +507,7 @@ export default function GraziaFurnitureSystem() {
   useEffect(() => {
     if (mapLevel !== 'kharkiv' || !mapContainerRef.current) return;
 
-    let resizeObserver: ResizeObserver | null = null; // Додаємо спостерігача
+    let resizeObserver: ResizeObserver | null = null; 
 
     const initMapbox = async () => {
       if (!document.getElementById('mapbox-css')) {
@@ -543,7 +543,6 @@ export default function GraziaFurnitureSystem() {
 
         mapInstanceRef.current = map;
 
-        // БЕЗШОВНЕ КАЛІБРУВАННЯ: Замість setTimeout використовуємо миттєвий ResizeObserver
         if (mapContainerRef.current) {
           resizeObserver = new ResizeObserver(() => {
             if (mapInstanceRef.current) mapInstanceRef.current.resize();
@@ -611,7 +610,6 @@ export default function GraziaFurnitureSystem() {
     initMapbox();
 
     return () => {
-      // Прибираємо за собою спостерігача при закритті карти
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
@@ -633,11 +631,16 @@ export default function GraziaFurnitureSystem() {
   const returnToGlobe = () => {
     setIsTransitioning(true);
     setTimeout(() => {
+      setMapLevel('globe');
+      setIsTransitioning(false);
+    }, 600);
+  };
+
+  // ФУНКЦІЯ ВІДПРАВКИ НОВОГО 3D КОНФІГУРАТОРА
   const handleCalcSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setIsSubmitting(true);
     try {
-      // 1. Зберігаємо бекап ліда в Supabase
       await supabase.from('orders').insert({
         store_id: 'furniture',
         customer_name: 'Лід з 3D Конфігуратора',
@@ -646,7 +649,6 @@ export default function GraziaFurnitureSystem() {
         ttn_number: `3D: ${configData.type} / ${configData.layout} / Розміри: ${configData.dimensions.length}x${configData.dimensions.width}x${configData.dimensions.height}`
       });
 
-      // 2. ВІДПРАВКА В TELEGRAM ЧЕРЕЗ НАШ API
       await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -792,7 +794,6 @@ export default function GraziaFurnitureSystem() {
         </div>
 
         <div className="flex items-center pointer-events-auto">
-          {/* Анімований перемикач теми */}
           <div 
             onClick={toggleTheme}
             className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
@@ -976,7 +977,7 @@ export default function GraziaFurnitureSystem() {
             </div>
             
             {/* Індикатори параметрів поверх 3D */}
-            <div className="absolute top-6 left-6 flex flex-col gap-2">
+            <div className="absolute top-6 left-6 flex flex-col gap-2 z-20">
               {configData.type && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.type}</span>}
               {configData.color && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.color}</span>}
             </div>
@@ -1019,7 +1020,7 @@ export default function GraziaFurnitureSystem() {
                           onClick={() => setConfigData({...configData, type: item})}
                           className={`p-6 border rounded-lg cursor-pointer transition-all duration-300 flex flex-col items-center text-center gap-4 ${configData.type === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
                         >
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${configData.type === item ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${configData.type === item ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
                             {item === 'Кухня' ? <LayoutGrid size={20} /> : <Box size={20} />}
                           </div>
                           <span className="font-medium text-[var(--text-main)]">{item}</span>
@@ -1045,10 +1046,10 @@ export default function GraziaFurnitureSystem() {
                         <div 
                           key={item.id}
                           onClick={() => setConfigData({...configData, layout: item.id})}
-                          className={`p-5 border rounded-lg cursor-pointer transition-all duration-300 ${configData.layout === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
+                          className={`p-5 border rounded-lg cursor-pointer transition-all duration-300 ${configData.layout === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-sm' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
                         >
                           <div className="h-20 bg-[var(--bg-card)] rounded mb-4 flex items-center justify-center text-[var(--text-light)]">
-                            <LayoutGrid size={24} /> {/* Тут будуть красиві SVG іконки планувань пізніше */}
+                            <LayoutGrid size={24} />
                           </div>
                           <h4 className="font-medium text-[var(--text-main)]">{item.id}</h4>
                           <p className="text-xs text-[var(--text-muted)] mt-1">{item.desc}</p>
@@ -1075,7 +1076,7 @@ export default function GraziaFurnitureSystem() {
                                   backgroundColor: color === 'Білий' ? '#f8f9fa' : color === 'Графіт' ? '#2d3436' : color === 'Кашемір' ? '#dcdde1' : '#013220'
                                 }}></div>
                               </div>
-                              <span className="text-[9px] uppercase tracking-wider">{color}</span>
+                              <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)]">{color}</span>
                             </div>
                           ))}
                         </div>
@@ -1087,10 +1088,9 @@ export default function GraziaFurnitureSystem() {
                           {['Світлий Дуб', 'Горіх', 'Чорне дерево'].map(wood => (
                             <div key={wood} onClick={() => setConfigData({...configData, color: `Шпон: ${wood}`})} className="flex flex-col items-center gap-2 cursor-pointer group">
                               <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.color.includes(wood) ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                {/* Імітація текстури дерева градієнтом */}
                                 <div className="w-full h-full rounded-full shadow-inner bg-gradient-to-br from-[#8B5A2B] to-[#D2B48C]"></div>
                               </div>
-                              <span className="text-[9px] uppercase tracking-wider text-center">{wood}</span>
+                              <span className="text-[9px] uppercase tracking-wider text-center text-[var(--text-main)]">{wood}</span>
                             </div>
                           ))}
                         </div>
@@ -1115,7 +1115,7 @@ export default function GraziaFurnitureSystem() {
                             placeholder="Наприклад: 3500" 
                             value={configData.dimensions.length}
                             onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, length: e.target.value}})}
-                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)]"
+                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)] placeholder:text-[var(--text-light)]"
                           />
                           <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
                         </div>
@@ -1130,7 +1130,7 @@ export default function GraziaFurnitureSystem() {
                             placeholder="Наприклад: 600" 
                             value={configData.dimensions.width}
                             onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, width: e.target.value}})}
-                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)]"
+                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)] placeholder:text-[var(--text-light)]"
                           />
                           <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
                         </div>
@@ -1145,7 +1145,7 @@ export default function GraziaFurnitureSystem() {
                             placeholder="Наприклад: 2600" 
                             value={configData.dimensions.height}
                             onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, height: e.target.value}})}
-                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)]"
+                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)] placeholder:text-[var(--text-light)]"
                           />
                           <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
                         </div>
@@ -1171,7 +1171,7 @@ export default function GraziaFurnitureSystem() {
                           onClick={() => setConfigData({...configData, gift: item.id})}
                           className={`p-6 border rounded-lg cursor-pointer transition-all duration-300 flex flex-col items-center text-center gap-4 ${configData.gift === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
                         >
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${configData.gift === item.id ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${configData.gift === item.id ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
                             {item.icon}
                           </div>
                           <span className="font-medium text-sm text-[var(--text-main)]">{item.id}</span>
@@ -1197,7 +1197,7 @@ export default function GraziaFurnitureSystem() {
                             placeholder="+38 (000) 000-00-00" 
                             value={configData.phone}
                             onChange={(e) => setConfigData({...configData, phone: e.target.value})}
-                            className="bg-transparent w-full focus:outline-none text-[var(--text-main)]"
+                            className="bg-transparent w-full focus:outline-none text-[var(--text-main)] placeholder:text-[var(--text-light)]"
                           />
                         </div>
                       </div>
@@ -1207,7 +1207,7 @@ export default function GraziaFurnitureSystem() {
                         <select 
                           value={configData.time}
                           onChange={(e) => setConfigData({...configData, time: e.target.value})}
-                          className="w-full bg-[var(--bg-main)] rounded-lg px-4 py-3 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] appearance-none"
+                          className="w-full bg-[var(--bg-main)] rounded-lg px-4 py-3 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] appearance-none cursor-pointer"
                         >
                           <option>Найближчим часом</option>
                           <option>10:00 - 12:00</option>
@@ -1227,13 +1227,13 @@ export default function GraziaFurnitureSystem() {
                     </div>
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-3">Проєкт отримано!</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-10 max-w-md">
-                      Ми вже завантажили ваші параметри в базу. Марина зв'яжеться з вами у вказаний час ({configData.time}). Подарунок ({configData.gift}) зафіксовано за вашим номером.
+                      Ми вже завантажили ваші параметри в базу. Марина зв'яжеться з вами у вказаний час ({configData.time}). Подарунок ({configData.gift || 'не обрано'}) зафіксовано за вашим номером.
                     </p>
 
                     {/* UPSELL BLOCK */}
                     <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1E3527] to-[#0D1A13] p-8 text-left w-full border border-white/10 shadow-2xl">
                       <div className="absolute top-0 right-0 p-6 opacity-10">
-                        <Sparkles size={100} />
+                        <Sparkles size={100} className="text-white" />
                       </div>
                       <span className="bg-yellow-400/20 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1 rounded-sm block w-fit mb-4">
                         Спеціальна пропозиція
@@ -1242,7 +1242,7 @@ export default function GraziaFurnitureSystem() {
                       <p className="text-white/70 text-sm mb-6 max-w-sm">
                         Облаштуйте ваші нові меблі найкращою технікою від нашого офіційного партнера. При замовленні разом з меблями — доставка та монтаж техніки безкоштовно!
                       </p>
-                      <a href="https://tekhnovybir.com.ua" target="_blank" className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-yellow-400 transition-colors">
+                      <a href="https://tekhnovybir.com.ua" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-yellow-400 transition-colors">
                         Перейти на Tekhnovybir.com.ua <ArrowRight size={14} />
                       </a>
                     </div>
@@ -1254,7 +1254,7 @@ export default function GraziaFurnitureSystem() {
 
             {/* Навігація між кроками */}
             {!formSubmitted && (
-              <div className="mt-10 pt-6 border-t border-[var(--border-color)] flex justify-between items-center">
+              <div className="mt-10 pt-6 border-t border-[var(--border-color)] flex justify-between items-center relative z-10">
                 <button 
                   onClick={() => setConfigStep(Math.max(1, configStep - 1))}
                   className={`flex items-center gap-2 text-xs font-semibold tracking-widest uppercase transition-opacity ${configStep === 1 ? 'opacity-0 pointer-events-none' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
@@ -1308,16 +1308,15 @@ export default function GraziaFurnitureSystem() {
         <div className="max-w-[1600px] mx-auto border-t border-[var(--border-color)] opacity-40 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] uppercase tracking-widest">
           <span>© {new Date().getFullYear()} GRAZIA FURNITURE. Всі права захищені.</span>
           <div className="flex gap-6 mt-4 md:mt-0">
-            <a href="https://tekhnovybir.com.ua" target="_blank" className="hover:opacity-100 transition-opacity">Партнер: Техновибір</a>
+            <a href="https://tekhnovybir.com.ua" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity">Партнер: Техновибір</a>
             <a href="#" className="hover:opacity-100 transition-opacity">Політика конфіденційності</a>
           </div>
         </div>
       </footer>
 
       {/* --- ПЛАВАЮЧА КНОПКА TELEGRAM --- */}
-      {/* Замініть 'твій_юзернейм' на ваш реальний юзернейм в Telegram (наприклад, @grazia_ua) */}
       <a
-        href="https://t.me/твій_юзернейм"
+        href="https://t.me/MarinaGrazia"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] w-14 h-14 bg-[#2AABEE] text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(42,171,238,0.3)] hover:scale-110 hover:shadow-[0_0_25px_rgba(42,171,238,0.5)] transition-all duration-300 group"
