@@ -142,9 +142,9 @@ export default function GraziaFurnitureSystem() {
   // 0. Ініціалізація теми
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    // Жорстко задаємо світлу тему за замовчуванням, ігноруючи системні налаштування
+    if (savedTheme === 'dark') {
       setIsDark(true);
       document.documentElement.classList.add('dark');
     } else {
