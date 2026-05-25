@@ -25,13 +25,29 @@ import {
   Palette,
   Gift,
   Phone,
-  Check
+  Check,
+  Instagram,
+  Youtube,
+  Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 // 3D Бібліотеки
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Center, Float } from '@react-three/drei';
+import { OrbitControls, Environment, ContactShadows, Center, Float, Html, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
+
+// --- КОМПОНЕНТ ПЛАВНОГО ПОЯВЛЕННЯ ПРИ СКРОЛІ (Кінематографічність) ---
+const FadeIn = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 40, filter: 'blur(10px)' }}
+    whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+    viewport={{ once: true, margin: "-100px" }}
+    transition={{ duration: 0.8, ease: "easeOut", delay }}
+    className={className}
+  >
+    {children}
+  </motion.div>
+);
 
 // --- СИСТЕМА КОЛЬОРІВ ТА МАТЕРІАЛІВ ДЛЯ 3D ---
 const getMaterialProps = (colorStr: string) => {
@@ -50,20 +66,20 @@ const getMaterialProps = (colorStr: string) => {
 
   return {
     color: hex,
-    roughness: isWood ? 0.9 : 0.15, // Дерево матове, фарба має легкий глянець
+    roughness: isWood ? 0.9 : 0.15,
     metalness: 0.05,
-    clearcoat: isWood ? 0 : 0.3,    // Ефект лаку для фарбованих фасадів
+    clearcoat: isWood ? 0 : 0.3,
     clearcoatRoughness: 0.1,
   };
 };
 
 // --- КОМПОНЕНТИ ПАРАМЕТРИЧНИХ МЕБЛІВ ---
-const ParametricFurniture = ({ type, layout, colorStr }: { type: string, layout: string, colorStr: string }) => {
+const ParametricFurniture = ({ type, layout, colorStr, leftCol, rightCol }: { type: string, layout: string, colorStr: string, leftCol: string, rightCol: string }) => {
   const matProps = getMaterialProps(colorStr);
-  const countertopMat = { color: '#ffffff', roughness: 0.1, metalness: 0.1 }; // Біла стільниця
-  const glassMat = { color: '#000000', roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.8 }; // Скло для ТБ/Духовок
+  const countertopMat = { color: '#ffffff', roughness: 0.1, metalness: 0.1 }; 
+  const glassMat = { color: '#050505', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 }; // Темне скло для духовки
+  const fridgeMat = { color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }; // Метал для відкритого холодильника
 
-  // Анімація плавної появи при зміні конфігурації
   const groupRef = useRef<THREE.Group>(null);
   useFrame(() => {
     if (groupRef.current) {
@@ -71,12 +87,14 @@ const ParametricFurniture = ({ type, layout, colorStr }: { type: string, layout:
     }
   });
 
-  // КУХНЯ
+  // КУХНЯ (СУЧАСНА: Антресолі + Пенали)
   if (type === 'Кухня' || type === '') {
     return (
-      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-        {/* Основна лінія (Пряма) */}
+      <group ref={groupRef} scale={[0.75, 0.75, 0.75]}>
+        
+        {/* ЦЕНТРАЛЬНА РОБОЧА ЗОНА */}
         <group position={[0, 0, 0]}>
+          {/* Нижня база */}
           <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
             <boxGeometry args={[3, 0.9, 0.6]} />
             <meshPhysicalMaterial {...matProps} />
@@ -86,17 +104,51 @@ const ParametricFurniture = ({ type, layout, colorStr }: { type: string, layout:
             <boxGeometry args={[3.05, 0.04, 0.65]} />
             <meshStandardMaterial {...countertopMat} />
           </mesh>
-          {/* Верхні шафки */}
-          <mesh position={[0, 1.8, -0.15]} castShadow receiveShadow>
-            <boxGeometry args={[3, 0.8, 0.3]} />
+          
+          {/* СУЧАСНИЙ ВЕРХ: 1 ярус (робочий) */}
+          <mesh position={[0, 1.6, -0.125]} castShadow receiveShadow>
+            <boxGeometry args={[3, 0.5, 0.35]} />
             <meshPhysicalMaterial {...matProps} />
           </mesh>
-          {/* Імітація духовки */}
-          <mesh position={[0, 0.45, 0.31]} castShadow>
-            <boxGeometry args={[0.6, 0.6, 0.05]} />
-            <meshStandardMaterial {...glassMat} />
+          
+          {/* СУЧАСНИЙ ВЕРХ: 2 ярус (Антресолі глибокі) */}
+          <mesh position={[0, 2.15, 0]} castShadow receiveShadow>
+            <boxGeometry args={[3, 0.6, 0.6]} />
+            <meshPhysicalMaterial {...matProps} />
           </mesh>
         </group>
+
+        {/* ЛІВИЙ ПЕНАЛ */}
+        {leftCol !== 'none' && (
+          <group position={[-1.8, 1.225, 0]}>
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[0.6, 2.45, 0.6]} />
+              <meshPhysicalMaterial {...(leftCol === 'fridge_open' ? fridgeMat : matProps)} />
+            </mesh>
+            {leftCol === 'oven' && (
+              <mesh position={[0, 0.1, 0.31]} castShadow>
+                <boxGeometry args={[0.55, 0.8, 0.02]} />
+                <meshStandardMaterial {...glassMat} />
+              </mesh>
+            )}
+          </group>
+        )}
+
+        {/* ПРАВИЙ ПЕНАЛ */}
+        {rightCol !== 'none' && (
+          <group position={[1.8, 1.225, 0]}>
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[0.6, 2.45, 0.6]} />
+              <meshPhysicalMaterial {...(rightCol === 'fridge_open' ? fridgeMat : matProps)} />
+            </mesh>
+            {rightCol === 'oven' && (
+              <mesh position={[0, 0.1, 0.31]} castShadow>
+                <boxGeometry args={[0.55, 0.8, 0.02]} />
+                <meshStandardMaterial {...glassMat} />
+              </mesh>
+            )}
+          </group>
+        )}
 
         {/* Кутова (L) або П-подібна - ліве крило */}
         {(layout.includes('Кутова') || layout.includes('П-подібна')) && (
@@ -128,7 +180,7 @@ const ParametricFurniture = ({ type, layout, colorStr }: { type: string, layout:
 
         {/* Острів */}
         {layout.includes('островом') && (
-          <group position={[0, 0, 1.5]}>
+          <group position={[0, 0, 1.8]}>
             <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.8, 0.9, 0.8]} />
               <meshPhysicalMaterial {...matProps} />
@@ -209,6 +261,57 @@ const ParametricFurniture = ({ type, layout, colorStr }: { type: string, layout:
         <meshStandardMaterial color="#fff" roughness={0.1} />
       </mesh>
     </group>
+  );
+};
+
+// --- КОМПОНЕНТ 3D СМАРТФОНА (ДЛЯ ФУТЕРА) ---
+const SmartphoneWidget = () => {
+  return (
+    <div className="w-[300px] h-[400px]">
+      <Canvas camera={{ position: [0, 0, 5], fov: 40 }}>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 5, 5]} intensity={1.5} />
+        <Environment preset="city" />
+        
+        <Float speed={2} rotationIntensity={0.3} floatIntensity={0.8} floatingRange={[-0.1, 0.1]}>
+          <group rotation={[0, -0.15, 0]}>
+            {/* Корпус телефону */}
+            <RoundedBox args={[1.7, 3.4, 0.15]} radius={0.15} smoothness={4} castShadow>
+              <meshStandardMaterial color="#1a1a1a" roughness={0.2} metalness={0.8} />
+            </RoundedBox>
+            
+            {/* Екран (Чорне скло) */}
+            <mesh position={[0, 0, 0.08]}>
+              <planeGeometry args={[1.55, 3.25]} />
+              <meshBasicMaterial color="#050505" />
+            </mesh>
+
+            {/* HTML Інтерфейс екрану з кнопками */}
+            <Html transform position={[0, 0, 0.09]} distanceFactor={1.5} center zIndexRange={[100, 0]}>
+              <div className="w-[155px] h-[325px] flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-black rounded-[20px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border border-white/5">
+                <div className="text-white text-center">
+                  <span className="block text-[8px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
+                  <span className="block text-sm font-serif">Socials</span>
+                </div>
+                
+                <a href="https://www.instagram.com/grazia.kh.ua/" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300">
+                  <Instagram size={24} color="white" />
+                </a>
+                
+                <a href="https://www.youtube.com/@graziakhua/videos" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-[#FF0000] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300">
+                  <Youtube size={24} color="white" />
+                </a>
+
+                {/* Імітація "чубчика" iPhone */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-3 bg-black rounded-full"></div>
+                {/* Імітація полоски Home */}
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/30 rounded-full"></div>
+              </div>
+            </Html>
+          </group>
+        </Float>
+      </Canvas>
+    </div>
   );
 };
 
@@ -329,6 +432,8 @@ export default function GraziaFurnitureSystem() {
   const [configData, setConfigData] = useState({
     type: 'Кухня', // За замовчуванням
     layout: 'Пряма',
+    leftModule: 'none', // none, fridge_built, fridge_open, oven
+    rightModule: 'none', // none, fridge_built, fridge_open, oven
     style: '',
     color: 'Фарбований МДФ: Білий', // За замовчуванням
     dimensions: { length: '', width: '', height: '' },
@@ -829,7 +934,7 @@ export default function GraziaFurnitureSystem() {
         customer_name: 'Лід з 3D Конфігуратора',
         total_amount: 0,
         status: 'draft',
-        ttn_number: `3D: ${configData.type} / ${configData.layout} / Розміри: ${configData.dimensions.length}x${configData.dimensions.width}x${configData.dimensions.height}`
+        ttn_number: `3D: ${configData.type} / ${configData.layout} / Пенали: L(${configData.leftModule}), R(${configData.rightModule}) / Розміри: ${configData.dimensions.length}x${configData.dimensions.width}x${configData.dimensions.height}`
       });
 
       await fetch('/api/telegram', {
@@ -846,10 +951,6 @@ export default function GraziaFurnitureSystem() {
       setIsSubmitting(false);
     }
   };
-
-  const InstagramIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-  );
 
   if (!themeLoaded) return <div className="min-h-screen bg-[#F5F4F1] dark:bg-[#0a0a0a]" />;
 
@@ -893,7 +994,7 @@ export default function GraziaFurnitureSystem() {
                     <PlayCircle size={16} /> Відеоогляд об'єкта
                   </a>
                   <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors duration-300 rounded-sm">
-                    <InstagramIcon /> Перейти в Instagram
+                    <Instagram size={16} /> Перейти в Instagram
                   </a>
                 </div>
               </div>
@@ -996,8 +1097,7 @@ export default function GraziaFurnitureSystem() {
       </nav>
 
       {/* Hero Секція з 3D Глобусом та Картою */}
-      <section className="relative min-h-screen pt-32 pb-20 px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 max-w-[1600px] mx-auto">
-        
+      <FadeIn className="relative min-h-screen pt-32 pb-20 px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 max-w-[1600px] mx-auto">
         <div className="flex-1 z-10 w-full pointer-events-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 border border-[var(--border-color)] text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-8 font-mono">
             <Ruler size={12} />
@@ -1089,10 +1189,10 @@ export default function GraziaFurnitureSystem() {
           )}
 
         </div>
-      </section>
+      </FadeIn>
 
       {/* Портфоліо Проєктів */}
-      <section className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[var(--border-color)]">
+      <FadeIn delay={0.2} className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[var(--border-color)]">
         <div className="flex justify-between items-end mb-12">
           <div>
             <span className="text-[10px] font-mono text-[var(--accent-main)] uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
@@ -1121,10 +1221,10 @@ export default function GraziaFurnitureSystem() {
             </div>
           ))}
         </div>
-      </section>
+      </FadeIn>
 
       {/* --- PREMIUM 3D CONFIGURATOR --- */}
-      <section id="calc" className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto">
+      <FadeIn delay={0.3} className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto">
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
           
           {/* ЛІВА ЧАСТИНА: СПРАВЖНЯ 3D СЦЕНА */}
@@ -1148,6 +1248,8 @@ export default function GraziaFurnitureSystem() {
                         type={configData.type} 
                         layout={configData.layout} 
                         colorStr={configData.color} 
+                        leftCol={configData.leftModule}
+                        rightCol={configData.rightModule}
                       />
                     </Center>
                   </Float>
@@ -1236,29 +1338,56 @@ export default function GraziaFurnitureSystem() {
                 {/* КРОК 2: ФОРМ-ФАКТОР */}
                 {configStep === 2 && !formSubmitted && (
                   <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Оберіть планування</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Яка геометрія найкраще підходить вашому приміщенню?</p>
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Конфігурація</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-6">Налаштуйте планування та модулі для техніки.</p>
                     
                     {configData.type === 'Кухня' ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        {[
-                          { id: 'Пряма', desc: 'Класична лінія' },
-                          { id: 'Кутова (L-подібна)', desc: 'Оптимізація кута' },
-                          { id: 'П-подібна', desc: 'Максимум робочої зони' },
-                          { id: 'З островом', desc: 'Преміальний простір' }
-                        ].map((item) => (
-                          <div 
-                            key={item.id}
-                            onClick={() => setConfigData({...configData, layout: item.id})}
-                            className={`p-5 border rounded-lg cursor-pointer transition-all duration-300 ${configData.layout === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-sm' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
-                          >
-                            <div className="h-20 bg-[var(--bg-card)] rounded mb-4 flex items-center justify-center text-[var(--text-light)]">
-                              <LayoutGrid size={24} />
-                            </div>
-                            <h4 className="font-medium text-[var(--text-main)]">{item.id}</h4>
-                            <p className="text-xs text-[var(--text-muted)] mt-1">{item.desc}</p>
+                      <div className="space-y-6">
+                        {/* Планування */}
+                        <div>
+                          <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Основна геометрія</span>
+                          <div className="grid grid-cols-2 gap-3">
+                            {['Пряма', 'Кутова (L-подібна)', 'П-подібна', 'З островом'].map((item) => (
+                              <div 
+                                key={item}
+                                onClick={() => setConfigData({...configData, layout: item})}
+                                className={`p-3 border rounded-lg cursor-pointer transition-all duration-300 text-sm font-medium ${configData.layout === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`}
+                              >
+                                {item}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        </div>
+                        
+                        {/* Пенали */}
+                        <div className="grid grid-cols-2 gap-6">
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Лівий пенал</span>
+                            <select 
+                              value={configData.leftModule}
+                              onChange={(e) => setConfigData({...configData, leftModule: e.target.value})}
+                              className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm"
+                            >
+                              <option value="none">Немає</option>
+                              <option value="fridge_built">Вбуд. Холодильник</option>
+                              <option value="fridge_open">Ніша під Холодильник</option>
+                              <option value="oven">Духовка + НВЧ</option>
+                            </select>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Правий пенал</span>
+                            <select 
+                              value={configData.rightModule}
+                              onChange={(e) => setConfigData({...configData, rightModule: e.target.value})}
+                              className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm"
+                            >
+                              <option value="none">Немає</option>
+                              <option value="fridge_built">Вбуд. Холодильник</option>
+                              <option value="fridge_open">Ніша під Холодильник</option>
+                              <option value="oven">Духовка + НВЧ</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div className="p-8 border border-[var(--border-color)] rounded-lg text-center bg-[var(--bg-card)]">
@@ -1399,7 +1528,7 @@ export default function GraziaFurnitureSystem() {
                 {configStep === 6 && !formSubmitted && (
                   <motion.div key="step6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Проєкт готовий до прорахунку</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Залиште ваш контакт, і наш конструктор Марина зв'яжеться з вами.</p>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Залиште ваш контакт, і наш дизайнер-технолог Марина зв'яжеться з вами.</p>
                     
                     <div className="space-y-6 bg-[var(--bg-card)] p-6 rounded-xl border border-[var(--border-color)]">
                       <div>
@@ -1441,7 +1570,7 @@ export default function GraziaFurnitureSystem() {
                     </div>
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-3">Проєкт отримано!</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-10 max-w-md">
-                      Ми вже завантажили ваші параметри в базу. Марина зв'яжеться з вами у вказаний час ({configData.time}). Подарунок ({configData.gift || 'не обрано'}) зафіксовано за вашим номером.
+                      Ми вже завантажили ваші параметри в базу. Дизайнер-технолог Марина зв'яжеться з вами у вказаний час ({configData.time}). Подарунок ({configData.gift || 'не обрано'}) зафіксовано за вашим номером.
                     </p>
 
                     {/* UPSELL BLOCK */}
@@ -1504,29 +1633,75 @@ export default function GraziaFurnitureSystem() {
 
           </div>
         </div>
-      </section>
+      </FadeIn>
 
-      {/* Футер адаптується до теми, але зберігає контрастність */}
-      <footer className="bg-[var(--btn-bg)] text-[var(--btn-text)] py-16 px-6 md:px-12 mt-20 transition-colors duration-500">
-        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
-          <div>
-            <div className="w-12 h-12 bg-[var(--btn-text)] text-[var(--btn-bg)] flex items-center justify-center font-serif font-bold text-3xl tracking-tighter mb-4">
+      {/* --- БЛОК ПАРТНЕРІВ (МАРКІЗА) --- */}
+      <FadeIn delay={0.2} className="w-full overflow-hidden bg-[var(--bg-card)] border-y border-[var(--border-color)] py-12 mt-24">
+        <div className="max-w-[1600px] mx-auto px-6 mb-6 text-center">
+           <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)]">Працюємо з найкращими європейськими брендами</span>
+        </div>
+        <div className="flex w-[200%]">
+          <motion.div 
+            animate={{ x: ["0%", "-50%"] }} 
+            transition={{ repeat: Infinity, ease: "linear", duration: 25 }}
+            className="flex items-center gap-24 whitespace-nowrap pl-12"
+          >
+            {/* Набір 1 */}
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">BLUM</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">EGGER</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">VIYAR</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">HETTICH</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">FENIX</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">METROLUXE</span>
+            
+            {/* Набір 2 (дублікат для безшовного циклу) */}
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">BLUM</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">EGGER</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">VIYAR</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">HETTICH</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">FENIX</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">METROLUXE</span>
+          </motion.div>
+        </div>
+      </FadeIn>
+
+      {/* Футер з 3D Смартфоном */}
+      <footer className="bg-[var(--btn-bg)] text-[var(--btn-text)] pt-24 pb-16 px-6 md:px-12 mt-auto transition-colors duration-500 overflow-hidden">
+        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-16 relative">
+          
+          <div className="flex-1 text-center lg:text-left z-10">
+            <div className="w-16 h-16 bg-[var(--btn-text)] text-[var(--btn-bg)] flex items-center justify-center font-serif font-bold text-4xl tracking-tighter mb-6 mx-auto lg:mx-0">
               G
             </div>
-            <p className="opacity-60 text-sm max-w-xs">Виробництво ексклюзивних корпусних меблів у Харкові. Створюємо інтер'єри з 2007 року.</p>
-          </div>
-          
-          <div className="flex flex-col items-start md:items-end gap-4">
-            <a href="tel:+380501234567" className="text-xl font-serif hover:text-[var(--accent-main)] transition-colors">+38 (050) 123-45-67</a>
-            <p className="text-sm opacity-60 flex items-center gap-2"><MapPin size={16} /> м. Харків, просп. Науки (Виробництво)</p>
-            <div className="flex gap-4 mt-2">
-              <a href="#" className="w-10 h-10 rounded-full border border-current opacity-60 flex items-center justify-center hover:opacity-100 hover:bg-[var(--btn-text)] hover:text-[var(--btn-bg)] transition-all">
-                <InstagramIcon />
-              </a>
+            <p className="opacity-60 text-sm max-w-sm mx-auto lg:mx-0 mb-8 leading-relaxed">
+              Виробництво ексклюзивних корпусних меблів у Харкові. Виїжджаємо на об'єкти, працюємо безпосередньо з клієнтами. Створюємо інтер'єри з 2007 року.
+            </p>
+
+            <div className="flex flex-col gap-4 items-center lg:items-start font-mono text-sm opacity-80">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                <span className="text-[var(--text-light)] uppercase tracking-widest text-[10px]">Керівник</span>
+                <a href="tel:+380935346322" className="hover:text-white transition-colors">Микола Миколайович: +38 (093) 53 46 322</a>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                <span className="text-[var(--text-light)] uppercase tracking-widest text-[10px]">Дизайнер-технолог</span>
+                <a href="tel:+380506878243" className="hover:text-white transition-colors">Марина: +38 (050) 68 78 243</a>
+              </div>
             </div>
           </div>
+          
+          {/* 3D Смартфон Віджет */}
+          <div className="flex-1 w-full flex justify-center lg:justify-end relative z-10">
+            <div className="relative">
+              <div className="absolute top-10 -left-10 text-[10px] font-mono uppercase tracking-widest text-[var(--btn-text)]/40 text-right">
+                Живі об'єкти<br/>та бекстейдж<br/>тут 👉
+              </div>
+              <SmartphoneWidget />
+            </div>
+          </div>
+          
         </div>
-        <div className="max-w-[1600px] mx-auto border-t border-[var(--border-color)] opacity-40 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] uppercase tracking-widest">
+
+        <div className="max-w-[1600px] mx-auto border-t border-white/10 opacity-40 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] uppercase tracking-widest relative z-10">
           <span>© {new Date().getFullYear()} GRAZIA FURNITURE. Всі права захищені.</span>
           <div className="flex gap-6 mt-4 md:mt-0">
             <a href="https://tekhnovybir.com.ua" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity">Партнер: Техновибір</a>
@@ -1547,7 +1722,6 @@ export default function GraziaFurnitureSystem() {
           <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.539.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.615-.6.125-.89l10.736-4.135c.5-.186.953.114.81.93z" />
         </svg>
         
-        {/* Інтерактивна підказка, що виїжджає при наведенні курсору */}
         <span className="absolute right-[calc(100%+16px)] top-1/2 -translate-y-1/2 bg-[var(--modal-bg)] border border-[var(--border-color)] text-[var(--text-main)] px-4 py-2 rounded-xl text-xs font-medium opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl">
           Живий чат з конструктором
         </span>
