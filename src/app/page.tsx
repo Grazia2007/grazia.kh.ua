@@ -138,9 +138,9 @@ export default function GraziaFurnitureSystem() {
   // Ініціалізація теми БЕЗ блокування основного рендеру сторінки
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    // Якщо користувач раніше сам обрав dark — вмикаємо її, інакше — завжди світла
+    if (savedTheme === 'dark') {
       setIsDark(true);
       document.documentElement.classList.add('dark');
     } else {
