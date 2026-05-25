@@ -68,7 +68,6 @@ const createCustomSupabaseClient = (url: string, key: string) => {
 
 const supabase = createCustomSupabaseClient(supabaseUrl, supabaseAnonKey) as any;
 
-// Базові координати об'єктів (Харків + Область + Полтава) на випадок, якщо база даних пуста
 const DEFAULT_MAP_LOCATIONS = [
   { 
     id: 'naukova', 
@@ -156,6 +155,22 @@ const DEFAULT_MAP_LOCATIONS = [
   }
 ];
 
+// Утиліта для безпечного завантаження зовнішніх скриптів
+const loadScript = (id: string, src: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (document.getElementById(id) || document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = id;
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.head.appendChild(script);
+  });
+};
+
 export default function GraziaFurnitureSystem() {
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
@@ -177,10 +192,11 @@ export default function GraziaFurnitureSystem() {
 
   // --- ЛОГІКА ТЕМИ ---
   useEffect(() => {
-    // Встановлюємо тему при завантаженні сторінки
+    // Встановлюємо світлу тему як дефолтну, якщо користувач явно не вибрав темну
     const savedTheme = localStorage.getItem('grazia-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+    
+    // Якщо збережена тема "dark", то вмикаємо її. Інакше - завжди світла (навіть якщо системна темна).
+    const shouldBeDark = savedTheme === 'dark';
     
     setIsDarkMode(shouldBeDark);
     if (shouldBeDark) {
@@ -209,7 +225,6 @@ export default function GraziaFurnitureSystem() {
     const fetchPortfolio = async () => {
       const { data, error } = await supabase.from('portfolio_projects').select('*');
       if (data && data.length > 0) {
-        // Бронебійний парсинг POINT для PostgreSQL та PostgREST форматів
         const formattedData = data.map((item: any) => {
           let coords = [36.2263, 50.0152]; // Дефолт
           if (item.coordinates) {
@@ -250,7 +265,7 @@ export default function GraziaFurnitureSystem() {
     fetchPortfolio();
   }, []);
 
-  // 1. D3.js 3D-Глобус (Працює тільки в режимі 'globe')
+  // 1. D3.js 3D-Глобус
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     
@@ -267,7 +282,7 @@ export default function GraziaFurnitureSystem() {
         const loadScript = (src: string) => new Promise((res, rej) => {
           const s = document.createElement('script');
           s.src = src;
-          // БЕЗ crossOrigin, щоб уникнути помилок доступу на Vercel
+          // БЕЗ crossOrigin, щоб уникнути помилок доступу
           s.onload = res;
           s.onerror = rej;
           document.head.appendChild(s);
@@ -306,7 +321,7 @@ export default function GraziaFurnitureSystem() {
         const path = d3.geoPath(projection, ctx);
         const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
         
-        if (!isMounted) return; // Перевірка після fetch
+        if (!isMounted) return; 
         
         const land = topojson.feature(worldData, worldData.objects.land);
 
@@ -322,10 +337,8 @@ export default function GraziaFurnitureSystem() {
             projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
             ctx.clearRect(0, 0, width, height);
 
-            // Читаємо тему динамічно під час рендерингу
             const currentIsDark = document.documentElement.classList.contains('dark');
 
-            // Сяйво під глобусом
             const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
             glow.addColorStop(0, currentIsDark ? 'rgba(255,255,255,0.05)' : 'rgba(30, 53, 39, 0.08)');
             glow.addColorStop(1, 'rgba(245, 244, 241, 0)');
@@ -334,7 +347,6 @@ export default function GraziaFurnitureSystem() {
             ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
             ctx.fill();
 
-            // Світовий океан
             const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
             baseGradient.addColorStop(0, currentIsDark ? '#222' : '#FFFFFF');
             baseGradient.addColorStop(0.4, currentIsDark ? '#111' : '#EBEAE6');
@@ -344,13 +356,11 @@ export default function GraziaFurnitureSystem() {
             ctx.fillStyle = baseGradient;
             ctx.fill();
 
-            // Материки
             ctx.beginPath();
             path(land);
             ctx.fillStyle = currentIsDark ? '#2A4A38' : '#414D46'; 
             ctx.fill();
 
-            // Градієнт затінення
             const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
             shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
             shadowGradient.addColorStop(1, currentIsDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.18)');
@@ -359,7 +369,6 @@ export default function GraziaFurnitureSystem() {
             ctx.fillStyle = shadowGradient;
             ctx.fill();
 
-            // Одиночний маркер України (Харківська область)
             const center = projection.invert([cx, cy]);
             if (center) {
               const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
@@ -381,7 +390,6 @@ export default function GraziaFurnitureSystem() {
 
             animationFrameId = requestAnimationFrame(render);
           } catch (e) {
-            // Запобіжник від безкінечного спаму помилок! Якщо тут помилка, анімація зупиниться і не спамитиме Vercel.
             console.warn("Globe render safely paused to prevent spam.");
             return;
           }
@@ -429,7 +437,7 @@ export default function GraziaFurnitureSystem() {
 
       const mapboxgl = (window as any).mapboxgl;
       
-      // Безпечний розділений токен для запобігання скануванню секретів GitHub
+      // Безпечний розділений токен
       mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoi' + 'Y21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
 
       try {
@@ -439,7 +447,7 @@ export default function GraziaFurnitureSystem() {
           style: currentIsDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
           center: [36.24, 49.98], // Харків
           zoom: 11,
-          pitch: 50, // Нахил камери
+          pitch: 50,
           bearing: -15,
           antialias: true
         });
@@ -452,7 +460,6 @@ export default function GraziaFurnitureSystem() {
             const layers = map.getStyle().layers;
             const labelLayerId = layers.find((layer: any) => layer.type === 'symbol' && layer.layout['text-field'])?.id;
 
-            // 3D Моделювання будівель для відчуття глибини
             map.addLayer(
               {
                 'id': 'add-3d-buildings',
@@ -473,7 +480,6 @@ export default function GraziaFurnitureSystem() {
           } catch(e) {}
         });
 
-        // Створення та позиціонування маркерів на карті
         const targets = dbProjects.length > 0 ? dbProjects : DEFAULT_MAP_LOCATIONS;
         targets.forEach((pin) => {
           const el = document.createElement('div');
@@ -493,7 +499,7 @@ export default function GraziaFurnitureSystem() {
               center: pin.coordinates,
               zoom: 14.5,
               pitch: 60,
-              duration: 2500, // Плавний розкішний політ
+              duration: 2500,
               essential: true
             });
           });
@@ -565,7 +571,7 @@ export default function GraziaFurnitureSystem() {
           <div className="sticky top-0 bg-[#F5F4F1]/95 dark:bg-[#0A0A0A]/95 backdrop-blur-md px-6 py-5 border-b border-[#0D0D0D]/10 dark:border-white/10 flex justify-between items-center z-50">
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-[#1E3527] dark:text-green-400 block font-bold">GRAZIA PORTFOLIO</span>
-              <h2 className="text-xl font-serif">{selectedProject.name}</h2>
+              <h2 className="text-xl font-serif text-[#0D0D0D] dark:text-white">{selectedProject.name}</h2>
             </div>
             <button onClick={() => setSelectedProject(null)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[#0D0D0D] dark:bg-white text-white dark:text-[#0D0D0D] hover:scale-105 transition-transform duration-300">
               <X size={20} />
@@ -584,10 +590,10 @@ export default function GraziaFurnitureSystem() {
                 <div className="flex flex-wrap items-center gap-6 mb-8 py-6 border-y border-[#0D0D0D]/10 dark:border-white/10">
                   <div className="flex items-center gap-1.5 text-[#1E3527] dark:text-yellow-400">
                     {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
-                    <span className="text-sm font-bold ml-2 text-[#0D0D0D] dark:text-white">{selectedProject.rating} / 5.0</span>
+                    <span className="text-sm font-bold ml-2">{selectedProject.rating} / 5.0</span>
                   </div>
                   <div className="text-xs opacity-60 font-mono flex items-center gap-2">
-                    <MapPin size={14} className="text-[#1E3527] dark:text-green-400" /> {selectedProject.radius} (Захист приватності клієнта)
+                    <MapPin size={14} className="text-[#1E3527] dark:text-green-400" /> {selectedProject.radius} (Захищено)
                   </div>
                 </div>
 
@@ -604,7 +610,7 @@ export default function GraziaFurnitureSystem() {
               {/* Прев'ю */}
               <div className="flex-1 relative w-full aspect-[4/3] bg-[#EBEAE6] dark:bg-[#141414] rounded-sm overflow-hidden shadow-2xl border border-black/5 dark:border-white/5">
                 <img src={selectedProject.photos[0]?.url} alt="Cover" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 <div className="absolute bottom-6 left-6 text-white z-10 flex items-center gap-2">
                   <Sparkles size={16} className="text-yellow-400" />
                   <span className="text-xs font-mono uppercase tracking-widest">Основний ракурс</span>
@@ -647,7 +653,7 @@ export default function GraziaFurnitureSystem() {
         </div>
       )}
 
-      {/* --- LIGHTBOX ПОВНОЕКРАННИЙ З ПРОДАЮЧИМ ТЕКСТОМ --- */}
+      {/* --- LIGHTBOX ПОВНОЕКРАННИЙ --- */}
       {lightboxPhoto && (
         <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-fadeIn">
           <button onClick={() => setLightboxPhoto(null)} className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors">
@@ -683,7 +689,7 @@ export default function GraziaFurnitureSystem() {
 
         <div className="header-actions flex items-center gap-6 pointer-events-auto">
           {/* 🌞 ПРЕМІУМ ПЕРЕМИКАЧ ТЕМИ 🌛 */}
-          <div className="theme-switch-wrapper flex items-center gap-3">
+          <div className="theme-switch-wrapper flex items-center gap-3 w-[110px] justify-end">
             {/* Фіксована ширина тексту, щоб навігація не стрибала */}
             <span className="text-[10px] font-mono uppercase tracking-widest opacity-40 select-none inline-block w-[35px] text-right">
               {isDarkMode ? 'Ніч' : 'День'}
@@ -770,7 +776,6 @@ export default function GraziaFurnitureSystem() {
         <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[#EBEAE6] dark:bg-[#111111] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[#0D0D0D]/5 dark:border-white/5 transition-colors duration-700">
           
           {mapLevel === 'globe' ? (
-            /* РЕЖИМ 1: Елітний 3D Глобус з Україною */
             <div className={`w-full h-full flex flex-col items-center justify-center p-6 relative transition-all duration-[1200ms] ${isTransitioning ? 'scale-[3] opacity-0 blur-xl' : 'scale-100 opacity-100'}`}>
               <canvas ref={canvasRef} width={550} height={550} className="w-full max-w-[500px] aspect-square cursor-grab active:cursor-grabbing" />
               <div className="absolute top-6 left-6 bg-[#F5F4F1]/80 dark:bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-[#0D0D0D]/10 dark:border-white/10 text-[10px] font-mono uppercase tracking-widest">
@@ -778,7 +783,6 @@ export default function GraziaFurnitureSystem() {
               </div>
             </div>
           ) : (
-            /* РЕЖИМ 2: СПРАВЖНІЙ MAPBOX */
             <div className={`w-full h-full relative transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
               
               <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ outline: 'none' }} />
@@ -787,7 +791,6 @@ export default function GraziaFurnitureSystem() {
                 Реальна Карта Mapbox
               </div>
 
-              {/* Інформаційна панель знизу мапи */}
               <div className="absolute bottom-6 left-6 right-6 bg-[#F5F4F1]/95 dark:bg-[#0A0A0A]/95 backdrop-blur-md p-5 border border-[#0D0D0D]/10 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-white dark:hover:bg-[#141414] transition-all duration-300 z-30" onClick={() => setSelectedProject(activePin)}>
                 <div>
                   <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-white inline-block mb-2 ${activePin.type === 'city' ? 'bg-[#0D0D0D] dark:bg-white dark:text-[#0D0D0D]' : 'bg-[#1E3527]'}`}>
@@ -795,7 +798,7 @@ export default function GraziaFurnitureSystem() {
                   </span>
                   <h3 className="text-lg font-serif font-medium">{activePin.project}</h3>
                   <p className="text-[11px] opacity-60 flex items-center gap-1.5 mt-1 font-mono">
-                    <MapPin size={12} /> Зона робіт: {activePin.name} (Клікніть на пін для польоту)
+                    <MapPin size={12} /> Зона робіт: {activePin.name} (Клікніть на пін)
                   </p>
                 </div>
                 <div className="md:text-right border-t md:border-t-0 border-[#0D0D0D]/10 dark:border-white/10 pt-3 md:pt-0 w-full md:w-auto">
@@ -904,7 +907,7 @@ export default function GraziaFurnitureSystem() {
                   <option value="" disabled className="dark:bg-black">Що потрібно виготовити?</option>
                   <option value="kitchen" className="dark:bg-black">Кухня</option>
                   <option value="wardrobe" className="dark:bg-black">Шафа-купе / Гардеробна</option>
-                  <option value="living" className="dark:bg-black">Меблі у вітальню (Тумби, ТВ-зони)</option>
+                  <option value="living" className="dark:bg-black">Меблі у вітальню</option>
                   <option value="bathroom" className="dark:bg-black">Меблі для ванної</option>
                   <option value="complex" className="dark:bg-black">Комплексне меблювання</option>
                 </select>
