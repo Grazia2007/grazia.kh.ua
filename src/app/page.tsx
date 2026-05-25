@@ -372,15 +372,13 @@ const SmartphoneWidget = () => {
       </Canvas>
 
       {/* HTML ІНТЕРФЕЙС ПОВЕРХ 3D CANVAS */}
-      {/* Використовуємо абсолютне позиціонування та анімацію Framer Motion, щоб екран повторював рухи телефону */}
       <motion.div 
         className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
         style={{ originX: 0.5, originY: 0.5 }}
         animate={{ 
           x: "-50%", 
-          y: "-50%", 
-          rotateY: -8.5, // Відповідає rotation={[0, -0.15, 0]} у 3D моделі (в градусах)
-          y: ["-50%", "calc(-50% - 10px)", "-50%"] // Імітація Float анімації
+          rotateY: -8.5, 
+          y: ["-50%", "calc(-50% - 10px)", "-50%"] 
         }}
         transition={{ 
           y: { repeat: Infinity, duration: 4, ease: "easeInOut" } 
@@ -1066,7 +1064,7 @@ export default function GraziaFurnitureSystem() {
       
       {/* --- КІНЕМАТОГРАФІЧНА ГАЛЕРЕЯ (MODAL) --- */}
       {selectedProject && (
-        <div className="fixed inset-0 z-[100] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
+        <div className="fixed inset0 z-[100] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
           
           <div className="sticky top-0 bg-[var(--modal-bg)] backdrop-blur-md px-6 py-5 border-b border-[var(--border-color)] flex justify-between items-center z-50">
             <div>
@@ -1902,7 +1900,6 @@ export default function GraziaFurnitureSystem() {
                   style={{ originX: 0.5, originY: 0.5 }}
                   animate={{ 
                     x: "-50%", 
-                    y: "-50%", 
                     rotateY: -8.5, 
                     y: ["-50%", "calc(-50% - 10px)", "-50%"] 
                   }}
