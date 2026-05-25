@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useMemo } from 'react';
 import { 
   ArrowRight, 
   MapPin, 
@@ -18,15 +18,11 @@ import {
   Sparkles,
   Eye,
   Sun,
-  Moon,
   MousePointer2,
   Box,
   LayoutGrid,
-  Palette,
-  Gift,
   Phone,
-  Check,
-  Layers
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 // 3D Бібліотеки
@@ -93,18 +89,27 @@ const getMaterialProps = (colorStr: string) => {
   };
 };
 
-// --- ОНОВЛЕНИЙ 3D КОМПОНЕНТ З РОЗДІЛЬНИМИ КОЛЬОРАМИ ---
+// Хелпер для створення масиву матеріалів (Корпус з усіх боків, Фасад тільки спереду)
+// В Three.js індекси для BoxGeometry: 0:Right, 1:Left, 2:Top, 3:Bottom, 4:Front(+Z), 5:Back
+const createMultiMaterial = (carcassStr: string, facadeStr: string) => {
+  const cMat = new THREE.MeshPhysicalMaterial(getMaterialProps(carcassStr));
+  const fMat = new THREE.MeshPhysicalMaterial(getMaterialProps(facadeStr));
+  return [cMat, cMat, cMat, cMat, fMat, cMat];
+};
+
+// --- ОНОВЛЕНИЙ 3D КОМПОНЕНТ З РОЗДІЛЬНИМИ КОЛЬОРАМИ ТА ІДЕАЛЬНОЮ ГЕОМЕТРІЄЮ ---
 const ParametricFurniture = ({ config }: { config: any }) => {
   const { type, layout, leftModule, rightModule, upperTier, colors } = config;
 
-  const baseMat = getMaterialProps(colors.base);
-  const upperMat = getMaterialProps(colors.upper);
-  const topTierMat = getMaterialProps(colors.topTier);
-  const countertopMat = getMaterialProps(colors.countertop);
-  const carcassMat = getMaterialProps(colors.carcass); // Для видимих боковин
+  // Генеруємо матеріали для кожного модуля (Корпус + Фасад)
+  const baseMats = useMemo(() => createMultiMaterial(colors.carcass, colors.base), [colors.carcass, colors.base]);
+  const upperMats = useMemo(() => createMultiMaterial(colors.carcass, colors.upper), [colors.carcass, colors.upper]);
+  const topTierMats = useMemo(() => createMultiMaterial(colors.carcass, colors.topTier), [colors.carcass, colors.topTier]);
+  const carcassOnlyMats = useMemo(() => createMultiMaterial(colors.carcass, colors.carcass), [colors.carcass]);
   
-  const glassMat = { color: '#050505', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 }; 
-  const fridgeMat = { color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }; 
+  const countertopMat = useMemo(() => new THREE.MeshPhysicalMaterial(getMaterialProps(colors.countertop)), [colors.countertop]);
+  const glassMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#050505', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 }), []);
+  const fridgeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }), []);
 
   const groupRef = useRef<THREE.Group>(null);
   useFrame(() => {
@@ -115,134 +120,152 @@ const ParametricFurniture = ({ config }: { config: any }) => {
 
   if (type === 'Кухня' || type === '') {
     const hasAntresol = upperTier === 'Двоярусні (з антресолями)';
+    const tallModHeight = hasAntresol ? 2.6 : 2.4;
+    const tallModY = tallModHeight / 2;
+
+    // Компонент Пеналу
+    const TallModule = ({ position, rotation, moduleType }: { position: [number, number, number], rotation: [number, number, number], moduleType: string }) => {
+      if (moduleType === 'none') return null;
+      const mats = moduleType === 'fridge_open' ? carcassOnlyMats : baseMats;
+      return (
+        <group position={position} rotation={rotation}>
+          <mesh material={mats} castShadow receiveShadow>
+            <boxGeometry args={[0.6, tallModHeight, 0.6]} />
+          </mesh>
+          {moduleType === 'oven' && (
+            <mesh position={[0, 0.1, 0.31]} material={glassMat} castShadow>
+              <boxGeometry args={[0.55, 0.8, 0.02]} />
+            </mesh>
+          )}
+          {moduleType === 'fridge_open' && (
+            <mesh position={[0, -0.2, 0.1]} material={fridgeMat} castShadow>
+              <boxGeometry args={[0.55, tallModHeight - 0.5, 0.45]} />
+            </mesh>
+          )}
+        </group>
+      );
+    };
 
     return (
-      <group ref={groupRef} scale={[0.75, 0.75, 0.75]}>
-        {/* ЦЕНТРАЛЬНА РОБОЧА ЗОНА */}
+      <group ref={groupRef} scale={[0.7, 0.7, 0.7]}>
+        
+        {/* ЦЕНТРАЛЬНА СТІНА (Основна пряма лінія) */}
         <group position={[0, 0, 0]}>
-          {/* Нижня база */}
-          <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+          <mesh position={[0, 0.45, 0]} material={baseMats} castShadow receiveShadow>
             <boxGeometry args={[3, 0.9, 0.6]} />
-            <meshPhysicalMaterial {...baseMat} />
           </mesh>
-          {/* Стільниця */}
-          <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+          <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
             <boxGeometry args={[3.05, 0.04, 0.65]} />
-            <meshPhysicalMaterial {...countertopMat} />
           </mesh>
           
-          {/* ВЕРХ: 1 ярус (робочий) */}
-          <mesh position={[0, 1.6, -0.125]} castShadow receiveShadow>
-            <boxGeometry args={[3, 0.5, 0.35]} />
-            <meshPhysicalMaterial {...upperMat} />
-          </mesh>
-          
-          {/* ВЕРХ: 2 ярус (Антресолі глибокі) */}
-          {hasAntresol && (
-            <mesh position={[0, 2.15, 0]} castShadow receiveShadow>
-              <boxGeometry args={[3, 0.6, 0.6]} />
-              <meshPhysicalMaterial {...topTierMat} />
+          {hasAntresol ? (
+            <>
+              {/* Двоярусні: Робочий ярус */}
+              <mesh position={[0, 1.75, -0.125]} material={upperMats} castShadow receiveShadow>
+                <boxGeometry args={[3, 0.5, 0.35]} />
+              </mesh>
+              {/* Двоярусні: Антресолі */}
+              <mesh position={[0, 2.3, 0]} material={topTierMats} castShadow receiveShadow>
+                <boxGeometry args={[3, 0.6, 0.6]} />
+              </mesh>
+            </>
+          ) : (
+            // Одноярусні: Високі цільні шафи
+            <mesh position={[0, 1.95, -0.125]} material={upperMats} castShadow receiveShadow>
+              <boxGeometry args={[3, 0.9, 0.35]} />
             </mesh>
           )}
         </group>
 
-        {/* ЛІВИЙ ПЕНАЛ */}
-        {leftModule !== 'none' && (
-          <group position={[-1.8, 1.225, 0]}>
-            <mesh castShadow receiveShadow>
-              {/* Висота пеналу залежить від наявності антресолей */}
-              <boxGeometry args={[0.6, hasAntresol ? 2.45 : 1.85, 0.6]} />
-              <meshPhysicalMaterial {...(leftModule === 'fridge_open' ? fridgeMat : baseMat)} />
-            </mesh>
-            {leftModule === 'oven' && (
-              <mesh position={[0, 0.1, 0.31]} castShadow>
-                <boxGeometry args={[0.55, 0.8, 0.02]} />
-                <meshStandardMaterial {...glassMat} />
-              </mesh>
-            )}
-          </group>
-        )}
-
-        {/* ПРАВИЙ ПЕНАЛ */}
-        {rightModule !== 'none' && (
-          <group position={[1.8, 1.225, 0]}>
-            <mesh castShadow receiveShadow>
-              <boxGeometry args={[0.6, hasAntresol ? 2.45 : 1.85, 0.6]} />
-              <meshPhysicalMaterial {...(rightModule === 'fridge_open' ? fridgeMat : baseMat)} />
-            </mesh>
-            {rightModule === 'oven' && (
-              <mesh position={[0, 0.1, 0.31]} castShadow>
-                <boxGeometry args={[0.55, 0.8, 0.02]} />
-                <meshStandardMaterial {...glassMat} />
-              </mesh>
-            )}
-          </group>
-        )}
-
-        {/* Кутова (Ліворуч) */}
-        {layout === 'Кутова (Ліворуч)' && (
-          <group position={[-1.2, 0, 0.9]}>
-            <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
-              <boxGeometry args={[0.6, 0.9, 1.2]} />
-              <meshPhysicalMaterial {...baseMat} />
-            </mesh>
-            <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
-              <boxGeometry args={[0.65, 0.04, 1.25]} />
-              <meshPhysicalMaterial {...countertopMat} />
-            </mesh>
-          </group>
-        )}
-
-        {/* Кутова (Праворуч) */}
-        {layout === 'Кутова (Праворуч)' && (
-          <group position={[1.2, 0, 0.9]}>
-            <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
-              <boxGeometry args={[0.6, 0.9, 1.2]} />
-              <meshPhysicalMaterial {...baseMat} />
-            </mesh>
-            <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
-              <boxGeometry args={[0.65, 0.04, 1.25]} />
-              <meshPhysicalMaterial {...countertopMat} />
-            </mesh>
-          </group>
-        )}
-
-        {/* П-подібна */}
-        {layout === 'П-подібна' && (
-          <>
-            <group position={[-1.2, 0, 0.9]}>
-              <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
-                <boxGeometry args={[0.6, 0.9, 1.2]} />
-                <meshPhysicalMaterial {...baseMat} />
-              </mesh>
-              <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
-                <boxGeometry args={[0.65, 0.04, 1.25]} />
-                <meshPhysicalMaterial {...countertopMat} />
-              </mesh>
+        {/* ЛІВЕ КРИЛО ТА ПЕНАЛИ */}
+        {(() => {
+          const isLeftCorner = layout === 'Кутова (Ліворуч)' || layout === 'П-подібна';
+          return (
+            <group>
+              {isLeftCorner && (
+                <group position={[-1.2, 0, 0.9]} rotation={[0, Math.PI / 2, 0]}>
+                  <mesh position={[0, 0.45, 0]} material={baseMats} castShadow receiveShadow>
+                    <boxGeometry args={[1.2, 0.9, 0.6]} />
+                  </mesh>
+                  <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
+                    <boxGeometry args={[1.25, 0.04, 0.65]} />
+                  </mesh>
+                  {hasAntresol ? (
+                    <>
+                      <mesh position={[-0.125, 1.75, 0]} material={upperMats} castShadow receiveShadow>
+                        <boxGeometry args={[0.95, 0.5, 0.35]} />
+                      </mesh>
+                      <mesh position={[0, 2.3, 0]} material={topTierMats} castShadow receiveShadow>
+                        <boxGeometry args={[1.2, 0.6, 0.6]} />
+                      </mesh>
+                    </>
+                  ) : (
+                    <mesh position={[-0.125, 1.95, 0]} material={upperMats} castShadow receiveShadow>
+                      <boxGeometry args={[0.95, 0.9, 0.35]} />
+                    </mesh>
+                  )}
+                </group>
+              )}
+              {/* Пенал ставимо або в кінці кута, або на краю прямої кухні */}
+              {leftModule !== 'none' && (
+                <TallModule 
+                  position={isLeftCorner ? [-1.2, tallModY, 1.8] : [-1.8, tallModY, 0]} 
+                  rotation={isLeftCorner ? [0, Math.PI / 2, 0] : [0, 0, 0]} 
+                  moduleType={leftModule} 
+                />
+              )}
             </group>
-            <group position={[1.2, 0, 0.9]}>
-              <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
-                <boxGeometry args={[0.6, 0.9, 1.2]} />
-                <meshPhysicalMaterial {...baseMat} />
-              </mesh>
-              <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
-                <boxGeometry args={[0.65, 0.04, 1.25]} />
-                <meshPhysicalMaterial {...countertopMat} />
-              </mesh>
+          );
+        })()}
+
+        {/* ПРАВЕ КРИЛО ТА ПЕНАЛИ */}
+        {(() => {
+          const isRightCorner = layout === 'Кутова (Праворуч)' || layout === 'П-подібна';
+          return (
+            <group>
+              {isRightCorner && (
+                <group position={[1.2, 0, 0.9]} rotation={[0, -Math.PI / 2, 0]}>
+                  <mesh position={[0, 0.45, 0]} material={baseMats} castShadow receiveShadow>
+                    <boxGeometry args={[1.2, 0.9, 0.6]} />
+                  </mesh>
+                  <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
+                    <boxGeometry args={[1.25, 0.04, 0.65]} />
+                  </mesh>
+                  {hasAntresol ? (
+                    <>
+                      <mesh position={[0.125, 1.75, 0]} material={upperMats} castShadow receiveShadow>
+                        <boxGeometry args={[0.95, 0.5, 0.35]} />
+                      </mesh>
+                      <mesh position={[0, 2.3, 0]} material={topTierMats} castShadow receiveShadow>
+                        <boxGeometry args={[1.2, 0.6, 0.6]} />
+                      </mesh>
+                    </>
+                  ) : (
+                    <mesh position={[0.125, 1.95, 0]} material={upperMats} castShadow receiveShadow>
+                      <boxGeometry args={[0.95, 0.9, 0.35]} />
+                    </mesh>
+                  )}
+                </group>
+              )}
+              {rightModule !== 'none' && (
+                <TallModule 
+                  position={isRightCorner ? [1.2, tallModY, 1.8] : [1.8, tallModY, 0]} 
+                  rotation={isRightCorner ? [0, -Math.PI / 2, 0] : [0, 0, 0]} 
+                  moduleType={rightModule} 
+                />
+              )}
             </group>
-          </>
-        )}
+          );
+        })()}
 
         {/* Острів */}
         {layout === 'З островом' && (
           <group position={[0, 0, 1.8]}>
-            <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+            <mesh position={[0, 0.45, 0]} material={baseMats} castShadow receiveShadow>
               <boxGeometry args={[1.8, 0.9, 0.8]} />
-              <meshPhysicalMaterial {...baseMat} />
             </mesh>
-            <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+            <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
               <boxGeometry args={[1.85, 0.04, 0.85]} />
-              <meshPhysicalMaterial {...countertopMat} />
             </mesh>
           </group>
         )}
@@ -254,10 +277,10 @@ const ParametricFurniture = ({ config }: { config: any }) => {
   if (type.includes('Шафа')) {
     return (
       <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-        <mesh position={[0, 1.25, 0]} castShadow receiveShadow>
+        <mesh position={[0, 1.25, 0]} material={baseMats} castShadow receiveShadow>
           <boxGeometry args={[2.5, 2.5, 0.7]} />
-          <meshPhysicalMaterial {...baseMat} />
         </mesh>
+        {/* Декоративні профілі (розсувна система) */}
         <mesh position={[-0.6, 1.25, 0.36]} castShadow>
           <boxGeometry args={[0.02, 2.4, 0.02]} />
           <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
@@ -274,31 +297,27 @@ const ParametricFurniture = ({ config }: { config: any }) => {
   if (type.includes('вітальню')) {
     return (
       <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-        <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
+        <mesh position={[0, 0.3, 0]} material={baseMats} castShadow receiveShadow>
           <boxGeometry args={[3, 0.4, 0.5]} />
-          <meshPhysicalMaterial {...baseMat} />
         </mesh>
-        <mesh position={[0, 1.4, -0.2]} castShadow receiveShadow>
+        <mesh position={[0, 1.4, -0.2]} material={glassMat} castShadow receiveShadow>
           <boxGeometry args={[1.6, 0.9, 0.05]} />
-          <meshStandardMaterial {...glassMat} />
         </mesh>
-        <mesh position={[1.5, 1.5, -0.1]} castShadow receiveShadow>
+        <mesh position={[1.5, 1.5, -0.1]} material={upperMats} castShadow receiveShadow>
           <boxGeometry args={[0.4, 1.2, 0.3]} />
-          <meshPhysicalMaterial {...upperMat} />
         </mesh>
       </group>
     );
   }
 
+  // ВАННА
   return (
     <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-      <mesh position={[0, 0.6, 0]} castShadow receiveShadow>
+      <mesh position={[0, 0.6, 0]} material={baseMats} castShadow receiveShadow>
         <boxGeometry args={[1.5, 0.6, 0.5]} />
-        <meshPhysicalMaterial {...baseMat} />
       </mesh>
-      <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+      <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
         <boxGeometry args={[1.55, 0.04, 0.55]} />
-        <meshPhysicalMaterial {...countertopMat} />
       </mesh>
       <mesh position={[0, 1.7, -0.2]} castShadow>
         <boxGeometry args={[1.2, 0.8, 0.02]} />
@@ -329,13 +348,13 @@ const SmartphoneWidget = () => {
             </RoundedBox>
             
             {/* Чорне скло екрану (основа) */}
-            <mesh position={[0, 0, 0.11]}>
+            <mesh position={[0, 0, 0.101]}>
               <planeGeometry args={[1.65, 3.45]} />
               <meshBasicMaterial color="#050505" />
             </mesh>
 
-            {/* HTML Інтерфейс екрану (Збільшено Z-position, щоб не провалювалось в екран) */}
-            <Html transform position={[0, 0, 0.12]} distanceFactor={1.5} center zIndexRange={[100, 0]}>
+            {/* HTML Інтерфейс екрану (Зміщено вперед, щоб не кліпалось склом) */}
+            <Html transform position={[0, 0, 0.105]} distanceFactor={1.5} center zIndexRange={[100, 0]}>
               <div className="w-[165px] h-[345px] flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative">
                 
                 {/* Імітація "чубчика" (Dynamic Island) */}
@@ -365,7 +384,6 @@ const SmartphoneWidget = () => {
   );
 };
 
-// ... existing code (Supabase init & DATA) ...
 let cachedWorldData: any = null;
 
 const supabaseUrl = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL) || 'https://gpxbzpqnpbbumtiyfstc.supabase.co';
@@ -474,21 +492,21 @@ export default function GraziaFurnitureSystem() {
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
   
-  // СТЕЙТ ДЛЯ НОВОГО 3D КОНФІГУРАТОРА (Розширена кольорова модель)
+  // СТЕЙТ ДЛЯ НОВОГО 3D КОНФІГУРАТОРА
   const [configStep, setConfigStep] = useState(1);
-  const [activeColorZone, setActiveColorZone] = useState('base'); // base, upper, topTier, countertop
+  const [activeColorZone, setActiveColorZone] = useState('base'); // base, upper, topTier, countertop, carcass
   const [configData, setConfigData] = useState({
     type: 'Кухня', 
     layout: 'Пряма',
     leftModule: 'none', 
     rightModule: 'none', 
-    upperTier: 'Одноярусні', // За замовчуванням дешевша версія
+    upperTier: 'Одноярусні',
     colors: {
       base: 'Фарбований МДФ: Графіт',
       upper: 'Фарбований МДФ: Білий',
       topTier: 'Шпон: Світлий Дуб',
       countertop: 'Білий Камінь',
-      carcass: 'Графіт'
+      carcass: 'Графіт' // Тепер корпус фарбується окремо!
     },
     dimensions: { length: '', width: '', height: '' },
     gift: '',
@@ -986,7 +1004,7 @@ export default function GraziaFurnitureSystem() {
         customer_name: 'Лід з 3D Конфігуратора',
         total_amount: 0,
         status: 'draft',
-        ttn_number: `3D: ${configData.type} / ${configData.layout} / Пенали: L(${configData.leftModule}), R(${configData.rightModule}) / Розміри: ${configData.dimensions.length}x${configData.dimensions.width}x${configData.dimensions.height}`
+        ttn_number: `3D: ${configData.type} / ${configData.layout} / Пенали: L(${configData.leftModule}), R(${configData.rightModule}) / Корпус: ${configData.colors.carcass} / Розміри: ${configData.dimensions.length}x${configData.dimensions.width}x${configData.dimensions.height}`
       });
 
       await fetch('/api/telegram', {
@@ -1474,6 +1492,7 @@ export default function GraziaFurnitureSystem() {
                         { id: 'base', label: 'Нижні фасади' },
                         { id: 'upper', label: 'Верхні фасади' },
                         ...(configData.upperTier === 'Двоярусні (з антресолями)' ? [{ id: 'topTier', label: 'Антресолі' }] : []),
+                        { id: 'carcass', label: 'Корпус' },
                         { id: 'countertop', label: 'Стільниця' }
                       ].map((tab) => (
                         <button 
