@@ -121,8 +121,9 @@ const DEFAULT_MAP_LOCATIONS = [
 ];
 
 export default function GraziaFurnitureSystem() {
+  // Тема
   const [isDark, setIsDark] = useState(false);
-  const [themeLoaded, setThemeLoaded] = useState(false); 
+  const [themeLoaded, setThemeLoaded] = useState(false); // Для уникнення hydration mismatch
   
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
@@ -138,7 +139,7 @@ export default function GraziaFurnitureSystem() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
-  // Світла тема за замовчуванням (не залежить від системи)
+  // 0. Ініціалізація теми
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
     
@@ -166,6 +167,7 @@ export default function GraziaFurnitureSystem() {
     });
   };
 
+  // Завантаження портфоліо
   useEffect(() => {
     const fetchPortfolio = async () => {
       const { data, error } = await supabase.from('portfolio_projects').select('*');
@@ -205,31 +207,7 @@ export default function GraziaFurnitureSystem() {
     fetchPortfolio();
   }, []);
 
-  const loadScript = (src: string, globalName: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if ((window as any)[globalName]) {
-        resolve(true);
-        return;
-      }
-      const existingScript = document.querySelector(`script[src="${src}"]`);
-      if (existingScript) {
-        const interval = setInterval(() => {
-          if ((window as any)[globalName]) {
-            clearInterval(interval);
-            resolve(true);
-          }
-        }, 50);
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = true;
-      script.onload = () => resolve(true);
-      document.head.appendChild(script);
-    });
-  };
-
-  // Рендер Глобуса + Інтерактивність + Україна + Зумування
+  // 1. D3.js 3D-Глобус (Тепер з підтримкою темної теми!)
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -237,8 +215,8 @@ export default function GraziaFurnitureSystem() {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let isDestroyed = false; // Виправлено: додано змінну для уникнення Type error при збірці
-    let cleanupEventsFn: (() => void) | null = null; // Виправлено: правильне збереження функції очищення
+    let isDestroyed = false; 
+    let cleanupEventsFn: (() => void) | null = null; 
 
     const loadScripts = async () => {
       if (isDestroyed) return;
@@ -282,7 +260,6 @@ export default function GraziaFurnitureSystem() {
 
         const path = d3.geoPath(projection, ctx);
         
-        // Використовуємо високодеталізовану карту (50m замість 110m) для точних кордонів!
         let worldData;
         if (cachedWorldData) {
           worldData = cachedWorldData;
@@ -294,20 +271,16 @@ export default function GraziaFurnitureSystem() {
         const countriesData = topojson.feature(worldData, worldData.objects.countries).features;
         const land = topojson.feature(worldData, worldData.objects.land);
         
-        // Знаходимо саме Україну (ISO 804 або по імені)
         const ukraineFeature = countriesData.find((c: any) => c.properties?.name === 'Ukraine' || c.id === '804');
 
-        // Координати Харкова
         const kharkivMarker = { lon: 36.23, lat: 50.00 }; 
         
-        // Змінні для інтерактивного обертання та анімації
-        let rotation = [-20, -40, 0]; // [x, y, z]
+        let rotation = [-20, -40, 0]; 
         let isDragging = false;
         let dragStartPos = { x: 0, y: 0 };
         let lastPos = { x: 0, y: 0 };
         const autoRotateSpeed = 0.25;
 
-        // Змінні для кінематографічного зуму
         let isZoomingIn = false;
         let zoomProgress = 0;
         let startRotation = [0, 0, 0];
@@ -319,10 +292,8 @@ export default function GraziaFurnitureSystem() {
           isZoomingIn = true;
           startRotation = [...rotation];
           
-          // Для фокусування на Харкові нам потрібно обернути глобус на [-lon, -lat]
           targetRotation = [-kharkivMarker.lon, -kharkivMarker.lat, 0];
           
-          // Нормалізація кутів, щоб глобус крутився найкоротшим шляхом (не робив зайвих 360 обертів)
           let currentR0 = startRotation[0] % 360;
           let diff = targetRotation[0] - currentR0;
           if (diff > 180) targetRotation[0] -= 360;
@@ -332,7 +303,7 @@ export default function GraziaFurnitureSystem() {
         };
 
         const handlePointerDown = (e: MouseEvent | TouchEvent) => {
-          if (isZoomingIn) return; // Блокуємо свайпи під час анімації зуму
+          if (isZoomingIn) return; 
           isDragging = true;
           const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
           const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -366,12 +337,10 @@ export default function GraziaFurnitureSystem() {
 
           const dist = Math.hypot(clientX - dragStartPos.x, clientY - dragStartPos.y);
           if (dist < 5) {
-            // Це був клік — запускаємо магію!
             triggerCinematicZoom();
           }
         };
 
-        // Глобальний метод для кнопки
         (window as any).startCinematicZoom = triggerCinematicZoom;
 
         canvas.addEventListener('mousedown', handlePointerDown);
@@ -384,28 +353,24 @@ export default function GraziaFurnitureSystem() {
         const render = () => {
           if (isDestroyed || !canvasRef.current) return;
           
-          // Логіка анімації зуму чи обертання
           if (isZoomingIn) {
-            zoomProgress += 0.015; // Швидкість наближення
+            zoomProgress += 0.015; 
             if (zoomProgress >= 1) zoomProgress = 1;
 
-            // Плавне прискорення та гальмування (Cubic Out)
             const ease = 1 - Math.pow(1 - zoomProgress, 3);
 
             rotation[0] = startRotation[0] + (targetRotation[0] - startRotation[0]) * ease;
             rotation[1] = startRotation[1] + (targetRotation[1] - startRotation[1]) * ease;
 
-            // Наближення камери (збільшуємо радіус в 3 рази)
             projection.scale(baseRadius + (baseRadius * 2.5) * ease);
 
-            // Синхронно запускаємо перехід на детальну мапу десь посередині анімації
             if (zoomProgress > 0.45 && !hasTriggeredMap) {
               hasTriggeredMap = true;
               triggerMapFocus();
             }
 
           } else if (!isDragging) {
-            rotation[0] += autoRotateSpeed; // Автообертання
+            rotation[0] += autoRotateSpeed; 
           }
 
           projection.rotate([rotation[0], rotation[1], rotation[2]]);
@@ -419,7 +384,6 @@ export default function GraziaFurnitureSystem() {
           const pulseOuter = isDark ? 'rgba(45, 80, 58, 0.45)' : 'rgba(30, 53, 39, 0.45)';
           const pulseInner = isDark ? '#2d503a' : '#1E3527';
 
-          // Сяйво під глобусом
           const currentRadius = projection.scale();
           const glow = ctx.createRadialGradient(cx, cy, currentRadius * 0.8, cx, cy, currentRadius * 1.1);
           glow.addColorStop(0, isDark ? 'rgba(45, 80, 58, 0.15)' : 'rgba(30, 53, 39, 0.08)');
@@ -429,7 +393,6 @@ export default function GraziaFurnitureSystem() {
           ctx.arc(cx, cy, currentRadius * 1.1, 0, Math.PI * 2);
           ctx.fill();
 
-          // Світовий океан
           const baseGradient = ctx.createRadialGradient(cx - currentRadius * 0.35, cy - currentRadius * 0.35, 0, cx, cy, currentRadius);
           baseGradient.addColorStop(0, oceanBase1);
           baseGradient.addColorStop(0.4, oceanBase2);
@@ -439,34 +402,29 @@ export default function GraziaFurnitureSystem() {
           ctx.fillStyle = baseGradient;
           ctx.fill();
 
-          // Материки
           ctx.beginPath();
           path(land);
           ctx.fillStyle = landColor; 
           ctx.fill();
 
-          // ВИДІЛЕННЯ УКРАЇНИ
           if (ukraineFeature) {
-            const pulseAlpha = 0.3 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.7; // Від 0.3 до 1.0
+            const pulseAlpha = 0.3 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.7; 
             
             ctx.beginPath();
             path(ukraineFeature);
             
-            // Заливка України
             ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)';
             ctx.fill();
 
-            // Світіння (Glow) та пульсуючий білий контур
             ctx.shadowColor = 'white';
             ctx.shadowBlur = 10 * pulseAlpha;
             ctx.lineWidth = 1.5;
             ctx.strokeStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
             ctx.stroke();
             
-            ctx.shadowBlur = 0; // Обов'язково скидаємо тінь для інших елементів!
+            ctx.shadowBlur = 0; 
           }
 
-          // Градієнт затінення (Тінь глобуса)
           const shadowGradient = ctx.createRadialGradient(cx, cy, currentRadius * 0.7, cx, cy, currentRadius);
           shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
           shadowGradient.addColorStop(1, isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.18)');
@@ -475,7 +433,6 @@ export default function GraziaFurnitureSystem() {
           ctx.fillStyle = shadowGradient;
           ctx.fill();
 
-          // Маркер Харкова
           const center = projection.invert([cx, cy]);
           if (center) {
             const dist = d3.geoDistance(center, [kharkivMarker.lon, kharkivMarker.lat]);
@@ -523,9 +480,9 @@ export default function GraziaFurnitureSystem() {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       if (cleanupEventsFn) cleanupEventsFn();
     };
-  }, [mapLevel, isDark]);
+  }, [mapLevel, isDark, themeLoaded]); // ДОДАНО themeLoaded щоб глобус стартував після завантаження теми
 
-  // Ініціалізація Mapbox
+  // 2. Ініціалізація та стилізація Mapbox
   useEffect(() => {
     if (mapLevel !== 'kharkiv' || !mapContainerRef.current) return;
 
@@ -628,7 +585,7 @@ export default function GraziaFurnitureSystem() {
         mapInstanceRef.current = null;
       }
     };
-  }, [mapLevel, dbProjects, isDark]);
+  }, [mapLevel, dbProjects, isDark, themeLoaded]); // Також додали themeLoaded сюди про всяк випадок
 
   const triggerMapFocus = () => {
     setIsTransitioning(true);
@@ -765,7 +722,7 @@ export default function GraziaFurnitureSystem() {
         </div>
       )}
 
-      {/* --- LIGHTBOX --- */}
+      {/* --- LIGHTBOX ПОВНОЕКРАННИЙ З ПРОДАЮЧИМ ТЕКСТОМ --- */}
       {lightboxPhoto && (
         <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-fadeIn">
           <button onClick={() => setLightboxPhoto(null)} className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors">
@@ -800,6 +757,7 @@ export default function GraziaFurnitureSystem() {
         </div>
 
         <div className="flex items-center pointer-events-auto">
+          {/* Анімований перемикач теми */}
           <div 
             onClick={toggleTheme}
             className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
