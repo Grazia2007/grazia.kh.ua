@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  // Цей рядок є критично важливим! Він змушує Tailwind реагувати на клас 'dark' від нашої кнопки
+  // Цей рядок є критично важливим! Він змушує Tailwind реагувати на клас 'dark', який додає наша кнопка
   darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",

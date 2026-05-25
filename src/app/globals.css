@@ -1,16 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* Вбиваємо дефолтні налаштування Next.js, які форсують системну темну тему */
-html, body {
-    background-color: #F5F4F1 !important;
-    color: #0D0D0D !important;
-    transition: background-color 0.7s ease, color 0.7s ease;
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
-/* Наша преміальна нічна тема */
-html.dark, html.dark body {
-    background-color: #0A0A0A !important;
-    color: #F5F4F1 !important;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
 }
