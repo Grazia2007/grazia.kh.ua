@@ -26,7 +26,7 @@ import {
   Gift,
   Phone,
   Check,
-  Smartphone
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 // 3D Бібліотеки
@@ -34,7 +34,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Center, Float, Html, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- КАСТОМНІ ІКОНКИ ДЛЯ СОЦМЕРЕЖ (щоб не було помилок lucide-react) ---
+// --- КАСТОМНІ ІКОНКИ ДЛЯ СОЦМЕРЕЖ ---
 const InstagramIconSVG = ({ size = 24, color = "currentColor" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
@@ -50,7 +50,6 @@ const YoutubeIconSVG = ({ size = 24, color = "currentColor" }) => (
   </svg>
 );
 
-// --- КОМПОНЕНТ ПЛАВНОГО ПОЯВЛЕННЯ ПРИ СКРОЛІ (Кінематографічність) ---
 const FadeIn = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => (
   <motion.div
     initial={{ opacity: 0, y: 40, filter: 'blur(10px)' }}
@@ -63,36 +62,49 @@ const FadeIn = ({ children, delay = 0, className = "" }: { children: React.React
   </motion.div>
 );
 
-// --- СИСТЕМА КОЛЬОРІВ ТА МАТЕРІАЛІВ ДЛЯ 3D ---
+// --- РОЗШИРЕНА СИСТЕМА МАТЕРІАЛІВ ---
 const getMaterialProps = (colorStr: string) => {
-  const isWood = colorStr.includes('Шпон') || colorStr.includes('Дерево');
+  const isWood = colorStr.includes('Шпон') || colorStr.includes('Дерево') || colorStr.includes('Дуб') || colorStr.includes('Горіх');
+  const isStone = colorStr.includes('Мармур') || colorStr.includes('Камінь');
   
   let hex = '#dddddd';
-  // Фарбовані
+  
+  // Фарбовані фасади / Корпус
   if (colorStr.includes('Білий')) hex = '#F5F5F7';
   if (colorStr.includes('Графіт')) hex = '#2C2C2C';
   if (colorStr.includes('Кашемір')) hex = '#E2DCD0';
   if (colorStr.includes('Смарагд')) hex = '#1E3527';
+  
   // Дерево
   if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
   if (colorStr.includes('Горіх')) hex = '#5E4028';
   if (colorStr.includes('Чорне дерево')) hex = '#211C18';
+  
+  // Стільниці
+  if (colorStr === 'Білий Камінь') hex = '#F9F9F9';
+  if (colorStr === 'Чорний Мармур') hex = '#1A1A1A';
 
   return {
     color: hex,
-    roughness: isWood ? 0.9 : 0.15,
-    metalness: 0.05,
-    clearcoat: isWood ? 0 : 0.3,
+    roughness: isWood ? 0.85 : isStone ? 0.2 : 0.15,
+    metalness: isStone ? 0.1 : 0.05,
+    clearcoat: isWood ? 0 : isStone ? 0.5 : 0.3,
     clearcoatRoughness: 0.1,
   };
 };
 
-// --- КОМПОНЕНТИ ПАРАМЕТРИЧНИХ МЕБЛІВ ---
-const ParametricFurniture = ({ type, layout, colorStr, leftCol, rightCol }: { type: string, layout: string, colorStr: string, leftCol: string, rightCol: string }) => {
-  const matProps = getMaterialProps(colorStr);
-  const countertopMat = { color: '#ffffff', roughness: 0.1, metalness: 0.1 }; 
-  const glassMat = { color: '#050505', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 }; // Темне скло для духовки
-  const fridgeMat = { color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }; // Метал для відкритого холодильника
+// --- ОНОВЛЕНИЙ 3D КОМПОНЕНТ З РОЗДІЛЬНИМИ КОЛЬОРАМИ ---
+const ParametricFurniture = ({ config }: { config: any }) => {
+  const { type, layout, leftModule, rightModule, upperTier, colors } = config;
+
+  const baseMat = getMaterialProps(colors.base);
+  const upperMat = getMaterialProps(colors.upper);
+  const topTierMat = getMaterialProps(colors.topTier);
+  const countertopMat = getMaterialProps(colors.countertop);
+  const carcassMat = getMaterialProps(colors.carcass); // Для видимих боковин
+  
+  const glassMat = { color: '#050505', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 }; 
+  const fridgeMat = { color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }; 
 
   const groupRef = useRef<THREE.Group>(null);
   useFrame(() => {
@@ -101,45 +113,48 @@ const ParametricFurniture = ({ type, layout, colorStr, leftCol, rightCol }: { ty
     }
   });
 
-  // КУХНЯ (СУЧАСНА: Антресолі + Пенали)
   if (type === 'Кухня' || type === '') {
+    const hasAntresol = upperTier === 'Двоярусні (з антресолями)';
+
     return (
       <group ref={groupRef} scale={[0.75, 0.75, 0.75]}>
-        
         {/* ЦЕНТРАЛЬНА РОБОЧА ЗОНА */}
         <group position={[0, 0, 0]}>
           {/* Нижня база */}
           <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
             <boxGeometry args={[3, 0.9, 0.6]} />
-            <meshPhysicalMaterial {...matProps} />
+            <meshPhysicalMaterial {...baseMat} />
           </mesh>
           {/* Стільниця */}
           <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
             <boxGeometry args={[3.05, 0.04, 0.65]} />
-            <meshStandardMaterial {...countertopMat} />
+            <meshPhysicalMaterial {...countertopMat} />
           </mesh>
           
-          {/* СУЧАСНИЙ ВЕРХ: 1 ярус (робочий) */}
+          {/* ВЕРХ: 1 ярус (робочий) */}
           <mesh position={[0, 1.6, -0.125]} castShadow receiveShadow>
             <boxGeometry args={[3, 0.5, 0.35]} />
-            <meshPhysicalMaterial {...matProps} />
+            <meshPhysicalMaterial {...upperMat} />
           </mesh>
           
-          {/* СУЧАСНИЙ ВЕРХ: 2 ярус (Антресолі глибокі) */}
-          <mesh position={[0, 2.15, 0]} castShadow receiveShadow>
-            <boxGeometry args={[3, 0.6, 0.6]} />
-            <meshPhysicalMaterial {...matProps} />
-          </mesh>
+          {/* ВЕРХ: 2 ярус (Антресолі глибокі) */}
+          {hasAntresol && (
+            <mesh position={[0, 2.15, 0]} castShadow receiveShadow>
+              <boxGeometry args={[3, 0.6, 0.6]} />
+              <meshPhysicalMaterial {...topTierMat} />
+            </mesh>
+          )}
         </group>
 
         {/* ЛІВИЙ ПЕНАЛ */}
-        {leftCol !== 'none' && (
+        {leftModule !== 'none' && (
           <group position={[-1.8, 1.225, 0]}>
             <mesh castShadow receiveShadow>
-              <boxGeometry args={[0.6, 2.45, 0.6]} />
-              <meshPhysicalMaterial {...(leftCol === 'fridge_open' ? fridgeMat : matProps)} />
+              {/* Висота пеналу залежить від наявності антресолей */}
+              <boxGeometry args={[0.6, hasAntresol ? 2.45 : 1.85, 0.6]} />
+              <meshPhysicalMaterial {...(leftModule === 'fridge_open' ? fridgeMat : baseMat)} />
             </mesh>
-            {leftCol === 'oven' && (
+            {leftModule === 'oven' && (
               <mesh position={[0, 0.1, 0.31]} castShadow>
                 <boxGeometry args={[0.55, 0.8, 0.02]} />
                 <meshStandardMaterial {...glassMat} />
@@ -149,13 +164,13 @@ const ParametricFurniture = ({ type, layout, colorStr, leftCol, rightCol }: { ty
         )}
 
         {/* ПРАВИЙ ПЕНАЛ */}
-        {rightCol !== 'none' && (
+        {rightModule !== 'none' && (
           <group position={[1.8, 1.225, 0]}>
             <mesh castShadow receiveShadow>
-              <boxGeometry args={[0.6, 2.45, 0.6]} />
-              <meshPhysicalMaterial {...(rightCol === 'fridge_open' ? fridgeMat : matProps)} />
+              <boxGeometry args={[0.6, hasAntresol ? 2.45 : 1.85, 0.6]} />
+              <meshPhysicalMaterial {...(rightModule === 'fridge_open' ? fridgeMat : baseMat)} />
             </mesh>
-            {rightCol === 'oven' && (
+            {rightModule === 'oven' && (
               <mesh position={[0, 0.1, 0.31]} castShadow>
                 <boxGeometry args={[0.55, 0.8, 0.02]} />
                 <meshStandardMaterial {...glassMat} />
@@ -164,44 +179,70 @@ const ParametricFurniture = ({ type, layout, colorStr, leftCol, rightCol }: { ty
           </group>
         )}
 
-        {/* Кутова (L) або П-подібна - ліве крило */}
-        {(layout.includes('Кутова') || layout.includes('П-подібна')) && (
+        {/* Кутова (Ліворуч) */}
+        {layout === 'Кутова (Ліворуч)' && (
           <group position={[-1.2, 0, 0.9]}>
             <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
               <boxGeometry args={[0.6, 0.9, 1.2]} />
-              <meshPhysicalMaterial {...matProps} />
+              <meshPhysicalMaterial {...baseMat} />
             </mesh>
             <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
               <boxGeometry args={[0.65, 0.04, 1.25]} />
-              <meshStandardMaterial {...countertopMat} />
+              <meshPhysicalMaterial {...countertopMat} />
             </mesh>
           </group>
         )}
 
-        {/* П-подібна - праве крило */}
-        {layout.includes('П-подібна') && (
+        {/* Кутова (Праворуч) */}
+        {layout === 'Кутова (Праворуч)' && (
           <group position={[1.2, 0, 0.9]}>
             <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
               <boxGeometry args={[0.6, 0.9, 1.2]} />
-              <meshPhysicalMaterial {...matProps} />
+              <meshPhysicalMaterial {...baseMat} />
             </mesh>
             <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
               <boxGeometry args={[0.65, 0.04, 1.25]} />
-              <meshStandardMaterial {...countertopMat} />
+              <meshPhysicalMaterial {...countertopMat} />
             </mesh>
           </group>
         )}
 
+        {/* П-подібна */}
+        {layout === 'П-подібна' && (
+          <>
+            <group position={[-1.2, 0, 0.9]}>
+              <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+                <boxGeometry args={[0.6, 0.9, 1.2]} />
+                <meshPhysicalMaterial {...baseMat} />
+              </mesh>
+              <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+                <boxGeometry args={[0.65, 0.04, 1.25]} />
+                <meshPhysicalMaterial {...countertopMat} />
+              </mesh>
+            </group>
+            <group position={[1.2, 0, 0.9]}>
+              <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+                <boxGeometry args={[0.6, 0.9, 1.2]} />
+                <meshPhysicalMaterial {...baseMat} />
+              </mesh>
+              <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+                <boxGeometry args={[0.65, 0.04, 1.25]} />
+                <meshPhysicalMaterial {...countertopMat} />
+              </mesh>
+            </group>
+          </>
+        )}
+
         {/* Острів */}
-        {layout.includes('островом') && (
+        {layout === 'З островом' && (
           <group position={[0, 0, 1.8]}>
             <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.8, 0.9, 0.8]} />
-              <meshPhysicalMaterial {...matProps} />
+              <meshPhysicalMaterial {...baseMat} />
             </mesh>
             <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.85, 0.04, 0.85]} />
-              <meshStandardMaterial {...countertopMat} />
+              <meshPhysicalMaterial {...countertopMat} />
             </mesh>
           </group>
         )}
@@ -215,9 +256,8 @@ const ParametricFurniture = ({ type, layout, colorStr, leftCol, rightCol }: { ty
       <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
         <mesh position={[0, 1.25, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.5, 2.5, 0.7]} />
-          <meshPhysicalMaterial {...matProps} />
+          <meshPhysicalMaterial {...baseMat} />
         </mesh>
-        {/* Декоративні профілі (розсувна система) */}
         <mesh position={[-0.6, 1.25, 0.36]} castShadow>
           <boxGeometry args={[0.02, 2.4, 0.02]} />
           <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
@@ -234,42 +274,36 @@ const ParametricFurniture = ({ type, layout, colorStr, leftCol, rightCol }: { ty
   if (type.includes('вітальню')) {
     return (
       <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-        {/* Тумба */}
         <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
           <boxGeometry args={[3, 0.4, 0.5]} />
-          <meshPhysicalMaterial {...matProps} />
+          <meshPhysicalMaterial {...baseMat} />
         </mesh>
-        {/* ТБ Панель */}
         <mesh position={[0, 1.4, -0.2]} castShadow receiveShadow>
           <boxGeometry args={[1.6, 0.9, 0.05]} />
           <meshStandardMaterial {...glassMat} />
         </mesh>
-        {/* Підвісна шафка */}
         <mesh position={[1.5, 1.5, -0.1]} castShadow receiveShadow>
           <boxGeometry args={[0.4, 1.2, 0.3]} />
-          <meshPhysicalMaterial {...matProps} />
+          <meshPhysicalMaterial {...upperMat} />
         </mesh>
       </group>
     );
   }
 
-  // ВАННА
   return (
     <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
       <mesh position={[0, 0.6, 0]} castShadow receiveShadow>
         <boxGeometry args={[1.5, 0.6, 0.5]} />
-        <meshPhysicalMaterial {...matProps} />
+        <meshPhysicalMaterial {...baseMat} />
       </mesh>
       <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
         <boxGeometry args={[1.55, 0.04, 0.55]} />
-        <meshStandardMaterial {...countertopMat} />
+        <meshPhysicalMaterial {...countertopMat} />
       </mesh>
-      {/* Дзеркало */}
       <mesh position={[0, 1.7, -0.2]} castShadow>
         <boxGeometry args={[1.2, 0.8, 0.02]} />
         <meshStandardMaterial color="#fff" metalness={1} roughness={0} />
       </mesh>
-      {/* Раковина (накладна) */}
       <mesh position={[0, 1, 0]}>
         <cylinderGeometry args={[0.2, 0.15, 0.15, 32]} />
         <meshStandardMaterial color="#fff" roughness={0.1} />
@@ -278,32 +312,36 @@ const ParametricFurniture = ({ type, layout, colorStr, leftCol, rightCol }: { ty
   );
 };
 
-// --- КОМПОНЕНТ 3D СМАРТФОНА (ДЛЯ ФУТЕРА) ---
+// --- ВИПРАВЛЕНИЙ КОМПОНЕНТ 3D СМАРТФОНА ---
 const SmartphoneWidget = () => {
   return (
-    <div className="w-[300px] h-[400px]">
-      <Canvas camera={{ position: [0, 0, 5], fov: 40 }}>
+    <div className="w-[280px] h-[450px]">
+      <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 5, 5]} intensity={1.5} />
         <Environment preset="city" />
         
-        <Float speed={2} rotationIntensity={0.3} floatIntensity={0.8} floatingRange={[-0.1, 0.1]}>
+        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5} floatingRange={[-0.1, 0.1]}>
           <group rotation={[0, -0.15, 0]}>
             {/* Корпус телефону */}
-            <RoundedBox args={[1.7, 3.4, 0.15]} radius={0.15} smoothness={4} castShadow>
-              <meshStandardMaterial color="#1a1a1a" roughness={0.2} metalness={0.8} />
+            <RoundedBox args={[1.8, 3.6, 0.2]} radius={0.2} smoothness={4} castShadow>
+              <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.8} />
             </RoundedBox>
             
-            {/* Екран (Чорне скло) */}
-            <mesh position={[0, 0, 0.08]}>
-              <planeGeometry args={[1.55, 3.25]} />
+            {/* Чорне скло екрану (основа) */}
+            <mesh position={[0, 0, 0.11]}>
+              <planeGeometry args={[1.65, 3.45]} />
               <meshBasicMaterial color="#050505" />
             </mesh>
 
-            {/* HTML Інтерфейс екрану з кнопками */}
-            <Html transform position={[0, 0, 0.09]} distanceFactor={1.5} center zIndexRange={[100, 0]}>
-              <div className="w-[155px] h-[325px] flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-black rounded-[20px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border border-white/5">
-                <div className="text-white text-center">
+            {/* HTML Інтерфейс екрану (Збільшено Z-position, щоб не провалювалось в екран) */}
+            <Html transform position={[0, 0, 0.12]} distanceFactor={1.5} center zIndexRange={[100, 0]}>
+              <div className="w-[165px] h-[345px] flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative">
+                
+                {/* Імітація "чубчика" (Dynamic Island) */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-black rounded-full z-10"></div>
+                
+                <div className="text-white text-center mt-4">
                   <span className="block text-[8px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
                   <span className="block text-sm font-serif">Socials</span>
                 </div>
@@ -316,10 +354,8 @@ const SmartphoneWidget = () => {
                   <YoutubeIconSVG size={24} color="white" />
                 </a>
 
-                {/* Імітація "чубчика" iPhone */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-3 bg-black rounded-full"></div>
                 {/* Імітація полоски Home */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/30 rounded-full"></div>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-14 h-1 bg-white/30 rounded-full"></div>
               </div>
             </Html>
           </group>
@@ -329,11 +365,9 @@ const SmartphoneWidget = () => {
   );
 };
 
-
-// Глобальний кеш для географічних даних
+// ... existing code (Supabase init & DATA) ...
 let cachedWorldData: any = null;
 
-// Ініціалізація підключення до Supabase
 const supabaseUrl = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL) || 'https://gpxbzpqnpbbumtiyfstc.supabase.co';
 const supabaseAnonKey = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'sb_publishable_2VUpjTZW1Bf1Bg0Fs0vh6Q_6tIr5eP0';
 
@@ -429,7 +463,6 @@ const DEFAULT_MAP_LOCATIONS = [
 ];
 
 export default function GraziaFurnitureSystem() {
-  // Тема
   const [isDark, setIsDark] = useState(false);
   const [themeLoaded, setThemeLoaded] = useState(false); 
   
@@ -441,20 +474,28 @@ export default function GraziaFurnitureSystem() {
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
   
-  // СТЕЙТ ДЛЯ НОВОГО 3D КОНФІГУРАТОРА
+  // СТЕЙТ ДЛЯ НОВОГО 3D КОНФІГУРАТОРА (Розширена кольорова модель)
   const [configStep, setConfigStep] = useState(1);
+  const [activeColorZone, setActiveColorZone] = useState('base'); // base, upper, topTier, countertop
   const [configData, setConfigData] = useState({
-    type: 'Кухня', // За замовчуванням
+    type: 'Кухня', 
     layout: 'Пряма',
-    leftModule: 'none', // none, fridge_built, fridge_open, oven
-    rightModule: 'none', // none, fridge_built, fridge_open, oven
-    style: '',
-    color: 'Фарбований МДФ: Білий', // За замовчуванням
+    leftModule: 'none', 
+    rightModule: 'none', 
+    upperTier: 'Одноярусні', // За замовчуванням дешевша версія
+    colors: {
+      base: 'Фарбований МДФ: Графіт',
+      upper: 'Фарбований МДФ: Білий',
+      topTier: 'Шпон: Світлий Дуб',
+      countertop: 'Білий Камінь',
+      carcass: 'Графіт'
+    },
     dimensions: { length: '', width: '', height: '' },
     gift: '',
     phone: '',
     time: 'Найближчим часом'
   });
+
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -462,10 +503,8 @@ export default function GraziaFurnitureSystem() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
-  // 0. Ініціалізація теми
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
-    
     if (savedTheme === 'dark') {
       setIsDark(true);
       document.documentElement.classList.add('dark');
@@ -490,7 +529,6 @@ export default function GraziaFurnitureSystem() {
     });
   };
 
-  // Завантаження портфоліо
   useEffect(() => {
     const fetchPortfolio = async () => {
       const { data, error } = await supabase.from('portfolio_projects').select('*');
@@ -1008,7 +1046,7 @@ export default function GraziaFurnitureSystem() {
                     <PlayCircle size={16} /> Відеоогляд об'єкта
                   </a>
                   <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors duration-300 rounded-sm">
-                    <InstagramIconSVG size={16} /> Перейти в Instagram
+                    <InstagramIconSVG size={16} color="currentColor" /> Перейти в Instagram
                   </a>
                 </div>
               </div>
@@ -1258,13 +1296,7 @@ export default function GraziaFurnitureSystem() {
                 <Suspense fallback={null}>
                   <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
                     <Center>
-                      <ParametricFurniture 
-                        type={configData.type} 
-                        layout={configData.layout} 
-                        colorStr={configData.color} 
-                        leftCol={configData.leftModule}
-                        rightCol={configData.rightModule}
-                      />
+                      <ParametricFurniture config={configData} />
                     </Center>
                   </Float>
                 </Suspense>
@@ -1297,7 +1329,6 @@ export default function GraziaFurnitureSystem() {
             {/* Індикатори параметрів поверх 3D */}
             <div className="absolute top-6 left-6 flex flex-col gap-2 z-20 pointer-events-none">
               {configData.type && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.type}</span>}
-              {configData.color && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.color}</span>}
               {configData.layout && configData.type === 'Кухня' && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.layout}</span>}
             </div>
           </div>
@@ -1349,7 +1380,7 @@ export default function GraziaFurnitureSystem() {
                   </motion.div>
                 )}
 
-                {/* КРОК 2: ФОРМ-ФАКТОР */}
+                {/* КРОК 2: ФОРМ-ФАКТОР (ТІЛЬКИ КУХНЯ) */}
                 {configStep === 2 && !formSubmitted && (
                   <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Конфігурація</h3>
@@ -1360,27 +1391,46 @@ export default function GraziaFurnitureSystem() {
                         {/* Планування */}
                         <div>
                           <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Основна геометрія</span>
-                          <div className="grid grid-cols-2 gap-3">
-                            {['Пряма', 'Кутова (L-подібна)', 'П-подібна', 'З островом'].map((item) => (
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                            {['Пряма', 'Кутова (Ліворуч)', 'Кутова (Праворуч)', 'П-подібна', 'З островом'].map((item) => (
                               <div 
                                 key={item}
                                 onClick={() => setConfigData({...configData, layout: item})}
-                                className={`p-3 border rounded-lg cursor-pointer transition-all duration-300 text-sm font-medium ${configData.layout === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`}
+                                className={`p-2 border rounded-lg cursor-pointer transition-all duration-300 text-xs text-center font-medium ${configData.layout === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`}
                               >
                                 {item}
                               </div>
                             ))}
                           </div>
                         </div>
+
+                        {/* Ярусність */}
+                        <div>
+                          <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Верхні секції</span>
+                          <div className="grid grid-cols-2 gap-3">
+                            {['Одноярусні', 'Двоярусні (з антресолями)'].map((tier) => (
+                              <div 
+                                key={tier}
+                                onClick={() => setConfigData({...configData, upperTier: tier})}
+                                className={`p-3 border rounded-lg cursor-pointer transition-all duration-300 text-sm flex items-center gap-2 ${configData.upperTier === tier ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`}
+                              >
+                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${configData.upperTier === tier ? 'border-[var(--accent-main)]' : 'border-[var(--border-color)]'}`}>
+                                  {configData.upperTier === tier && <div className="w-2 h-2 rounded-full bg-[var(--accent-main)]" />}
+                                </div>
+                                {tier}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                         
                         {/* Пенали */}
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Лівий пенал</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Лівий пенал</span>
                             <select 
                               value={configData.leftModule}
                               onChange={(e) => setConfigData({...configData, leftModule: e.target.value})}
-                              className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm"
+                              className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm cursor-pointer"
                             >
                               <option value="none">Немає</option>
                               <option value="fridge_built">Вбуд. Холодильник</option>
@@ -1389,11 +1439,11 @@ export default function GraziaFurnitureSystem() {
                             </select>
                           </div>
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Правий пенал</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Правий пенал</span>
                             <select 
                               value={configData.rightModule}
                               onChange={(e) => setConfigData({...configData, rightModule: e.target.value})}
-                              className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm"
+                              className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm cursor-pointer"
                             >
                               <option value="none">Немає</option>
                               <option value="fridge_built">Вбуд. Холодильник</option>
@@ -1408,50 +1458,103 @@ export default function GraziaFurnitureSystem() {
                         <Box size={40} className="mx-auto text-[var(--text-light)] mb-4" />
                         <p className="text-[var(--text-main)] font-medium">Для цього типу меблів планування стандартне.</p>
                         <p className="text-sm text-[var(--text-muted)] mt-2">Ви зможете обговорити деталі з нашим дизайнером.</p>
-                        <button onClick={() => setConfigStep(3)} className="mt-6 text-xs font-bold uppercase tracking-widest text-[var(--accent-main)] border-b border-[var(--accent-main)] pb-1 hover:opacity-70">
-                          Перейти до кольору
-                        </button>
                       </div>
                     )}
                   </motion.div>
                 )}
 
-                {/* КРОК 3: МАТЕРІАЛ ТА КОЛІР */}
+                {/* КРОК 3: РОЗДІЛЬНИЙ КОЛІР */}
                 {configStep === 3 && !formSubmitted && (
                   <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Дизайн фасадів</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть основний матеріал. Модель зліва оновиться миттєво.</p>
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Студія Дизайну</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-6">Оберіть зону та розфарбуйте її на свій смак.</p>
                     
-                    <div className="space-y-6">
-                      <div>
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Преміум Фарбування (Мат / Глянець)</span>
-                        <div className="flex gap-3">
-                          {['Білий', 'Графіт', 'Кашемір', 'Смарагд'].map(color => (
-                            <div key={color} onClick={() => setConfigData({...configData, color: `Фарбований МДФ: ${color}`})} className="flex flex-col items-center gap-2 cursor-pointer group">
-                              <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.color.includes(color) ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                <div className="w-full h-full rounded-full shadow-inner" style={{
-                                  backgroundColor: color === 'Білий' ? '#f8f9fa' : color === 'Графіт' ? '#2d3436' : color === 'Кашемір' ? '#dcdde1' : '#013220'
-                                }}></div>
-                              </div>
-                              <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)]">{color}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    <div className="flex gap-2 mb-6 border-b border-[var(--border-color)] pb-2 overflow-x-auto no-scrollbar">
+                      {[
+                        { id: 'base', label: 'Нижні фасади' },
+                        { id: 'upper', label: 'Верхні фасади' },
+                        ...(configData.upperTier === 'Двоярусні (з антресолями)' ? [{ id: 'topTier', label: 'Антресолі' }] : []),
+                        { id: 'countertop', label: 'Стільниця' }
+                      ].map((tab) => (
+                        <button 
+                          key={tab.id}
+                          onClick={() => setActiveColorZone(tab.id)}
+                          className={`text-xs font-semibold tracking-widest uppercase px-3 py-2 whitespace-nowrap transition-colors ${activeColorZone === tab.id ? 'text-[var(--accent-main)] border-b-2 border-[var(--accent-main)]' : 'text-[var(--text-light)] hover:text-[var(--text-main)]'}`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
 
-                      <div>
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Натуральні текстури (Шпон / Дерево)</span>
-                        <div className="flex gap-3">
-                          {['Світлий Дуб', 'Горіх', 'Чорне дерево'].map(wood => (
-                            <div key={wood} onClick={() => setConfigData({...configData, color: `Шпон: ${wood}`})} className="flex flex-col items-center gap-2 cursor-pointer group">
-                              <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.color.includes(wood) ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                <div className="w-full h-full rounded-full shadow-inner bg-gradient-to-br from-[#8B5A2B] to-[#D2B48C]"></div>
-                              </div>
-                              <span className="text-[9px] uppercase tracking-wider text-center text-[var(--text-main)]">{wood}</span>
+                    <div className="space-y-6">
+                      {activeColorZone === 'countertop' ? (
+                        <>
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Камінь / Мармур</span>
+                            <div className="flex gap-3">
+                              {['Білий Камінь', 'Чорний Мармур'].map(color => (
+                                <div key={color} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: color}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors.countertop === color ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                    <div className="w-full h-full rounded-full shadow-inner" style={{ backgroundColor: color === 'Білий Камінь' ? '#F9F9F9' : '#1A1A1A' }}></div>
+                                  </div>
+                                  <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)]">{color}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Дерево (EGGER)</span>
+                            <div className="flex gap-3">
+                              {['Світлий Дуб', 'Горіх'].map(wood => (
+                                <div key={wood} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: `Шпон: ${wood}`}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors.countertop.includes(wood) ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                    <div className="w-full h-full rounded-full shadow-inner bg-gradient-to-br from-[#8B5A2B] to-[#D2B48C]"></div>
+                                  </div>
+                                  <span className="text-[9px] uppercase tracking-wider text-center text-[var(--text-main)]">{wood}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Преміум Фарбування (Мат / Глянець)</span>
+                            <div className="flex gap-3">
+                              {['Білий', 'Графіт', 'Кашемір', 'Смарагд'].map(color => {
+                                const fullColorName = `Фарбований МДФ: ${color}`;
+                                return (
+                                  <div key={color} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: fullColorName}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                    <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors[activeColorZone as keyof typeof configData.colors] === fullColorName ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                      <div className="w-full h-full rounded-full shadow-inner" style={{
+                                        backgroundColor: color === 'Білий' ? '#f8f9fa' : color === 'Графіт' ? '#2d3436' : color === 'Кашемір' ? '#dcdde1' : '#013220'
+                                      }}></div>
+                                    </div>
+                                    <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)]">{color}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Натуральні текстури (Шпон)</span>
+                            <div className="flex gap-3">
+                              {['Світлий Дуб', 'Горіх', 'Чорне дерево'].map(wood => {
+                                const fullWoodName = `Шпон: ${wood}`;
+                                return (
+                                  <div key={wood} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: fullWoodName}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                    <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors[activeColorZone as keyof typeof configData.colors] === fullWoodName ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                      <div className="w-full h-full rounded-full shadow-inner bg-gradient-to-br from-[#8B5A2B] to-[#D2B48C]"></div>
+                                    </div>
+                                    <span className="text-[9px] uppercase tracking-wider text-center text-[var(--text-main)]">{wood}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -1622,7 +1725,6 @@ export default function GraziaFurnitureSystem() {
                 {configStep < 6 ? (
                   <button 
                     onClick={() => {
-                      // Пропускаємо вибір планування для не-кухонь
                       if (configStep === 1 && configData.type !== 'Кухня') {
                         setConfigStep(3);
                       } else {
@@ -1658,23 +1760,33 @@ export default function GraziaFurnitureSystem() {
           <motion.div 
             animate={{ x: ["0%", "-50%"] }} 
             transition={{ repeat: Infinity, ease: "linear", duration: 25 }}
-            className="flex items-center gap-24 whitespace-nowrap pl-12"
+            className="flex items-center gap-32 whitespace-nowrap pl-16"
           >
-            {/* Набір 1 */}
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">BLUM</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">EGGER</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">VIYAR</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">HETTICH</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">FENIX</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">METROLUXE</span>
+            {/* Набір 1 - Відступи збільшено (gap-32) та додано дублікати для довжини */}
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">BLUM</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">EGGER</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">VIYAR</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">HETTICH</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">MATROLUXE</span>
             
-            {/* Набір 2 (дублікат для безшовного циклу) */}
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">BLUM</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">EGGER</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">VIYAR</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">HETTICH</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">MATROLUXE</span>
+            
+            {/* Набір 2 (для безшовного циклу) */}
             <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">BLUM</span>
             <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">EGGER</span>
             <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">VIYAR</span>
             <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">HETTICH</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">FENIX</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">METROLUXE</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">MATROLUXE</span>
+            
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">BLUM</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">EGGER</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">VIYAR</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">HETTICH</span>
+            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">MATROLUXE</span>
           </motion.div>
         </div>
       </FadeIn>
@@ -1704,7 +1816,7 @@ export default function GraziaFurnitureSystem() {
           </div>
           
           {/* 3D Смартфон Віджет */}
-          <div className="flex-1 w-full flex justify-center lg:justify-end relative z-10">
+          <div className="flex-1 w-full flex justify-center lg:justify-end relative z-10 h-[400px]">
             <div className="relative">
               <div className="absolute top-10 -left-10 text-[10px] font-mono uppercase tracking-widest text-[var(--btn-text)]/40 text-right">
                 Живі об'єкти<br/>та бекстейдж<br/>тут 👉
