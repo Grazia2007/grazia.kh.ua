@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowRight, 
   MapPin, 
+  ChevronRight, 
+  ChevronLeft, 
   Ruler, 
   PenTool, 
   Armchair,
@@ -97,6 +99,58 @@ const DEFAULT_MAP_LOCATIONS = [
     rating: 5,
     photos: [
       { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200', caption: 'ТВ-зона з прихованою проводкою та підвісними консолями. Ніякого візуального шуму.' }
+    ]
+  },
+  { 
+    id: 'gagarina', 
+    name: 'пр. Гагаріна (13 лікарня)', 
+    coordinates: [36.2625, 49.9575],
+    project: 'Світла неокласична кухня', 
+    radius: 'Безпечний радіус: 300м', 
+    type: 'city',
+    description: 'Вишукана кухня з фрезерованими фасадами. Класичний стиль у сучасному виконанні з надійною фурнітурою Blum.',
+    rating: 5,
+    photos: [
+      { url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=1200', caption: 'Фрезеровані фасади ручної роботи. Глибока стійка емаль.' }
+    ]
+  },
+  { 
+    id: 'zhukova', 
+    name: 'Маршала Жукова (21 лікарня)', 
+    coordinates: [36.3150, 49.9555],
+    project: 'Ергономічний кабінет', 
+    radius: 'Безпечний радіус: 300м', 
+    type: 'city',
+    description: 'Створення кабінету для комфортної віддаленої роботи з масиву дерева та шпонованих елементів.',
+    rating: 4.9,
+    photos: [
+      { url: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=1200', caption: 'Робоча зона з масиву дуба. Інвестиція у власний статус.' }
+    ]
+  },
+  { 
+    id: 'bezludovka', 
+    name: 'Безлюдівка (Харківська область)', 
+    coordinates: [36.2735, 49.8711],
+    project: 'Заміська кухня-їдальня', 
+    radius: 'Безпечний радіус: 300м', 
+    type: 'region',
+    description: 'Проєкт масштабної кухні для великого заміського будинку у Харківській області. Тільки вологостійкі преміальні матеріали.',
+    rating: 5,
+    photos: [
+      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Простір та світло. Велика обідня зона, поєднана з процесом готування.' }
+    ]
+  },
+  { 
+    id: 'poltava', 
+    name: 'Полтава (Центр)', 
+    coordinates: [34.5514, 49.5883],
+    project: 'Елітна шпонована спальня', 
+    radius: 'Безпечний радіус: 500м', 
+    type: 'region',
+    description: 'Масштабний виїзний проєкт у Полтаві. Повне меблювання спальної кімнати з інтегрованими прихованими шафами.',
+    rating: 5,
+    photos: [
+      { url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=1200', caption: 'Тепла текстура натурального шпону дуба. Справжній затишок.' }
     ]
   }
 ];
@@ -228,6 +282,7 @@ export default function GraziaFurnitureSystem() {
         const loadScript = (src: string) => new Promise((res, rej) => {
           const s = document.createElement('script');
           s.src = src;
+          // БЕЗ crossOrigin, щоб уникнути помилок доступу
           s.onload = res;
           s.onerror = rej;
           document.head.appendChild(s);
@@ -335,7 +390,7 @@ export default function GraziaFurnitureSystem() {
 
             animationFrameId = requestAnimationFrame(render);
           } catch (e) {
-            console.warn("Globe render safely paused.");
+            console.warn("Globe render safely paused to prevent spam.");
             return;
           }
         };
@@ -634,15 +689,14 @@ export default function GraziaFurnitureSystem() {
 
         <div className="header-actions flex items-center gap-6 pointer-events-auto">
           {/* 🌞 ПРЕМІУМ ПЕРЕМИКАЧ ТЕМИ 🌛 */}
-          <div className="theme-switch-wrapper flex items-center gap-3 w-[120px] shrink-0 justify-end">
-            <div className="w-[40px] flex justify-end">
-              <span className="text-[10px] font-mono uppercase tracking-widest opacity-40 select-none">
-                {isDarkMode ? 'Ніч' : 'День'}
-              </span>
-            </div>
+          <div className="theme-switch-wrapper flex items-center gap-3 w-[110px] justify-end">
+            {/* Фіксована ширина тексту, щоб навігація не стрибала */}
+            <span className="text-[10px] font-mono uppercase tracking-widest opacity-40 select-none inline-block w-[35px] text-right">
+              {isDarkMode ? 'Ніч' : 'День'}
+            </span>
             <button
               onClick={toggleTheme}
-              className={`relative w-16 h-8 rounded-full p-1 shrink-0 transition-all duration-500 ease-in-out cursor-pointer overflow-hidden border ${
+              className={`relative w-16 h-8 rounded-full p-1 transition-all duration-500 ease-in-out cursor-pointer overflow-hidden border ${
                 isDarkMode 
                   ? 'bg-[#1A2421] border-white/5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.5)]' 
                   : 'bg-[#D9D6D1] border-black/5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]'
