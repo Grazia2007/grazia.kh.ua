@@ -892,20 +892,20 @@ export default function GraziaFurnitureSystem() {
         </div>
       </footer>
 
-      {/* --- ПЛАВАЮЧА КНОПКА TELEGRAM (З ПРЯМИМ ПОСИЛАННЯМ НА ТВІЙ ЧАТ) --- */}
+      {/* --- ПЛАВАЮЧА КНОПКА TELEGRAM (З ПРЯМИМ ПОСИЛАННЯМ НА МАРИНУ) --- */}
       <a
-        href="https://t.me/grazia2007_bot"
+        href="https://t.me/MarinaGrazia"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] w-14 h-14 bg-[#2AABEE] text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(42,171,238,0.3)] hover:scale-110 hover:shadow-[0_0_25px_rgba(42,171,238,0.5)] transition-all duration-300 group"
-        title="Написати менеджеру в Telegram"
+        title="Написати дизайнеру в Telegram"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
           <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.539.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.09l-6.4 4.024-2.76-.86c-.6-.185-.615-.6.125-.89l10.736-4.135c.5-.186.953.114.81.93z" />
         </svg>
         
         <span className="absolute right-[calc(100%+16px)] top-1/2 -translate-y-1/2 bg-[var(--modal-bg)] border border-[var(--border-color)] text-[var(--text-main)] px-4 py-2 rounded-xl text-xs font-medium opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap shadow-xl">
-          Живий чат з конструктором
+          Живий чат з дизайнером
         </span>
       </a>
 

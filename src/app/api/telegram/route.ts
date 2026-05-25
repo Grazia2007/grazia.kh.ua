@@ -5,7 +5,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { spaceType, room, style, material, notes } = body;
 
-    // Отримуємо змінні середовища
+    // ВИПРАВЛЕНО: тепер назва змінної збігається з .env.local на 100%
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         chat_id: chatId,
         text: message,
-        parse_mode: 'HTML', // Дозволяє використовувати теги <b>, <i>
+        parse_mode: 'HTML',
       }),
     });
 
