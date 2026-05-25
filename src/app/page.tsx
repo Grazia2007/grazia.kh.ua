@@ -138,11 +138,12 @@ const ParametricFurniture = ({ config }: { config: any }) => {
     const tallModY = tallModHeight / 2; 
 
     // Компонент Пеналу (Сприймаємо як частину основної стіни для фасадів)
-    const TallModule = ({ position, moduleType }: { position: [number, number, number], moduleType: string }) => {
+    // ДОДАНО: rotation для ідеального позиціонування на кутах
+    const TallModule = ({ position, rotation = [0, 0, 0], moduleType }: { position: [number, number, number], rotation?: [number, number, number], moduleType: string }) => {
       if (moduleType === 'none') return null;
       const mats = moduleType === 'fridge_open' ? carcassOnlyMats : baseMatsMain;
       return (
-        <group position={position}>
+        <group position={position} rotation={rotation as any}>
           <mesh material={mats} castShadow receiveShadow>
             <boxGeometry args={[0.6, tallModHeight, 0.6]} />
           </mesh>
@@ -223,10 +224,11 @@ const ParametricFurniture = ({ config }: { config: any }) => {
                   )}
                 </group>
               )}
-              {/* Пенал ставимо або в кінці кута (вперед), або на краю прямої кухні (вліво) */}
+              {/* Пенал ставимо або в кінці кута (вперед і обертаємо в центр), або на краю прямої кухні (вліво) */}
               {leftModule !== 'none' && (
                 <TallModule 
                   position={isLeftCorner ? [-1.2, tallModY, 1.8] : [-1.8, tallModY, 0]} 
+                  rotation={isLeftCorner ? [0, Math.PI / 2, 0] : [0, 0, 0]}
                   moduleType={leftModule} 
                 />
               )}
@@ -266,10 +268,11 @@ const ParametricFurniture = ({ config }: { config: any }) => {
                   )}
                 </group>
               )}
-              {/* Пенал ставимо або в кінці кута (вперед), або на краю прямої кухні (вправо) */}
+              {/* Пенал ставимо або в кінці кута (вперед і обертаємо в центр), або на краю прямої кухні (вправо) */}
               {rightModule !== 'none' && (
                 <TallModule 
                   position={isRightCorner ? [1.2, tallModY, 1.8] : [1.8, tallModY, 0]} 
+                  rotation={isRightCorner ? [0, -Math.PI / 2, 0] : [0, 0, 0]}
                   moduleType={rightModule} 
                 />
               )}
@@ -372,8 +375,8 @@ const SmartphoneWidget = () => {
               <meshBasicMaterial color="#050505" />
             </mesh>
 
-            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС (Використовуємо distanceFactor для ідеального розміру) */}
-            <Html transform position={[0, 0, 0.11]} distanceFactor={4.2} center zIndexRange={[100, 0]}>
+            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС (Жорсткий масштаб scale={0.01} без distanceFactor) */}
+            <Html transform position={[0, 0, 0.11]} scale={0.01} center zIndexRange={[100, 0]}>
               <div 
                 style={{ width: '165px', height: '345px', pointerEvents: 'auto' }}
                 className="flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative"
@@ -1800,7 +1803,7 @@ export default function GraziaFurnitureSystem() {
         <div className="flex w-[200%]">
           <motion.div 
             animate={{ x: ["0%", "-50%"] }} 
-            transition={{ repeat: Infinity, ease: "linear", duration: 50 }}
+            transition={{ repeat: Infinity, ease: "linear", duration: 100 }}
             className="flex items-center gap-32 whitespace-nowrap pl-16"
           >
             {/* Набір 1 */}
