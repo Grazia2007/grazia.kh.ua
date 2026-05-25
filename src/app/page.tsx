@@ -138,7 +138,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
     const tallModY = tallModHeight / 2; 
 
     // Компонент Пеналу (Сприймаємо як частину основної стіни для фасадів)
-    // ДОДАНО: rotation для ідеального позиціонування на кутах
     const TallModule = ({ position, rotation = [0, 0, 0], moduleType }: { position: [number, number, number], rotation?: [number, number, number], moduleType: string }) => {
       if (moduleType === 'none') return null;
       const mats = moduleType === 'fridge_open' ? carcassOnlyMats : baseMatsMain;
@@ -375,11 +374,12 @@ const SmartphoneWidget = () => {
               <meshBasicMaterial color="#050505" />
             </mesh>
 
-            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС (Жорсткий масштаб scale={0.01} без distanceFactor) */}
-            <Html transform position={[0, 0, 0.11]} scale={0.01} center zIndexRange={[100, 0]}>
+            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС (Ідеальне масштабування distanceFactor) */}
+            <Html transform position={[0, 0, 0.11]} center distanceFactor={1.65} zIndexRange={[100, 0]}>
               <div 
                 style={{ width: '165px', height: '345px', pointerEvents: 'auto' }}
                 className="flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative"
+                onPointerDown={(e) => e.stopPropagation()} // Блокуємо OrbitControls при кліку на екран!
               >
                 {/* Імітація "чубчика" (Dynamic Island) */}
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-black rounded-full z-10 pointer-events-none"></div>
@@ -468,7 +468,7 @@ const DEFAULT_MAP_LOCATIONS = [
     rating: 5,
     photos: [
       { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg', caption: 'Монолітний матовий графіт. Фасади оброблені спеціальним захисним нано-покриттям, яке повністю запобігає появі відбитків пальців та дрібних подряпин.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg', caption: 'Геометрія простору. Світлові лінії на стелі ідеально повторюють контур робочої зони кухні, підкреслюючи архітектурну точність проєкту.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg', caption: 'Геометрія(s) простору. Світлові лінії на стелі ідеально повторюють контур робочої зони кухні, підкреслюючи архітектурну точність проєкту.' },
       { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-47.jpg', caption: 'Скляна вітрина преміум-класу. LED-стрічка прихованого монтажу інтегрована безпосередньо у вертикальний алюмінієвий профіль, створюючи магічне м\'яке світіння полиць.' },
       { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-48.jpg', caption: 'Прихована зона сушіння посуду. Ми інтегрували італійську дворівневу сушку з нержавіючої сталі у верхню шафу з плавним підйомним механізмом Aventos від Blum.' },
       { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-51.jpg', caption: 'Вбудований двокамерний холодильник. Спеціальні посилені петлі витримують вагу важкого меблевого фасаду, забезпечуючи ідеальні зазори.' },
