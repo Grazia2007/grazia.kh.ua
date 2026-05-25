@@ -120,15 +120,17 @@ const ParametricFurniture = ({ config }: { config: any }) => {
 
   if (type === 'Кухня' || type === '') {
     const hasAntresol = upperTier === 'Двоярусні (з антресолями)';
-    const tallModHeight = hasAntresol ? 2.6 : 2.4;
-    const tallModY = tallModHeight / 2;
+    const tallModHeight = hasAntresol ? 2.7 : 2.4; // Загальна висота
+    const tallModY = tallModHeight / 2; // Центр по Y
 
-    // Компонент Пеналу
-    const TallModule = ({ position, rotation, moduleType }: { position: [number, number, number], rotation: [number, number, number], moduleType: string }) => {
+    // Ідеальна математика позиціонування
+    // Центр основної стіни - X: 0. Ширина 3. Від -1.5 до 1.5.
+
+    const TallModule = ({ position, moduleType }: { position: [number, number, number], moduleType: string }) => {
       if (moduleType === 'none') return null;
       const mats = moduleType === 'fridge_open' ? carcassOnlyMats : baseMats;
       return (
-        <group position={position} rotation={rotation}>
+        <group position={position}>
           <mesh material={mats} castShadow receiveShadow>
             <boxGeometry args={[0.6, tallModHeight, 0.6]} />
           </mesh>
@@ -147,7 +149,7 @@ const ParametricFurniture = ({ config }: { config: any }) => {
     };
 
     return (
-      <group ref={groupRef} scale={[0.7, 0.7, 0.7]}>
+      <group ref={groupRef} scale={[0.7, 0.7, 0.7]} position={[0, -0.4, 0]}>
         
         {/* ЦЕНТРАЛЬНА СТІНА (Основна пряма лінія) */}
         <group position={[0, 0, 0]}>
@@ -160,12 +162,14 @@ const ParametricFurniture = ({ config }: { config: any }) => {
           
           {hasAntresol ? (
             <>
-              {/* Двоярусні: Робочий ярус */}
-              <mesh position={[0, 1.75, -0.125]} material={upperMats} castShadow receiveShadow>
-                <boxGeometry args={[3, 0.5, 0.35]} />
+              {/* Двоярусні: Робочий ярус (Глибина 0.35, притиснуто до стіни Z=-0.3) */}
+              {/* Z-center = -0.3 + 0.35/2 = -0.125 */}
+              <mesh position={[0, 1.8, -0.125]} material={upperMats} castShadow receiveShadow>
+                <boxGeometry args={[3, 0.6, 0.35]} />
               </mesh>
-              {/* Двоярусні: Антресолі */}
-              <mesh position={[0, 2.3, 0]} material={topTierMats} castShadow receiveShadow>
+              {/* Двоярусні: Антресолі (Глибина 0.6, притиснуто до стіни Z=-0.3) */}
+              {/* Z-center = -0.3 + 0.6/2 = 0 */}
+              <mesh position={[0, 2.4, 0]} material={topTierMats} castShadow receiveShadow>
                 <boxGeometry args={[3, 0.6, 0.6]} />
               </mesh>
             </>
@@ -183,34 +187,38 @@ const ParametricFurniture = ({ config }: { config: any }) => {
           return (
             <group>
               {isLeftCorner && (
-                <group position={[-1.2, 0, 0.9]} rotation={[0, Math.PI / 2, 0]}>
-                  <mesh position={[0, 0.45, 0]} material={baseMats} castShadow receiveShadow>
-                    <boxGeometry args={[1.2, 0.9, 0.6]} />
+                <group>
+                  {/* Кутова база: йде вперед від X=-1.5 до X=-0.9. Z від 0.3 до 1.5 */}
+                  <mesh position={[-1.2, 0.45, 0.9]} material={baseMats} castShadow receiveShadow>
+                    <boxGeometry args={[0.6, 0.9, 1.2]} />
                   </mesh>
-                  <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
-                    <boxGeometry args={[1.25, 0.04, 0.65]} />
+                  <mesh position={[-1.2, 0.92, 0.9]} material={countertopMat} castShadow receiveShadow>
+                    <boxGeometry args={[0.65, 0.04, 1.25]} />
                   </mesh>
+
+                  {/* Кутові верхні (ідеальне стикування!) */}
                   {hasAntresol ? (
                     <>
-                      <mesh position={[-0.125, 1.75, 0]} material={upperMats} castShadow receiveShadow>
-                        <boxGeometry args={[0.95, 0.5, 0.35]} />
+                      {/* Робочий верхній кут */}
+                      <mesh position={[-1.325, 1.8, 0.775]} material={upperMats} castShadow receiveShadow>
+                        <boxGeometry args={[0.35, 0.6, 1.45]} />
                       </mesh>
-                      <mesh position={[0, 2.3, 0]} material={topTierMats} castShadow receiveShadow>
-                        <boxGeometry args={[1.2, 0.6, 0.6]} />
+                      {/* Антресоль кут */}
+                      <mesh position={[-1.2, 2.4, 0.9]} material={topTierMats} castShadow receiveShadow>
+                        <boxGeometry args={[0.6, 0.6, 1.2]} />
                       </mesh>
                     </>
                   ) : (
-                    <mesh position={[-0.125, 1.95, 0]} material={upperMats} castShadow receiveShadow>
-                      <boxGeometry args={[0.95, 0.9, 0.35]} />
+                    <mesh position={[-1.325, 1.95, 0.775]} material={upperMats} castShadow receiveShadow>
+                      <boxGeometry args={[0.35, 0.9, 1.45]} />
                     </mesh>
                   )}
                 </group>
               )}
-              {/* Пенал ставимо або в кінці кута, або на краю прямої кухні */}
+              {/* Пенал ставимо або в кінці кута (вперед), або на краю прямої кухні (вліво) */}
               {leftModule !== 'none' && (
                 <TallModule 
                   position={isLeftCorner ? [-1.2, tallModY, 1.8] : [-1.8, tallModY, 0]} 
-                  rotation={isLeftCorner ? [0, Math.PI / 2, 0] : [0, 0, 0]} 
                   moduleType={leftModule} 
                 />
               )}
@@ -224,33 +232,38 @@ const ParametricFurniture = ({ config }: { config: any }) => {
           return (
             <group>
               {isRightCorner && (
-                <group position={[1.2, 0, 0.9]} rotation={[0, -Math.PI / 2, 0]}>
-                  <mesh position={[0, 0.45, 0]} material={baseMats} castShadow receiveShadow>
-                    <boxGeometry args={[1.2, 0.9, 0.6]} />
+                <group>
+                  {/* Кутова база: йде вперед від X=0.9 до X=1.5. Z від 0.3 до 1.5 */}
+                  <mesh position={[1.2, 0.45, 0.9]} material={baseMats} castShadow receiveShadow>
+                    <boxGeometry args={[0.6, 0.9, 1.2]} />
                   </mesh>
-                  <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
-                    <boxGeometry args={[1.25, 0.04, 0.65]} />
+                  <mesh position={[1.2, 0.92, 0.9]} material={countertopMat} castShadow receiveShadow>
+                    <boxGeometry args={[0.65, 0.04, 1.25]} />
                   </mesh>
+
+                  {/* Кутові верхні (ідеальне стикування!) */}
                   {hasAntresol ? (
                     <>
-                      <mesh position={[0.125, 1.75, 0]} material={upperMats} castShadow receiveShadow>
-                        <boxGeometry args={[0.95, 0.5, 0.35]} />
+                      {/* Робочий верхній кут */}
+                      <mesh position={[1.325, 1.8, 0.775]} material={upperMats} castShadow receiveShadow>
+                        <boxGeometry args={[0.35, 0.6, 1.45]} />
                       </mesh>
-                      <mesh position={[0, 2.3, 0]} material={topTierMats} castShadow receiveShadow>
-                        <boxGeometry args={[1.2, 0.6, 0.6]} />
+                      {/* Антресоль кут */}
+                      <mesh position={[1.2, 2.4, 0.9]} material={topTierMats} castShadow receiveShadow>
+                        <boxGeometry args={[0.6, 0.6, 1.2]} />
                       </mesh>
                     </>
                   ) : (
-                    <mesh position={[0.125, 1.95, 0]} material={upperMats} castShadow receiveShadow>
-                      <boxGeometry args={[0.95, 0.9, 0.35]} />
+                    <mesh position={[1.325, 1.95, 0.775]} material={upperMats} castShadow receiveShadow>
+                      <boxGeometry args={[0.35, 0.9, 1.45]} />
                     </mesh>
                   )}
                 </group>
               )}
+              {/* Пенал ставимо або в кінці кута (вперед), або на краю прямої кухні (вправо) */}
               {rightModule !== 'none' && (
                 <TallModule 
                   position={isRightCorner ? [1.2, tallModY, 1.8] : [1.8, tallModY, 0]} 
-                  rotation={isRightCorner ? [0, -Math.PI / 2, 0] : [0, 0, 0]} 
                   moduleType={rightModule} 
                 />
               )}
@@ -353,28 +366,30 @@ const SmartphoneWidget = () => {
               <meshBasicMaterial color="#050505" />
             </mesh>
 
-            {/* HTML Інтерфейс екрану (Зміщено вперед, щоб не кліпалось склом) */}
-            <Html transform position={[0, 0, 0.105]} distanceFactor={1.5} center zIndexRange={[100, 0]}>
-              <div className="w-[165px] h-[345px] flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative">
-                
+            {/* HTML Інтерфейс екрану накладений ідеально поверх 3D моделі */}
+            <Html transform position={[0, 0, 0.102]} scale={0.01} center zIndexRange={[100, 0]}>
+              <div 
+                className="w-[165px] h-[345px] flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative"
+                style={{ pointerEvents: 'auto' }} // ВАЖЛИВО! Робить кнопки клікабельними
+              >
                 {/* Імітація "чубчика" (Dynamic Island) */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-black rounded-full z-10"></div>
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-black rounded-full z-10 pointer-events-none"></div>
                 
-                <div className="text-white text-center mt-4">
+                <div className="text-white text-center mt-4 pointer-events-none">
                   <span className="block text-[8px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
                   <span className="block text-sm font-serif">Socials</span>
                 </div>
                 
-                <a href="https://www.instagram.com/grazia.kh.ua/" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300">
+                <a href="https://www.instagram.com/grazia.kh.ua/" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer">
                   <InstagramIconSVG size={24} color="white" />
                 </a>
                 
-                <a href="https://www.youtube.com/@graziakhua/videos" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-[#FF0000] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300">
+                <a href="https://www.youtube.com/@graziakhua/videos" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-[#FF0000] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer">
                   <YoutubeIconSVG size={24} color="white" />
                 </a>
 
                 {/* Імітація полоски Home */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-14 h-1 bg-white/30 rounded-full"></div>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-14 h-1 bg-white/30 rounded-full pointer-events-none"></div>
               </div>
             </Html>
           </group>
@@ -494,7 +509,7 @@ export default function GraziaFurnitureSystem() {
   
   // СТЕЙТ ДЛЯ НОВОГО 3D КОНФІГУРАТОРА
   const [configStep, setConfigStep] = useState(1);
-  const [activeColorZone, setActiveColorZone] = useState('base'); // base, upper, topTier, countertop, carcass
+  const [activeColorZone, setActiveColorZone] = useState('base'); 
   const [configData, setConfigData] = useState({
     type: 'Кухня', 
     layout: 'Пряма',
@@ -506,7 +521,7 @@ export default function GraziaFurnitureSystem() {
       upper: 'Фарбований МДФ: Білий',
       topTier: 'Шпон: Світлий Дуб',
       countertop: 'Білий Камінь',
-      carcass: 'Графіт' // Тепер корпус фарбується окремо!
+      carcass: 'Графіт' 
     },
     dimensions: { length: '', width: '', height: '' },
     gift: '',
@@ -1778,7 +1793,7 @@ export default function GraziaFurnitureSystem() {
         <div className="flex w-[200%]">
           <motion.div 
             animate={{ x: ["0%", "-50%"] }} 
-            transition={{ repeat: Infinity, ease: "linear", duration: 25 }}
+            transition={{ repeat: Infinity, ease: "linear", duration: 50 }}
             className="flex items-center gap-32 whitespace-nowrap pl-16"
           >
             {/* Набір 1 - Відступи збільшено (gap-32) та додано дублікати для довжини */}
