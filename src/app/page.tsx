@@ -19,8 +19,15 @@ import {
   Eye,
   Sun,
   Moon,
-  MousePointer2
+  MousePointer2,
+  Box,
+  LayoutGrid,
+  Palette,
+  Gift,
+  Phone,
+  Check
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Глобальний кеш для географічних даних
 let cachedWorldData: any = null;
@@ -132,8 +139,21 @@ export default function GraziaFurnitureSystem() {
   
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
-  const [calcForm, setCalcForm] = useState({ spaceType: '', room: '', style: '', material: '', budget: '', notes: '' });
+  
+  // НОВИЙ СТЕЙТ ДЛЯ 3D КОНФІГУРАТОРА
+  const [configStep, setConfigStep] = useState(1);
+  const [configData, setConfigData] = useState({
+    type: '',
+    layout: '',
+    style: '',
+    color: '',
+    dimensions: { length: '', width: '', height: '' },
+    gift: '',
+    phone: '',
+    time: '10:00 - 12:00'
+  });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -613,32 +633,32 @@ export default function GraziaFurnitureSystem() {
   const returnToGlobe = () => {
     setIsTransitioning(true);
     setTimeout(() => {
-      setMapLevel('globe');
-      setIsTransitioning(false);
-    }, 600);
-  };
-
-  const handleCalcSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCalcSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSubmitting(true);
     try {
+      // 1. Зберігаємо бекап ліда в Supabase
       await supabase.from('orders').insert({
         store_id: 'furniture',
-        customer_name: 'Лід з лендінгу (Калькулятор)',
+        customer_name: 'Лід з 3D Конфігуратора',
         total_amount: 0,
         status: 'draft',
-        ttn_number: `Меблі: ${calcForm.spaceType} / ${calcForm.room} / ${calcForm.material}`
+        ttn_number: `3D: ${configData.type} / ${configData.layout} / Розміри: ${configData.dimensions.length}x${configData.dimensions.width}x${configData.dimensions.height}`
       });
 
+      // 2. ВІДПРАВКА В TELEGRAM ЧЕРЕЗ НАШ API
       await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(calcForm)
+        body: JSON.stringify(configData)
       });
 
       setFormSubmitted(true);
     } catch (err) {
       console.error("Помилка відправки:", err);
       setFormSubmitted(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -918,108 +938,350 @@ export default function GraziaFurnitureSystem() {
         </div>
       </section>
 
-      {/* Form розрахунку */}
-      <section id="calc" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto bg-[var(--bg-main)] border border-[var(--border-color)] shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-16 md:gap-24">
+      {/* --- PREMIUM 3D CONFIGURATOR --- */}
+      <section id="calc" className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
           
-          <div>
-            <h2 className="text-3xl md:text-4xl font-serif text-[var(--text-main)] mb-6 leading-tight">ЗАМОВИТИ ПРОРАХУНОК<br/>МЕБЛІВ</h2>
-            <p className="text-sm text-[var(--text-muted)] mb-10 leading-relaxed">
-              Опишіть ваш проєкт, і ми підготуємо індивідуальну пропозицію. Наш конструктор зв'яжеться з вами для уточнення деталей та погодження виїзду на замір по Харкову.
-            </p>
+          {/* ЛІВА ЧАСТИНА: 3D СЦЕНА (Заглушка для Ітерації 2) */}
+          <div className="lg:w-1/2 relative bg-[#111111] overflow-hidden flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-white/10 min-h-[400px]">
+            {/* Декоративний фон для студійності */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)]"></div>
+            <div className="absolute bottom-0 w-full h-1/3 bg-gradient-to-t from-black/80 to-transparent"></div>
             
-            <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-[var(--bg-card)] flex items-center justify-center flex-shrink-0 text-[var(--accent-main)]">
-                  <PenTool size={18} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold uppercase tracking-wider mb-1 text-[var(--text-main)]">Безкоштовний проєкт</h4>
-                  <p className="text-xs text-[var(--text-muted)]">Створюємо 3D-візуалізацію вашої майбутньої кухні чи шафи.</p>
-                </div>
+            <motion.div 
+              animate={{ y: [0, -15, 0], rotateY: [0, 10, 0] }} 
+              transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
+              className="relative z-10 flex flex-col items-center"
+            >
+              <div className="w-48 h-48 border-[1px] border-white/20 rounded-2xl flex items-center justify-center bg-white/5 backdrop-blur-sm shadow-[0_0_50px_rgba(255,255,255,0.05)] relative overflow-hidden">
+                <Box size={64} className="text-white/40" strokeWidth={1} />
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-50"></div>
               </div>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-[var(--bg-card)] flex items-center justify-center flex-shrink-0 text-[var(--accent-main)]">
-                  <Hammer size={18} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold uppercase tracking-wider mb-1 text-[var(--text-main)]">Власне виробництво</h4>
-                  <p className="text-xs text-[var(--text-muted)]">Повний контроль якості на кожному етапі у нашому цеху.</p>
-                </div>
+            </motion.div>
+
+            <div className="absolute bottom-8 text-center w-full z-20">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/70 text-[10px] font-mono uppercase tracking-widest mb-3">
+                <Sparkles size={12} className="text-yellow-400" /> GRAZIA 3D ENGINE
               </div>
+              <h3 className="text-white font-serif text-2xl tracking-wide">
+                {configStep === 1 && "Оберіть тип виробу"}
+                {configStep === 2 && "Формування геометрії..."}
+                {configStep === 3 && "Нанесення матеріалів..."}
+                {configStep === 4 && "Калібрування розмірів..."}
+                {configStep >= 5 && "Фінальний рендер..."}
+              </h3>
+              <p className="text-white/40 text-xs mt-2 max-w-xs mx-auto">
+                Інтерактивна 3D візуалізація завантажиться на наступному етапі оновлення.
+              </p>
+            </div>
+            
+            {/* Індикатори параметрів поверх 3D */}
+            <div className="absolute top-6 left-6 flex flex-col gap-2">
+              {configData.type && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.type}</span>}
+              {configData.color && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.color}</span>}
             </div>
           </div>
 
-          {formSubmitted ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center border border-[var(--border-color)] bg-[var(--bg-card)]">
-              <CheckCircle2 size={48} className="text-[var(--accent-main)] mb-6" />
-              <h3 className="text-2xl font-serif mb-2 text-[var(--text-main)]">Запит успішно надіслано!</h3>
-              <p className="text-[var(--text-muted)] text-sm">Ми вже отримали ваші дані в базі Supabase і готові до прорахунку.</p>
+          {/* ПРАВА ЧАСТИНА: ПАНЕЛЬ КЕРУВАННЯ */}
+          <div className="lg:w-1/2 p-8 lg:p-14 flex flex-col relative bg-[var(--bg-main)]">
+            
+            {/* Прогрес бар */}
+            {!formSubmitted && (
+              <div className="mb-10">
+                <div className="flex justify-between text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] mb-3">
+                  <span>Крок {configStep} з 6</span>
+                  <span>{Math.round((configStep / 6) * 100)}%</span>
+                </div>
+                <div className="w-full h-1 bg-[var(--border-color)] rounded-full overflow-hidden">
+                  <motion.div 
+                    className="h-full bg-[var(--accent-main)]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(configStep / 6) * 100}%` }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 relative">
+              <AnimatePresence mode="wait">
+                
+                {/* КРОК 1: ТИП ВИРОБУ */}
+                {configStep === 1 && !formSubmitted && (
+                  <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Що будемо створювати?</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть базову конфігурацію для старту 3D моделювання.</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {['Кухня', 'Шафа-купе / Гардеробна', 'Меблі у вітальню', 'Меблі для ванної'].map((item) => (
+                        <div 
+                          key={item}
+                          onClick={() => setConfigData({...configData, type: item})}
+                          className={`p-6 border rounded-lg cursor-pointer transition-all duration-300 flex flex-col items-center text-center gap-4 ${configData.type === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
+                        >
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${configData.type === item ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
+                            {item === 'Кухня' ? <LayoutGrid size={20} /> : <Box size={20} />}
+                          </div>
+                          <span className="font-medium text-[var(--text-main)]">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* КРОК 2: ФОРМ-ФАКТОР */}
+                {configStep === 2 && !formSubmitted && (
+                  <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Оберіть планування</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Яка геометрія найкраще підходить вашому приміщенню?</p>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { id: 'Пряма', desc: 'Класична лінія' },
+                        { id: 'Кутова (L-подібна)', desc: 'Оптимізація кута' },
+                        { id: 'П-подібна', desc: 'Максимум робочої зони' },
+                        { id: 'З островом', desc: 'Преміальний простір' }
+                      ].map((item) => (
+                        <div 
+                          key={item.id}
+                          onClick={() => setConfigData({...configData, layout: item.id})}
+                          className={`p-5 border rounded-lg cursor-pointer transition-all duration-300 ${configData.layout === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
+                        >
+                          <div className="h-20 bg-[var(--bg-card)] rounded mb-4 flex items-center justify-center text-[var(--text-light)]">
+                            <LayoutGrid size={24} /> {/* Тут будуть красиві SVG іконки планувань пізніше */}
+                          </div>
+                          <h4 className="font-medium text-[var(--text-main)]">{item.id}</h4>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">{item.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* КРОК 3: МАТЕРІАЛ ТА КОЛІР */}
+                {configStep === 3 && !formSubmitted && (
+                  <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Дизайн фасадів</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть основний матеріал та текстуру.</p>
+                    
+                    <div className="space-y-6">
+                      <div>
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Преміум Фарбування (Мат / Глянець)</span>
+                        <div className="flex gap-3">
+                          {['Білий', 'Графіт', 'Кашемір', 'Смарагд'].map(color => (
+                            <div key={color} onClick={() => setConfigData({...configData, color: `Фарбований МДФ: ${color}`})} className="flex flex-col items-center gap-2 cursor-pointer group">
+                              <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.color.includes(color) ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                <div className="w-full h-full rounded-full shadow-inner" style={{
+                                  backgroundColor: color === 'Білий' ? '#f8f9fa' : color === 'Графіт' ? '#2d3436' : color === 'Кашемір' ? '#dcdde1' : '#013220'
+                                }}></div>
+                              </div>
+                              <span className="text-[9px] uppercase tracking-wider">{color}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Натуральні текстури (Шпон / Дерево)</span>
+                        <div className="flex gap-3">
+                          {['Світлий Дуб', 'Горіх', 'Чорне дерево'].map(wood => (
+                            <div key={wood} onClick={() => setConfigData({...configData, color: `Шпон: ${wood}`})} className="flex flex-col items-center gap-2 cursor-pointer group">
+                              <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.color.includes(wood) ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                {/* Імітація текстури дерева градієнтом */}
+                                <div className="w-full h-full rounded-full shadow-inner bg-gradient-to-br from-[#8B5A2B] to-[#D2B48C]"></div>
+                              </div>
+                              <span className="text-[9px] uppercase tracking-wider text-center">{wood}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* КРОК 4: РОЗМІРИ */}
+                {configStep === 4 && !formSubmitted && (
+                  <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Габарити виробу</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Вкажіть приблизні розміри для точного прорахунку (в міліметрах).</p>
+                    
+                    <div className="space-y-6">
+                      <div className="relative">
+                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Загальна довжина (L)</label>
+                        <div className="flex items-center border-b border-[var(--border-color)] focus-within:border-[var(--accent-main)] transition-colors pb-2">
+                          <Ruler size={16} className="text-[var(--text-light)] mr-3" />
+                          <input 
+                            type="number" 
+                            placeholder="Наприклад: 3500" 
+                            value={configData.dimensions.length}
+                            onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, length: e.target.value}})}
+                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)]"
+                          />
+                          <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Ширина / Глибина (W)</label>
+                        <div className="flex items-center border-b border-[var(--border-color)] focus-within:border-[var(--accent-main)] transition-colors pb-2">
+                          <Ruler size={16} className="text-[var(--text-light)] mr-3" />
+                          <input 
+                            type="number" 
+                            placeholder="Наприклад: 600" 
+                            value={configData.dimensions.width}
+                            onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, width: e.target.value}})}
+                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)]"
+                          />
+                          <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Висота приміщення (H)</label>
+                        <div className="flex items-center border-b border-[var(--border-color)] focus-within:border-[var(--accent-main)] transition-colors pb-2">
+                          <Ruler size={16} className="text-[var(--text-light)] mr-3" />
+                          <input 
+                            type="number" 
+                            placeholder="Наприклад: 2600" 
+                            value={configData.dimensions.height}
+                            onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, height: e.target.value}})}
+                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)]"
+                          />
+                          <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* КРОК 5: ПОДАРУНОК */}
+                {configStep === 5 && !formSubmitted && (
+                  <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Ваш гарантований подарунок</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть бонус, який ми додамо до вашого замовлення безкоштовно.</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { id: 'Висувне Карго', icon: <Box size={24}/> },
+                        { id: 'LED Підсвітка', icon: <Sun size={24}/> },
+                        { id: 'Кам\'яна Мийка', icon: <CheckCircle2 size={24}/> }
+                      ].map((item) => (
+                        <div 
+                          key={item.id}
+                          onClick={() => setConfigData({...configData, gift: item.id})}
+                          className={`p-6 border rounded-lg cursor-pointer transition-all duration-300 flex flex-col items-center text-center gap-4 ${configData.gift === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
+                        >
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${configData.gift === item.id ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
+                            {item.icon}
+                          </div>
+                          <span className="font-medium text-sm text-[var(--text-main)]">{item.id}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* КРОК 6: ФІНАЛ (КОНТАКТИ) */}
+                {configStep === 6 && !formSubmitted && (
+                  <motion.div key="step6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Проєкт готовий до прорахунку</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Залиште ваш контакт, і наш конструктор Марина зв'яжеться з вами.</p>
+                    
+                    <div className="space-y-6 bg-[var(--bg-card)] p-6 rounded-xl border border-[var(--border-color)]">
+                      <div>
+                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Ваш телефон</label>
+                        <div className="flex items-center bg-[var(--bg-main)] rounded-lg px-4 py-3 border border-[var(--border-color)] focus-within:border-[var(--accent-main)] transition-colors">
+                          <Phone size={18} className="text-[var(--text-light)] mr-3" />
+                          <input 
+                            type="tel" 
+                            placeholder="+38 (000) 000-00-00" 
+                            value={configData.phone}
+                            onChange={(e) => setConfigData({...configData, phone: e.target.value})}
+                            className="bg-transparent w-full focus:outline-none text-[var(--text-main)]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Зручний час для дзвінка</label>
+                        <select 
+                          value={configData.time}
+                          onChange={(e) => setConfigData({...configData, time: e.target.value})}
+                          className="w-full bg-[var(--bg-main)] rounded-lg px-4 py-3 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] appearance-none"
+                        >
+                          <option>Найближчим часом</option>
+                          <option>10:00 - 12:00</option>
+                          <option>14:00 - 16:00</option>
+                          <option>Після 18:00</option>
+                        </select>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* УСПІШНЕ ВІДПРАВЛЕННЯ + UPSELL */}
+                {formSubmitted && (
+                  <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col items-center justify-center text-center">
+                    <div className="w-20 h-20 bg-green-500/10 text-green-600 rounded-full flex items-center justify-center mb-6">
+                      <Check size={40} />
+                    </div>
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-3">Проєкт отримано!</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-10 max-w-md">
+                      Ми вже завантажили ваші параметри в базу. Марина зв'яжеться з вами у вказаний час ({configData.time}). Подарунок ({configData.gift}) зафіксовано за вашим номером.
+                    </p>
+
+                    {/* UPSELL BLOCK */}
+                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1E3527] to-[#0D1A13] p-8 text-left w-full border border-white/10 shadow-2xl">
+                      <div className="absolute top-0 right-0 p-6 opacity-10">
+                        <Sparkles size={100} />
+                      </div>
+                      <span className="bg-yellow-400/20 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1 rounded-sm block w-fit mb-4">
+                        Спеціальна пропозиція
+                      </span>
+                      <h4 className="text-white text-xl font-serif mb-2">Преміальна техніка для вашої кухні</h4>
+                      <p className="text-white/70 text-sm mb-6 max-w-sm">
+                        Облаштуйте ваші нові меблі найкращою технікою від нашого офіційного партнера. При замовленні разом з меблями — доставка та монтаж техніки безкоштовно!
+                      </p>
+                      <a href="https://tekhnovybir.com.ua" target="_blank" className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-yellow-400 transition-colors">
+                        Перейти на Tekhnovybir.com.ua <ArrowRight size={14} />
+                      </a>
+                    </div>
+                  </motion.div>
+                )}
+
+              </AnimatePresence>
             </div>
-          ) : (
-            <form onSubmit={handleCalcSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-              
-              <div className="flex flex-col">
-                <select required value={calcForm.spaceType} onChange={e => setCalcForm({...calcForm, spaceType: e.target.value})}
-                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled className="bg-[var(--bg-main)] text-[var(--text-main)]">Тип приміщення</option>
-                  <option value="flat" className="bg-[var(--bg-main)] text-[var(--text-main)]">Квартира (Новобудова)</option>
-                  <option value="flat_old" className="bg-[var(--bg-main)] text-[var(--text-main)]">Квартира (Вторинний ринок)</option>
-                  <option value="house" className="bg-[var(--bg-main)] text-[var(--text-main)]">Приватний будинок</option>
-                  <option value="commercial" className="bg-[var(--bg-main)] text-[var(--text-main)]">Комерційне приміщення</option>
-                </select>
-              </div>
 
-              <div className="flex flex-col">
-                <select required value={calcForm.room} onChange={e => setCalcForm({...calcForm, room: e.target.value})}
-                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled className="bg-[var(--bg-main)] text-[var(--text-main)]">Що потрібно виготовити?</option>
-                  <option value="kitchen" className="bg-[var(--bg-main)] text-[var(--text-main)]">Кухня</option>
-                  <option value="wardrobe" className="bg-[var(--bg-main)] text-[var(--text-main)]">Шафа-купе / Гардеробна</option>
-                  <option value="living" className="bg-[var(--bg-main)] text-[var(--text-main)]">Меблі у вітальню (Тумби, ТВ-зони)</option>
-                  <option value="bathroom" className="bg-[var(--bg-main)] text-[var(--text-main)]">Меблі для ванної</option>
-                  <option value="complex" className="bg-[var(--bg-main)] text-[var(--text-main)]">Комплексне меблювання</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col">
-                <select required value={calcForm.style} onChange={e => setCalcForm({...calcForm, style: e.target.value})}
-                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled className="bg-[var(--bg-main)] text-[var(--text-main)]">Стилістика</option>
-                  <option value="minimalism" className="bg-[var(--bg-main)] text-[var(--text-main)]">Мінімалізм (Гладкі фасади)</option>
-                  <option value="classic" className="bg-[var(--bg-main)] text-[var(--text-main)]">Неокласика (Фрезерування)</option>
-                  <option value="loft" className="bg-[var(--bg-main)] text-[var(--text-main)]">Лофт (Дерево + Метал)</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col">
-                <select required value={calcForm.material} onChange={e => setCalcForm({...calcForm, material: e.target.value})}
-                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled className="bg-[var(--bg-main)] text-[var(--text-main)]">Переважні матеріали</option>
-                  <option value="mdf_paint" className="bg-[var(--bg-main)] text-[var(--text-main)]">МДФ Фарбований</option>
-                  <option value="mdf_film" className="bg-[var(--bg-main)] text-[var(--text-main)]">МДФ Плівка / Пластик</option>
-                  <option value="wood" className="bg-[var(--bg-main)] text-[var(--text-main)]">Шпон / Масив дерева</option>
-                  <option value="dsp" className="bg-[var(--bg-main)] text-[var(--text-main)]">ДСП (Бюджетний варіант)</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2 flex flex-col mt-4">
-                <textarea rows={3} value={calcForm.notes} onChange={e => setCalcForm({...calcForm, notes: e.target.value})}
-                  placeholder="Додаткові побажання (приблизні розміри, наявність техніки, особливості...)"
-                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors resize-none placeholder:text-[var(--text-light)]"
-                />
-              </div>
-
-              <div className="md:col-span-2 mt-8 flex items-center justify-between">
-                <p className="text-[10px] text-[var(--text-light)] uppercase tracking-widest max-w-[200px]">
-                  Менеджер зв'яжеться з вами протягом 2 годин
-                </p>
-                <button type="submit" className="bg-[var(--accent-main)] text-white px-10 py-5 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[var(--accent-hover)] transition-colors">
-                  Надіслати запит <ArrowRight size={16} />
+            {/* Навігація між кроками */}
+            {!formSubmitted && (
+              <div className="mt-10 pt-6 border-t border-[var(--border-color)] flex justify-between items-center">
+                <button 
+                  onClick={() => setConfigStep(Math.max(1, configStep - 1))}
+                  className={`flex items-center gap-2 text-xs font-semibold tracking-widest uppercase transition-opacity ${configStep === 1 ? 'opacity-0 pointer-events-none' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                >
+                  <ChevronLeft size={16} /> Назад
                 </button>
+                
+                {configStep < 6 ? (
+                  <button 
+                    onClick={() => setConfigStep(configStep + 1)}
+                    className="bg-[var(--btn-bg)] text-[var(--btn-text)] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:opacity-80 transition-opacity rounded-sm shadow-lg"
+                  >
+                    Далі <ArrowRight size={16} />
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => handleCalcSubmit()}
+                    disabled={isSubmitting || !configData.phone}
+                    className="bg-[var(--accent-main)] text-white px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[var(--accent-hover)] transition-colors rounded-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? 'Відправка...' : 'Отримати прорахунок'} <CheckCircle2 size={16} />
+                  </button>
+                )}
               </div>
-            </form>
-          )}
+            )}
+
+          </div>
         </div>
       </section>
 
