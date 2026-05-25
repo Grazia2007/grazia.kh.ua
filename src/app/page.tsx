@@ -7,10 +7,8 @@ import {
   ChevronRight, 
   ChevronLeft, 
   Ruler, 
-  PenTool, 
   Armchair,
   CheckCircle2,
-  Hammer,
   Globe,
   X,
   Star,
@@ -27,7 +25,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 // 3D Бібліотеки
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Center, Float, Html, RoundedBox } from '@react-three/drei';
+import { OrbitControls, Environment, ContactShadows, Center, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 
 // --- КАСТОМНІ ІКОНКИ ДЛЯ СОЦМЕРЕЖ ---
@@ -43,6 +41,12 @@ const YoutubeIconSVG = ({ size = 24, color = "currentColor" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
     <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
+  </svg>
+);
+
+const TelegramIconSVG = ({ size = 24, color = "currentColor" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.233-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
   </svg>
 );
 
@@ -331,7 +335,7 @@ const ParametricFurniture = ({ config }: { config: any }) => {
     );
   }
 
-// --- ВАННА ---
+  // ВАННА
   return (
     <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
       <mesh position={[0, 0.6, 0]} material={baseMatsMain} castShadow receiveShadow>
@@ -352,12 +356,12 @@ const ParametricFurniture = ({ config }: { config: any }) => {
   );
 };
 
-// --- ВИПРАВЛЕНИЙ КОМПОНЕНТ 3D СМАРТФОНА ---
+// --- ВИПРАВЛЕНИЙ КОМПОНЕНТ 3D СМАРТФОНА (СТАТИЧНИЙ) ---
 const SmartphoneWidget = () => {
   return (
     <div className="w-[300px] h-[480px] relative z-10">
-      {/* 3D Модель Телефону (Статична, для максимальної продуктивності та ідеальної синхронізації) */}
-      <div className="absolute inset-0 z-0">
+      {/* 3D Модель Телефону (Статична, для ідеальної синхронізації з екраном) */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <Canvas camera={{ position: [0, 0, 6], fov: 40 }} className="z-0">
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 5, 5]} intensity={1.5} />
@@ -373,34 +377,46 @@ const SmartphoneWidget = () => {
 
       {/* HTML ІНТЕРФЕЙС ПОВЕРХ 3D CANVAS (Статичний) */}
       <div 
-        className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
+        className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-start pt-10 gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
         style={{ transform: 'translate(-50%, -50%) rotateY(-8.6deg)', transformOrigin: 'center center' }}
       >
         {/* Імітація "чубчика" (Dynamic Island) */}
         <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
         
-        <div className="text-white text-center mt-6 pointer-events-none">
-          <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-          <span className="block text-lg font-serif">Socials</span>
+        <div className="text-white text-center mb-1 pointer-events-none">
+          <span className="block text-[8px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
+          <span className="block text-base font-serif">Socials</span>
         </div>
         
-        <a 
-          href="https://www.instagram.com/grazia.kh.ua/" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
-        >
-          <InstagramIconSVG size={28} color="white" />
-        </a>
-        
-        <a 
-          href="https://www.youtube.com/@graziakhua/videos" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
-        >
-          <YoutubeIconSVG size={28} color="white" />
-        </a>
+        {/* ДОДАТКИ */}
+        <div className="flex flex-col gap-3">
+          <a 
+            href="https://www.instagram.com/grazia.kh.ua/" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="w-12 h-12 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[14px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+          >
+            <InstagramIconSVG size={24} color="white" />
+          </a>
+          
+          <a 
+            href="https://www.youtube.com/@graziakhua/videos" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="w-12 h-12 bg-[#FF0000] rounded-[14px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+          >
+            <YoutubeIconSVG size={24} color="white" />
+          </a>
+
+          <a 
+            href="https://t.me/MarinaGrazia" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="w-12 h-12 bg-[#2AABEE] rounded-[14px] flex items-center justify-center shadow-[0_5px_15px_rgba(42,171,238,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+          >
+            <TelegramIconSVG size={24} color="white" />
+          </a>
+        </div>
 
         {/* Імітація полоски Home */}
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
@@ -1868,65 +1884,7 @@ export default function GraziaFurnitureSystem() {
                 Живі об'єкти<br/>та бекстейдж<br/>тут 👉
               </div>
               
-              <div className="relative w-[280px] h-[450px]">
-                {/* 3D Модель Телефону */}
-                <div className="absolute inset-0 z-0">
-                  <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
-                    <ambientLight intensity={0.6} />
-                    <directionalLight position={[5, 5, 5]} intensity={1.5} />
-                    <Environment preset="city" />
-                    
-                    <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5} floatingRange={[-0.1, 0.1]}>
-                      <group rotation={[0, -0.15, 0]}>
-                        <RoundedBox args={[1.8, 3.6, 0.2]} radius={0.2} smoothness={4} castShadow>
-                          <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.8} />
-                        </RoundedBox>
-                      </group>
-                    </Float>
-                  </Canvas>
-                </div>
-
-                {/* HTML Інтерфейс поверх 3D */}
-                <motion.div 
-                  className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
-                  style={{ originX: 0.5, originY: 0.5 }}
-                  animate={{ 
-                    x: "-50%", 
-                    rotateY: -8.5, 
-                    y: ["-50%", "calc(-50% - 10px)", "-50%"] 
-                  }}
-                  transition={{ 
-                    y: { repeat: Infinity, duration: 4, ease: "easeInOut" } 
-                  }}
-                >
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
-                  
-                  <div className="text-white text-center mt-6 pointer-events-none">
-                    <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-                    <span className="block text-lg font-serif">Socials</span>
-                  </div>
-                  
-                  <a 
-                    href="https://www.instagram.com/grazia.kh.ua/" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
-                  >
-                    <InstagramIconSVG size={28} color="white" />
-                  </a>
-                  
-                  <a 
-                    href="https://www.youtube.com/@graziakhua/videos" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
-                  >
-                    <YoutubeIconSVG size={28} color="white" />
-                  </a>
-
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
-                </motion.div>
-              </div>
+              <SmartphoneWidget />
 
             </div>
           </div>
