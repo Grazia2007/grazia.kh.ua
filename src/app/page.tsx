@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { 
   ArrowRight, 
   MapPin, 
@@ -28,6 +28,190 @@ import {
   Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+// 3D Бібліотеки
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Environment, ContactShadows, Center, Float } from '@react-three/drei';
+import * as THREE from 'three';
+
+// --- СИСТЕМА КОЛЬОРІВ ТА МАТЕРІАЛІВ ДЛЯ 3D ---
+const getMaterialProps = (colorStr: string) => {
+  const isWood = colorStr.includes('Шпон') || colorStr.includes('Дерево');
+  
+  let hex = '#dddddd';
+  // Фарбовані
+  if (colorStr.includes('Білий')) hex = '#F5F5F7';
+  if (colorStr.includes('Графіт')) hex = '#2C2C2C';
+  if (colorStr.includes('Кашемір')) hex = '#E2DCD0';
+  if (colorStr.includes('Смарагд')) hex = '#1E3527';
+  // Дерево
+  if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
+  if (colorStr.includes('Горіх')) hex = '#5E4028';
+  if (colorStr.includes('Чорне дерево')) hex = '#211C18';
+
+  return {
+    color: hex,
+    roughness: isWood ? 0.9 : 0.15, // Дерево матове, фарба має легкий глянець
+    metalness: 0.05,
+    clearcoat: isWood ? 0 : 0.3,    // Ефект лаку для фарбованих фасадів
+    clearcoatRoughness: 0.1,
+  };
+};
+
+// --- КОМПОНЕНТИ ПАРАМЕТРИЧНИХ МЕБЛІВ ---
+const ParametricFurniture = ({ type, layout, colorStr }: { type: string, layout: string, colorStr: string }) => {
+  const matProps = getMaterialProps(colorStr);
+  const countertopMat = { color: '#ffffff', roughness: 0.1, metalness: 0.1 }; // Біла стільниця
+  const glassMat = { color: '#000000', roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.8 }; // Скло для ТБ/Духовок
+
+  // Анімація плавної появи при зміні конфігурації
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+    }
+  });
+
+  // КУХНЯ
+  if (type === 'Кухня' || type === '') {
+    return (
+      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+        {/* Основна лінія (Пряма) */}
+        <group position={[0, 0, 0]}>
+          <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+            <boxGeometry args={[3, 0.9, 0.6]} />
+            <meshPhysicalMaterial {...matProps} />
+          </mesh>
+          {/* Стільниця */}
+          <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+            <boxGeometry args={[3.05, 0.04, 0.65]} />
+            <meshStandardMaterial {...countertopMat} />
+          </mesh>
+          {/* Верхні шафки */}
+          <mesh position={[0, 1.8, -0.15]} castShadow receiveShadow>
+            <boxGeometry args={[3, 0.8, 0.3]} />
+            <meshPhysicalMaterial {...matProps} />
+          </mesh>
+          {/* Імітація духовки */}
+          <mesh position={[0, 0.45, 0.31]} castShadow>
+            <boxGeometry args={[0.6, 0.6, 0.05]} />
+            <meshStandardMaterial {...glassMat} />
+          </mesh>
+        </group>
+
+        {/* Кутова (L) або П-подібна - ліве крило */}
+        {(layout.includes('Кутова') || layout.includes('П-подібна')) && (
+          <group position={[-1.2, 0, 0.9]}>
+            <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+              <boxGeometry args={[0.6, 0.9, 1.2]} />
+              <meshPhysicalMaterial {...matProps} />
+            </mesh>
+            <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+              <boxGeometry args={[0.65, 0.04, 1.25]} />
+              <meshStandardMaterial {...countertopMat} />
+            </mesh>
+          </group>
+        )}
+
+        {/* П-подібна - праве крило */}
+        {layout.includes('П-подібна') && (
+          <group position={[1.2, 0, 0.9]}>
+            <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+              <boxGeometry args={[0.6, 0.9, 1.2]} />
+              <meshPhysicalMaterial {...matProps} />
+            </mesh>
+            <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+              <boxGeometry args={[0.65, 0.04, 1.25]} />
+              <meshStandardMaterial {...countertopMat} />
+            </mesh>
+          </group>
+        )}
+
+        {/* Острів */}
+        {layout.includes('островом') && (
+          <group position={[0, 0, 1.5]}>
+            <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+              <boxGeometry args={[1.8, 0.9, 0.8]} />
+              <meshPhysicalMaterial {...matProps} />
+            </mesh>
+            <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+              <boxGeometry args={[1.85, 0.04, 0.85]} />
+              <meshStandardMaterial {...countertopMat} />
+            </mesh>
+          </group>
+        )}
+      </group>
+    );
+  }
+
+  // ШАФА-КУПЕ / ГАРДЕРОБНА
+  if (type.includes('Шафа')) {
+    return (
+      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+        <mesh position={[0, 1.25, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.5, 2.5, 0.7]} />
+          <meshPhysicalMaterial {...matProps} />
+        </mesh>
+        {/* Декоративні профілі (розсувна система) */}
+        <mesh position={[-0.6, 1.25, 0.36]} castShadow>
+          <boxGeometry args={[0.02, 2.4, 0.02]} />
+          <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+        </mesh>
+        <mesh position={[0.6, 1.25, 0.36]} castShadow>
+          <boxGeometry args={[0.02, 2.4, 0.02]} />
+          <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // ТВ-ЗОНА ВІТАЛЬНЯ
+  if (type.includes('вітальню')) {
+    return (
+      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+        {/* Тумба */}
+        <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3, 0.4, 0.5]} />
+          <meshPhysicalMaterial {...matProps} />
+        </mesh>
+        {/* ТБ Панель */}
+        <mesh position={[0, 1.4, -0.2]} castShadow receiveShadow>
+          <boxGeometry args={[1.6, 0.9, 0.05]} />
+          <meshStandardMaterial {...glassMat} />
+        </mesh>
+        {/* Підвісна шафка */}
+        <mesh position={[1.5, 1.5, -0.1]} castShadow receiveShadow>
+          <boxGeometry args={[0.4, 1.2, 0.3]} />
+          <meshPhysicalMaterial {...matProps} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // ВАННА
+  return (
+    <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+      <mesh position={[0, 0.6, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.5, 0.6, 0.5]} />
+        <meshPhysicalMaterial {...matProps} />
+      </mesh>
+      <mesh position={[0, 0.92, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.55, 0.04, 0.55]} />
+        <meshStandardMaterial {...countertopMat} />
+      </mesh>
+      {/* Дзеркало */}
+      <mesh position={[0, 1.7, -0.2]} castShadow>
+        <boxGeometry args={[1.2, 0.8, 0.02]} />
+        <meshStandardMaterial color="#fff" metalness={1} roughness={0} />
+      </mesh>
+      {/* Раковина (накладна) */}
+      <mesh position={[0, 1, 0]}>
+        <cylinderGeometry args={[0.2, 0.15, 0.15, 32]} />
+        <meshStandardMaterial color="#fff" roughness={0.1} />
+      </mesh>
+    </group>
+  );
+};
+
 
 // Глобальний кеш для географічних даних
 let cachedWorldData: any = null;
@@ -143,10 +327,10 @@ export default function GraziaFurnitureSystem() {
   // СТЕЙТ ДЛЯ НОВОГО 3D КОНФІГУРАТОРА
   const [configStep, setConfigStep] = useState(1);
   const [configData, setConfigData] = useState({
-    type: '',
-    layout: '',
+    type: 'Кухня', // За замовчуванням
+    layout: 'Пряма',
     style: '',
-    color: '',
+    color: 'Фарбований МДФ: Білий', // За замовчуванням
     dimensions: { length: '', width: '', height: '' },
     gift: '',
     phone: '',
@@ -162,9 +346,8 @@ export default function GraziaFurnitureSystem() {
   // 0. Ініціалізація теми
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    if (savedTheme === 'dark') {
       setIsDark(true);
       document.documentElement.classList.add('dark');
     } else {
@@ -794,6 +977,7 @@ export default function GraziaFurnitureSystem() {
         </div>
 
         <div className="flex items-center pointer-events-auto">
+          {/* Анімований перемикач теми */}
           <div 
             onClick={toggleTheme}
             className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
@@ -943,43 +1127,62 @@ export default function GraziaFurnitureSystem() {
       <section id="calc" className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto">
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
           
-          {/* ЛІВА ЧАСТИНА: 3D СЦЕНА (Заглушка для Ітерації 2) */}
-          <div className="lg:w-1/2 relative bg-[#111111] overflow-hidden flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-white/10 min-h-[400px]">
-            {/* Декоративний фон для студійності */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)]"></div>
-            <div className="absolute bottom-0 w-full h-1/3 bg-gradient-to-t from-black/80 to-transparent"></div>
+          {/* ЛІВА ЧАСТИНА: СПРАВЖНЯ 3D СЦЕНА */}
+          <div className="lg:w-1/2 relative bg-[#111111] overflow-hidden flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-white/10 min-h-[400px] cursor-grab active:cursor-grabbing">
+            {/* Декоративний фон */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
             
-            <motion.div 
-              animate={{ y: [0, -15, 0], rotateY: [0, 10, 0] }} 
-              transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-              className="relative z-10 flex flex-col items-center"
-            >
-              <div className="w-48 h-48 border-[1px] border-white/20 rounded-2xl flex items-center justify-center bg-white/5 backdrop-blur-sm shadow-[0_0_50px_rgba(255,255,255,0.05)] relative overflow-hidden">
-                <Box size={64} className="text-white/40" strokeWidth={1} />
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-50"></div>
-              </div>
-            </motion.div>
+            <div className="absolute inset-0 z-10">
+              <Canvas camera={{ position: [5, 4, 6], fov: 45 }}>
+                <ambientLight intensity={0.5} />
+                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
+                
+                {/* Студійне HDR освітлення для красивих відблисків */}
+                <Environment preset="city" />
+                
+                {/* Компонент, який будує меблі */}
+                <Suspense fallback={null}>
+                  <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
+                    <Center>
+                      <ParametricFurniture 
+                        type={configData.type} 
+                        layout={configData.layout} 
+                        colorStr={configData.color} 
+                      />
+                    </Center>
+                  </Float>
+                </Suspense>
 
-            <div className="absolute bottom-8 text-center w-full z-20">
+                {/* М'які тіні на підлозі */}
+                <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
+                
+                {/* Управління камерою */}
+                <OrbitControls 
+                  enableZoom={true} 
+                  enablePan={false} 
+                  minPolarAngle={Math.PI / 4} 
+                  maxPolarAngle={Math.PI / 2} 
+                  autoRotate 
+                  autoRotateSpeed={0.5} 
+                />
+              </Canvas>
+            </div>
+
+            <div className="absolute bottom-8 text-center w-full z-20 pointer-events-none">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/70 text-[10px] font-mono uppercase tracking-widest mb-3">
                 <Sparkles size={12} className="text-yellow-400" /> GRAZIA 3D ENGINE
               </div>
-              <h3 className="text-white font-serif text-2xl tracking-wide">
-                {configStep === 1 && "Оберіть тип виробу"}
-                {configStep === 2 && "Формування геометрії..."}
-                {configStep === 3 && "Нанесення матеріалів..."}
-                {configStep === 4 && "Калібрування розмірів..."}
-                {configStep >= 5 && "Фінальний рендер..."}
+              <h3 className="text-white font-serif text-xl tracking-wide opacity-80">
+                Інтерактивна візуалізація
               </h3>
-              <p className="text-white/40 text-xs mt-2 max-w-xs mx-auto">
-                Інтерактивна 3D візуалізація завантажиться на наступному етапі оновлення.
-              </p>
+              <p className="text-white/40 text-xs mt-1">Покрутіть модель мишкою</p>
             </div>
             
             {/* Індикатори параметрів поверх 3D */}
-            <div className="absolute top-6 left-6 flex flex-col gap-2 z-20">
+            <div className="absolute top-6 left-6 flex flex-col gap-2 z-20 pointer-events-none">
               {configData.type && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.type}</span>}
               {configData.color && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.color}</span>}
+              {configData.layout && configData.type === 'Кухня' && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.layout}</span>}
             </div>
           </div>
 
@@ -1011,7 +1214,7 @@ export default function GraziaFurnitureSystem() {
                 {configStep === 1 && !formSubmitted && (
                   <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Що будемо створювати?</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть базову конфігурацію для старту 3D моделювання.</p>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть базову конфігурацію для 3D моделювання.</p>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {['Кухня', 'Шафа-купе / Гардеробна', 'Меблі у вітальню', 'Меблі для ванної'].map((item) => (
@@ -1036,26 +1239,37 @@ export default function GraziaFurnitureSystem() {
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Оберіть планування</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-8">Яка геометрія найкраще підходить вашому приміщенню?</p>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { id: 'Пряма', desc: 'Класична лінія' },
-                        { id: 'Кутова (L-подібна)', desc: 'Оптимізація кута' },
-                        { id: 'П-подібна', desc: 'Максимум робочої зони' },
-                        { id: 'З островом', desc: 'Преміальний простір' }
-                      ].map((item) => (
-                        <div 
-                          key={item.id}
-                          onClick={() => setConfigData({...configData, layout: item.id})}
-                          className={`p-5 border rounded-lg cursor-pointer transition-all duration-300 ${configData.layout === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-sm' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
-                        >
-                          <div className="h-20 bg-[var(--bg-card)] rounded mb-4 flex items-center justify-center text-[var(--text-light)]">
-                            <LayoutGrid size={24} />
+                    {configData.type === 'Кухня' ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        {[
+                          { id: 'Пряма', desc: 'Класична лінія' },
+                          { id: 'Кутова (L-подібна)', desc: 'Оптимізація кута' },
+                          { id: 'П-подібна', desc: 'Максимум робочої зони' },
+                          { id: 'З островом', desc: 'Преміальний простір' }
+                        ].map((item) => (
+                          <div 
+                            key={item.id}
+                            onClick={() => setConfigData({...configData, layout: item.id})}
+                            className={`p-5 border rounded-lg cursor-pointer transition-all duration-300 ${configData.layout === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-sm' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
+                          >
+                            <div className="h-20 bg-[var(--bg-card)] rounded mb-4 flex items-center justify-center text-[var(--text-light)]">
+                              <LayoutGrid size={24} />
+                            </div>
+                            <h4 className="font-medium text-[var(--text-main)]">{item.id}</h4>
+                            <p className="text-xs text-[var(--text-muted)] mt-1">{item.desc}</p>
                           </div>
-                          <h4 className="font-medium text-[var(--text-main)]">{item.id}</h4>
-                          <p className="text-xs text-[var(--text-muted)] mt-1">{item.desc}</p>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 border border-[var(--border-color)] rounded-lg text-center bg-[var(--bg-card)]">
+                        <Box size={40} className="mx-auto text-[var(--text-light)] mb-4" />
+                        <p className="text-[var(--text-main)] font-medium">Для цього типу меблів планування стандартне.</p>
+                        <p className="text-sm text-[var(--text-muted)] mt-2">Ви зможете обговорити деталі з нашим дизайнером.</p>
+                        <button onClick={() => setConfigStep(3)} className="mt-6 text-xs font-bold uppercase tracking-widest text-[var(--accent-main)] border-b border-[var(--accent-main)] pb-1 hover:opacity-70">
+                          Перейти до кольору
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -1063,7 +1277,7 @@ export default function GraziaFurnitureSystem() {
                 {configStep === 3 && !formSubmitted && (
                   <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Дизайн фасадів</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть основний матеріал та текстуру.</p>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть основний матеріал. Модель зліва оновиться миттєво.</p>
                     
                     <div className="space-y-6">
                       <div>
@@ -1221,7 +1435,7 @@ export default function GraziaFurnitureSystem() {
 
                 {/* УСПІШНЕ ВІДПРАВЛЕННЯ + UPSELL */}
                 {formSubmitted && (
-                  <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col items-center justify-center text-center">
+                  <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col items-center justify-center text-center z-10 relative">
                     <div className="w-20 h-20 bg-green-500/10 text-green-600 rounded-full flex items-center justify-center mb-6">
                       <Check size={40} />
                     </div>
@@ -1232,17 +1446,17 @@ export default function GraziaFurnitureSystem() {
 
                     {/* UPSELL BLOCK */}
                     <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1E3527] to-[#0D1A13] p-8 text-left w-full border border-white/10 shadow-2xl">
-                      <div className="absolute top-0 right-0 p-6 opacity-10">
+                      <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
                         <Sparkles size={100} className="text-white" />
                       </div>
-                      <span className="bg-yellow-400/20 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1 rounded-sm block w-fit mb-4">
+                      <span className="bg-yellow-400/20 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1 rounded-sm block w-fit mb-4 relative z-10">
                         Спеціальна пропозиція
                       </span>
-                      <h4 className="text-white text-xl font-serif mb-2">Преміальна техніка для вашої кухні</h4>
-                      <p className="text-white/70 text-sm mb-6 max-w-sm">
+                      <h4 className="text-white text-xl font-serif mb-2 relative z-10">Преміальна техніка для вашої кухні</h4>
+                      <p className="text-white/70 text-sm mb-6 max-w-sm relative z-10">
                         Облаштуйте ваші нові меблі найкращою технікою від нашого офіційного партнера. При замовленні разом з меблями — доставка та монтаж техніки безкоштовно!
                       </p>
-                      <a href="https://tekhnovybir.com.ua" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-yellow-400 transition-colors">
+                      <a href="https://tekhnovybir.com.ua" target="_blank" rel="noopener noreferrer" className="relative z-10 inline-flex items-center gap-2 bg-white text-black px-6 py-3 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-yellow-400 transition-colors">
                         Перейти на Tekhnovybir.com.ua <ArrowRight size={14} />
                       </a>
                     </div>
@@ -1264,7 +1478,14 @@ export default function GraziaFurnitureSystem() {
                 
                 {configStep < 6 ? (
                   <button 
-                    onClick={() => setConfigStep(configStep + 1)}
+                    onClick={() => {
+                      // Пропускаємо вибір планування для не-кухонь
+                      if (configStep === 1 && configData.type !== 'Кухня') {
+                        setConfigStep(3);
+                      } else {
+                        setConfigStep(configStep + 1);
+                      }
+                    }}
                     className="bg-[var(--btn-bg)] text-[var(--btn-text)] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:opacity-80 transition-opacity rounded-sm shadow-lg"
                   >
                     Далі <ArrowRight size={16} />
