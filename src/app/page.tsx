@@ -512,9 +512,9 @@ export default function GraziaFurnitureSystem() {
           container: mapContainerRef.current,
           style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11', 
           center: [36.2261, 50.0060], // Центр — Держпром та Площа Свободи
-          zoom: 8.5, // Віддалили зум (було 11), щоб охопити весь Харків та область
-          pitch: 45,
-          bearing: -10,
+          zoom: 10.5, // Ідеальний масштаб для Харкова та найближчої області
+          pitch: 0,   // Плоский 2D вигляд зверху (без перспективи)
+          bearing: 0, // Північ чітко зверху (без повороту в сторону Сум)
           antialias: true
         });
 
