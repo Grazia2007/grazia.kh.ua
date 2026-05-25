@@ -511,10 +511,10 @@ export default function GraziaFurnitureSystem() {
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
           style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11', 
-          center: [36.24, 49.98],
-          zoom: 11,
-          pitch: 50,
-          bearing: -15,
+          center: [36.2261, 50.0060], // Центр — Держпром та Площа Свободи
+          zoom: 8.5, // Віддалили зум (було 11), щоб охопити весь Харків та область
+          pitch: 45,
+          bearing: -10,
           antialias: true
         });
 
