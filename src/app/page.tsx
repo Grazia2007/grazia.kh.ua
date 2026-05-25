@@ -368,22 +368,25 @@ const SmartphoneWidget = () => {
               <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.8} />
             </RoundedBox>
             
-            {/* Ідеально прикріплений HTML-інтерфейс.
-                scale={0.01} каже: 1 HTML піксель = 0.01 3D-юніта.
-                Корпус шириною 1.8 юніта -> 180px. Віднімаємо рамки -> ~165px. 
-            */}
-            <Html transform position={[0, 0, 0.101]} scale={0.01} center>
+            {/* Чорне скло екрану (основа) */}
+            <mesh position={[0, 0, 0.101]}>
+              <planeGeometry args={[1.65, 3.45]} />
+              <meshBasicMaterial color="#050505" />
+            </mesh>
+
+            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС (Ідеальний математичний масштаб + примусові кліки) */}
+            <Html transform position={[0, 0, 0.102]} scale={0.01} center zIndexRange={[100, 0]}>
               <div 
                 style={{ width: '165px', height: '345px', pointerEvents: 'auto' }}
-                className="flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden relative"
-                onPointerDown={(e) => e.stopPropagation()} // Блокуємо OrbitControls для всього екрану
+                className="flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative"
+                onPointerDown={(e) => e.stopPropagation()} 
               >
                 {/* Імітація "чубчика" (Dynamic Island) */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-black rounded-full z-10 pointer-events-none"></div>
                 
-                <div className="text-white text-center mt-6 pointer-events-none">
-                  <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-                  <span className="block text-lg font-serif">Socials</span>
+                <div className="text-white text-center mt-4 pointer-events-none">
+                  <span className="block text-[8px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
+                  <span className="block text-sm font-serif">Socials</span>
                 </div>
                 
                 <a 
@@ -392,9 +395,9 @@ const SmartphoneWidget = () => {
                   rel="noopener noreferrer" 
                   onClick={(e) => { e.stopPropagation(); window.open('https://www.instagram.com/grazia.kh.ua/', '_blank'); }}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+                  className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
                 >
-                  <InstagramIconSVG size={28} color="white" />
+                  <InstagramIconSVG size={24} color="white" />
                 </a>
                 
                 <a 
@@ -403,13 +406,13 @@ const SmartphoneWidget = () => {
                   rel="noopener noreferrer" 
                   onClick={(e) => { e.stopPropagation(); window.open('https://www.youtube.com/@graziakhua/videos', '_blank'); }}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+                  className="w-14 h-14 bg-[#FF0000] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
                 >
-                  <YoutubeIconSVG size={28} color="white" />
+                  <YoutubeIconSVG size={24} color="white" />
                 </a>
 
                 {/* Імітація полоски Home */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-14 h-1 bg-white/30 rounded-full pointer-events-none"></div>
               </div>
             </Html>
           </group>
@@ -975,7 +978,7 @@ export default function GraziaFurnitureSystem() {
           el.innerHTML = `
             <div class="absolute rounded-full border-2 transition-all duration-700 scale-100 opacity-20" style="border-color: var(--accent-main); background-color: var(--accent-main); width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
             <div class="w-4 h-4 rounded-full border-2 z-10 hover:scale-125 transition-transform duration-300 shadow-lg" style="border-color: var(--bg-main); background-color: var(--accent-main);"></div>
-            <div class="absolute --top-10 text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none" style="background-color: var(--btn-bg); color: var(--btn-text);">
+            <div class="absolute -top-10 text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none" style="background-color: var(--btn-bg); color: var(--btn-text);">
               ${pin.name}
             </div>
           `;
@@ -1891,42 +1894,51 @@ export default function GraziaFurnitureSystem() {
                         <RoundedBox args={[1.8, 3.6, 0.2]} radius={0.2} smoothness={4} castShadow>
                           <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.8} />
                         </RoundedBox>
-                        
-                        {/* HTML Інтерфейс прив'язаний жорстко як текстура, масштаб ідеальний для 1.8х3.6 */}
-                        <Html transform position={[0, 0, 0.101]} scale={0.01} center>
-                          <div 
-                            style={{ width: '165px', height: '345px', pointerEvents: 'auto' }}
-                            className="flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden relative"
-                            onPointerDown={(e) => e.stopPropagation()} 
-                          >
-                            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
-                            
-                            <div className="text-white text-center mt-6 pointer-events-none">
-                              <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-                              <span className="block text-lg font-serif">Socials</span>
-                            </div>
-                            
-                            <div 
-                              onClick={() => window.open('https://www.instagram.com/grazia.kh.ua/', '_blank')}
-                              className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
-                            >
-                              <InstagramIconSVG size={28} color="white" />
-                            </div>
-                            
-                            <div 
-                              onClick={() => window.open('https://www.youtube.com/@graziakhua/videos', '_blank')}
-                              className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
-                            >
-                              <YoutubeIconSVG size={28} color="white" />
-                            </div>
-
-                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
-                          </div>
-                        </Html>
                       </group>
                     </Float>
                   </Canvas>
                 </div>
+
+                {/* HTML Інтерфейс поверх 3D */}
+                <motion.div 
+                  className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
+                  style={{ originX: 0.5, originY: 0.5 }}
+                  animate={{ 
+                    x: "-50%", 
+                    rotateY: -8.5, 
+                    y: ["-50%", "calc(-50% - 10px)", "-50%"] 
+                  }}
+                  transition={{ 
+                    y: { repeat: Infinity, duration: 4, ease: "easeInOut" } 
+                  }}
+                >
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
+                  
+                  <div className="text-white text-center mt-6 pointer-events-none">
+                    <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
+                    <span className="block text-lg font-serif">Socials</span>
+                  </div>
+                  
+                  <a 
+                    href="https://www.instagram.com/grazia.kh.ua/" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+                  >
+                    <InstagramIconSVG size={28} color="white" />
+                  </a>
+                  
+                  <a 
+                    href="https://www.youtube.com/@graziakhua/videos" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+                  >
+                    <YoutubeIconSVG size={28} color="white" />
+                  </a>
+
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
+                </motion.div>
               </div>
 
             </div>
