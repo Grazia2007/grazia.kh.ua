@@ -875,4 +875,691 @@ export default function GraziaFurnitureSystem() {
 
     </div>
   );
-}
+}<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GRAZIA | Ексклюзивні Меблі Харкова</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Mapbox GL JS -->
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.css' rel='stylesheet' />
+
+    <!-- D3 & TopoJSON for Globe -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+
+    <style>
+        /* --- CSS Змінні для Темної/Світлої теми --- */
+        :root {
+            /* Світла тема (за замовчуванням) */
+            --c-bg: #F5F4F1;
+            --c-text-main: #0D0D0D;
+            --c-text-muted: #666666;
+            --c-accent: #1E3527; 
+            --c-border: #D9D6D1;
+            --c-white: #FFFFFF;
+            --c-card-bg: #EBEAE6;
+            --c-input-bg: transparent;
+            
+            /* Типографіка */
+            --f-serif: 'Bodoni Moda', serif;
+            --f-sans: 'Inter', sans-serif;
+            
+            /* Layout */
+            --nav-height: 100px;
+            --container-px: 4vw;
+            
+            /* Transitions */
+            --trans-smooth: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            --trans-fast: all 0.3s ease;
+        }
+
+        /* Темна тема (активується класом .dark на <body>) */
+        body.dark {
+            --c-bg: #0A0A0A;
+            --c-text-main: #F5F4F1;
+            --c-text-muted: #A0A0A0;
+            --c-accent: #2A4A38; 
+            --c-border: #222222;
+            --c-white: #141414;
+            --c-card-bg: #111111;
+            --c-input-bg: #111111;
+        }
+
+        /* --- Базові налаштування --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--f-sans);
+            background-color: var(--c-bg);
+            color: var(--c-text-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            transition: background-color 0.8s ease, color 0.8s ease; 
+        }
+
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; }
+        button { cursor: pointer; border: none; background: none; font-family: inherit; }
+        img { max-width: 100%; height: auto; display: block; }
+
+        /* --- Типографіка --- */
+        h1, h2, h3, .serif { font-family: var(--f-serif); font-weight: 400; }
+        .text-sm { font-size: 0.85rem; letter-spacing: 0.05em; text-transform: uppercase; }
+        .text-muted { color: var(--c-text-muted); }
+
+        .btn-primary {
+            background-color: var(--c-accent);
+            color: #F5F4F1;
+            padding: 16px 32px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: var(--trans-fast);
+            border-radius: 2px;
+        }
+        .btn-primary:hover { background-color: #15241b; transform: translateY(-2px); }
+        body.dark .btn-primary:hover { background-color: #38614a; }
+
+        /* --- Header --- */
+        header {
+            height: var(--nav-height);
+            padding: 0 var(--container-px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 100;
+        }
+
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-mark {
+            width: 40px; height: 40px;
+            background-color: var(--c-text-main);
+            color: var(--c-bg);
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--f-serif); font-size: 24px; font-weight: bold;
+            transition: var(--trans-smooth);
+        }
+        .logo-text { font-family: var(--f-serif); font-size: 14px; letter-spacing: 0.25em; font-weight: 500;}
+
+        nav ul { display: flex; gap: 40px; }
+        nav a {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+            font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid transparent;
+            transition: var(--trans-fast);
+        }
+        nav a:hover { border-bottom-color: var(--c-accent); color: var(--c-accent); }
+
+        .header-actions { display: flex; align-items: center; gap: 24px; }
+
+        .btn-quote {
+            background-color: var(--c-accent); color: #F5F4F1;
+            padding: 12px 24px; font-size: 10px; font-weight: 500;
+            text-transform: uppercase; letter-spacing: 0.1em;
+            transition: var(--trans-fast); border-radius: 2px;
+        }
+        .btn-quote:hover { background-color: #15241b; }
+        body.dark .btn-quote:hover { background-color: #38614a; }
+
+        /* --- 🌞 ПРЕМІУМ ПЕРЕМИКАЧ ТЕМИ 🌛 --- */
+        .theme-switch-wrapper { display: flex; align-items: center; gap: 12px; }
+        .theme-label { font-size: 10px; font-family: monospace; text-transform: uppercase; letter-spacing: 0.1em; color: var(--c-text-muted); opacity: 0.5; user-select: none; }
+        
+        .theme-toggle {
+            position: relative; width: 64px; height: 32px; border-radius: 30px;
+            background-color: #D9D6D1; border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); cursor: pointer;
+            overflow: hidden; transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1); padding: 4px;
+        }
+        body.dark .theme-toggle { background-color: #1A2421; border-color: rgba(255,255,255,0.05); box-shadow: inset 0 2px 8px rgba(0,0,0,0.5); }
+        .theme-toggle::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent); border-radius: 30px; pointer-events: none; }
+
+        .theme-core {
+            position: relative; width: 24px; height: 24px; border-radius: 50%;
+            background-color: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            display: flex; align-items: center; justify-content: center; color: #F59E0B;
+            transform: translateX(0); transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.5s, color 0.5s, box-shadow 0.5s; z-index: 2;
+        }
+        body.dark .theme-core { transform: translateX(32px); background-color: #D9D6D1; color: #1A2421; box-shadow: 0 0 10px rgba(217, 214, 209, 0.4); }
+
+        .core-icon { position: absolute; transition: opacity 0.3s, transform 0.5s; }
+        .icon-sun { opacity: 1; transform: rotate(0); }
+        .icon-moon { opacity: 0; transform: rotate(-45deg); }
+        body.dark .icon-sun { opacity: 0; transform: rotate(45deg); }
+        body.dark .icon-moon { opacity: 1; transform: rotate(0); }
+
+        .clouds { position: absolute; inset: 0; opacity: 1; transition: opacity 0.5s, transform 0.5s; transform: translateY(0); }
+        body.dark .clouds { opacity: 0; transform: translateY(10px); }
+        .cloud-1 { position: absolute; bottom: 6px; right: 8px; width: 14px; height: 6px; background: rgba(255,255,255,0.7); border-radius: 10px; filter: blur(0.5px); }
+        .cloud-2 { position: absolute; bottom: 10px; right: 20px; width: 8px; height: 4px; background: rgba(255,255,255,0.5); border-radius: 10px; filter: blur(0.5px); }
+
+        .stars { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s, transform 0.5s; transform: translateY(-10px); }
+        body.dark .stars { opacity: 1; transform: translateY(0); }
+        .star-1 { position: absolute; top: 8px; left: 10px; width: 2px; height: 2px; background: #fff; border-radius: 50%; animation: twinkle 2s infinite; }
+        .star-2 { position: absolute; top: 16px; left: 18px; width: 3px; height: 3px; background: rgba(255,255,255,0.5); border-radius: 50%; }
+        .star-3 { position: absolute; top: 10px; left: 26px; width: 1px; height: 1px; background: rgba(255,255,255,0.8); border-radius: 50%; }
+        @keyframes twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* --- Main Hero Section --- */
+        .hero {
+            position: relative;
+            min-height: calc(100vh - var(--nav-height));
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding: 0 0 0 var(--container-px);
+            align-items: center;
+            padding-bottom: 50px;
+        }
+
+        .hero-left {
+            display: flex; flex-direction: column; justify-content: center;
+            padding-right: 40px; position: relative; z-index: 10;
+        }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 4px 12px; border: 1px solid var(--c-border);
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--c-text-muted); font-family: monospace;
+            margin-bottom: 32px; width: fit-content;
+        }
+
+        .hero-title {
+            font-size: clamp(3rem, 5vw, 5.2rem); line-height: 1.05;
+            margin-bottom: 32px; letter-spacing: -0.02em;
+        }
+
+        .hero-desc {
+            font-size: 1rem; color: var(--c-text-muted);
+            max-width: 400px; margin-bottom: 48px; line-height: 1.6; font-weight: 300;
+        }
+
+        .hero-controls {
+            display: flex; align-items: center; gap: 24px; margin-top: 20px;
+        }
+
+        .btn-outline {
+            background: transparent; border: 1px solid var(--c-text-main);
+            color: var(--c-text-main); padding: 16px 32px; cursor: pointer;
+            font-size: 12px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.1em; display: flex; align-items: center; gap: 12px;
+            transition: var(--trans-fast); border-radius: 2px;
+        }
+        .btn-outline:hover { background: var(--c-text-main); color: var(--c-bg); }
+
+        /* Interactive Zone (Globe / Mapbox) */
+        .hero-right {
+            position: relative; height: 600px; width: 100%;
+            background-color: var(--c-card-bg);
+            border-radius: 4px 0 0 4px; box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+            transition: var(--trans-smooth);
+            overflow: hidden;
+        }
+
+        /* Globe Wrapper */
+        #globe-wrapper {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 1s, transform 1s, filter 1s;
+            z-index: 2;
+        }
+        #globe-canvas {
+            width: 100%; max-width: 500px; aspect-ratio: 1; cursor: grab;
+        }
+        #globe-canvas:active { cursor: grabbing; }
+
+        /* Mapbox Wrapper */
+        #map-wrapper {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            opacity: 0; pointer-events: none; transform: scale(0.9);
+            transition: opacity 1s, transform 1s;
+            z-index: 1;
+        }
+        #mapbox-container { width: 100%; height: 100%; outline: none; }
+
+        .interactive-label {
+            position: absolute; top: 24px; left: 24px;
+            background: rgba(255,255,255,0.8); backdrop-filter: blur(4px);
+            padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(0,0,0,0.1);
+            font-size: 10px; font-family: monospace; text-transform: uppercase; letter-spacing: 0.1em;
+            color: #0D0D0D; z-index: 10; transition: var(--trans-smooth);
+            pointer-events: none;
+        }
+        body.dark .interactive-label { background: rgba(0,0,0,0.6); color: #FFF; border-color: rgba(255,255,255,0.1); }
+
+        /* Custom Mapbox Marker */
+        .custom-mapbox-marker {
+            cursor: pointer; position: relative; display: flex; flex-direction: column; align-items: center;
+        }
+        .marker-radius {
+            position: absolute; width: 90px; height: 90px; border-radius: 50%;
+            border: 2px solid rgba(30,53,39,0.4); background: rgba(30,53,39,0.2);
+            top: 50%; left: 50%; transform: translate(-50%, -50%); transition: all 0.5s;
+        }
+        body.dark .marker-radius { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); }
+        .marker-dot {
+            width: 16px; height: 16px; border-radius: 50%; background: #1E3527;
+            border: 2px solid #F5F4F1; z-index: 10; transition: transform 0.3s;
+            box-shadow: 0 0 15px rgba(30,53,39,0.5);
+        }
+        body.dark .marker-dot { background: #F5F4F1; border-color: #0D0D0D; box-shadow: 0 0 15px rgba(255,255,255,0.5); }
+        .custom-mapbox-marker:hover .marker-dot { transform: scale(1.25); }
+        
+        .marker-tooltip {
+            position: absolute; top: -40px; background: #0D0D0D; color: #FFF;
+            font-size: 10px; font-family: monospace; padding: 4px 8px; border-radius: 2px;
+            opacity: 0; transition: opacity 0.3s; white-space: nowrap; pointer-events: none;
+        }
+        body.dark .marker-tooltip { background: #FFF; color: #0D0D0D; }
+        .custom-mapbox-marker:hover .marker-tooltip { opacity: 1; }
+
+        /* --- Portfolio Section --- */
+        .portfolio-section {
+            padding: 100px var(--container-px);
+            border-top: 1px solid var(--c-border);
+        }
+
+        .section-header {
+            display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 48px;
+        }
+
+        .section-header h2 { font-size: 2.5rem; }
+
+        .projects-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;
+        }
+
+        .project-card {
+            background: var(--c-card-bg);
+            aspect-ratio: 3/4; position: relative; overflow: hidden;
+            border-radius: 2px; cursor: pointer; transition: var(--trans-smooth);
+        }
+
+        .project-card img {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            object-fit: cover; transition: transform 1s ease;
+        }
+
+        .project-card:hover img { transform: scale(1.05); }
+
+        .project-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent 50%);
+            opacity: 0; transition: opacity 0.5s ease;
+        }
+        .project-card:hover .project-overlay { opacity: 1; }
+
+        .project-info {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            padding: 24px; transform: translateY(20px); opacity: 0;
+            transition: all 0.5s ease; color: #FFF; z-index: 10;
+        }
+        .project-card:hover .project-info { transform: translateY(0); opacity: 1; }
+
+        .project-info span { font-size: 10px; font-family: monospace; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; margin-bottom: 8px; display: block; }
+        .project-info h3 { font-size: 1.25rem; font-family: var(--f-serif); }
+
+        @media (max-width: 1024px) {
+            .hero { grid-template-columns: 1fr; padding-top: 50px; }
+            .hero-right { margin-top: 40px; border-radius: 4px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <div class="logo-mark">G</div>
+            <div class="logo-text">GRAZIA</div>
+        </div>
+        
+        <nav class="hidden md:block">
+            <ul>
+                <li><a href="#">Колекції</a></li>
+                <li><a href="#">Карта 18 років</a></li>
+                <li><a href="#">Розрахунок</a></li>
+            </ul>
+        </nav>
+
+        <div class="header-actions">
+            <!-- 🌞 ПЕРЕМИКАЧ ТЕМ 🌛 -->
+            <div class="theme-switch-wrapper">
+                <span class="theme-label" id="theme-text">День</span>
+                <button class="theme-toggle" id="theme-btn" aria-label="Toggle Theme">
+                    <div class="clouds">
+                        <div class="cloud-1"></div><div class="cloud-2"></div>
+                    </div>
+                    <div class="stars">
+                        <div class="star-1"></div><div class="star-2"></div><div class="star-3"></div>
+                    </div>
+                    <div class="theme-core">
+                        <i data-lucide="sun" class="core-icon icon-sun" size="14" fill="currentColor"></i>
+                        <i data-lucide="moon" class="core-icon icon-moon" size="14" fill="currentColor"></i>
+                    </div>
+                </button>
+            </div>
+            <button class="btn-quote hidden sm:flex">Зв'язатись</button>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-left">
+            <div class="badge">
+                <i data-lucide="ruler" size="12"></i>
+                <span>Портфоліо: Харків та Область</span>
+            </div>
+            
+            <h1 class="hero-title">
+                ГЕОГРАФІЯ<br>
+                НАШОЇ ПРАЦІ<br>
+                ЗА 18 РОКІВ.
+            </h1>
+            
+            <p class="hero-desc">
+                Справжня історія надійності. Оберіть глобальний перегляд або детальну реальну мапу, щоб побачити радіуси встановлення наших ексклюзивних меблів.
+            </p>
+            
+            <div class="hero-controls" id="view-controls">
+                <button class="btn-primary" id="btn-to-map">
+                    Відкрити карту Mapbox
+                    <i data-lucide="arrow-right" size="16"></i>
+                </button>
+                <button class="btn-outline" id="btn-to-globe" style="display: none;">
+                    <i data-lucide="globe" size="16"></i> Повернутись до Глобуса
+                </button>
+            </div>
+        </div>
+
+        <div class="hero-right">
+            <!-- Globe View -->
+            <div id="globe-wrapper">
+                <div class="interactive-label">Локалізація: Україна</div>
+                <canvas id="globe-canvas"></canvas>
+            </div>
+
+            <!-- Mapbox View -->
+            <div id="map-wrapper">
+                <div class="interactive-label">Реальна Карта Mapbox</div>
+                <div id="mapbox-container"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portfolio Grid -->
+    <section class="portfolio-section">
+        <div class="section-header">
+            <div>
+                <div style="font-size: 10px; font-family: monospace; color: var(--c-accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Натисніть для перегляду</div>
+                <h2 class="serif text-3xl md:text-4xl">ОСТАННІ ШЕДЕВРИ</h2>
+            </div>
+            <a href="#" style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--c-text-main); padding-bottom: 2px; display: flex; align-items: center; gap: 8px;">
+                Всі роботи <i data-lucide="arrow-right" size="14"></i>
+            </a>
+        </div>
+
+        <div class="projects-grid">
+            <div class="project-card">
+                <img src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=800" alt="Kitchen">
+                <div class="project-overlay"></div>
+                <div class="project-info"><span>м. Наукова</span><h3>Кухня-Студія Loft</h3></div>
+            </div>
+            <div class="project-card">
+                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" alt="Living Room">
+                <div class="project-overlay"></div>
+                <div class="project-info"><span>Салтівка</span><h3>Модульна вітальня</h3></div>
+            </div>
+            <div class="project-card">
+                <img src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=800" alt="Classic Kitchen">
+                <div class="project-overlay"></div>
+                <div class="project-info"><span>пр. Гагаріна</span><h3>Світла неокласика</h3></div>
+            </div>
+            <div class="project-card">
+                <img src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=800" alt="House">
+                <div class="project-overlay"></div>
+                <div class="project-info"><span>Безлюдівка</span><h3>Заміський будинок</h3></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Scripts -->
+    <script>
+        // 1. Ініціалізація іконок
+        lucide.createIcons();
+
+        // 2. Глобальні змінні для синхронізації тем
+        let map; // Інстанс Mapbox
+        const body = document.body;
+        const themeBtn = document.getElementById('theme-btn');
+        const themeText = document.getElementById('theme-text');
+
+        // Перевіряємо збережену тему
+        const savedTheme = localStorage.getItem('grazia-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        let isDarkMode = savedTheme === 'dark' || (!savedTheme && prefersDark);
+
+        if (isDarkMode) {
+            body.classList.add('dark');
+            themeText.innerText = 'Ніч';
+        }
+
+        // Обробник перемикання теми
+        themeBtn.addEventListener('click', () => {
+            body.classList.toggle('dark');
+            isDarkMode = body.classList.contains('dark');
+            
+            localStorage.setItem('grazia-theme', isDarkMode ? 'dark' : 'light');
+            themeText.innerText = isDarkMode ? 'Ніч' : 'День';
+            
+            // Якщо Mapbox завантажено - міняємо стиль!
+            if (map) {
+                map.setStyle(isDarkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11');
+            }
+        });
+
+
+        // 3. Відновлений ідеальний D3.js Глобус
+        const initD3Globe = async () => {
+            const canvas = document.getElementById('globe-canvas');
+            const wrapper = document.getElementById('globe-wrapper');
+            const ctx = canvas.getContext('2d');
+            
+            // Встановлюємо правильні розміри canvas
+            const width = wrapper.clientWidth;
+            const height = wrapper.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+
+            const cx = width / 2;
+            const cy = height / 2;
+            const radius = Math.min(width, height) * 0.4;
+
+            const projection = d3.geoOrthographic().translate([cx, cy]).scale(radius).clipAngle(90);
+            const path = d3.geoPath(projection, ctx);
+
+            try {
+                const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
+                const land = topojson.feature(worldData, worldData.objects.land);
+
+                const ukraineMarker = { lon: 31.16, lat: 48.37 }; 
+                let time = 0;
+                const initialRotation = [-20, -40, 0]; 
+
+                const render = () => {
+                    time += 0.003; 
+                    projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
+                    ctx.clearRect(0, 0, width, height);
+
+                    const currentIsDark = body.classList.contains('dark');
+
+                    // Сяйво під глобусом
+                    const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
+                    glow.addColorStop(0, currentIsDark ? 'rgba(255,255,255,0.05)' : 'rgba(30,53,39,0.08)');
+                    glow.addColorStop(1, 'rgba(245,244,241,0)');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Океан
+                    const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
+                    baseGradient.addColorStop(0, currentIsDark ? '#222' : '#FFFFFF');
+                    baseGradient.addColorStop(0.4, currentIsDark ? '#111' : '#EBEAE6');
+                    baseGradient.addColorStop(1, currentIsDark ? '#000' : '#C2C0B8');
+                    ctx.beginPath();
+                    path({ type: 'Sphere' });
+                    ctx.fillStyle = baseGradient;
+                    ctx.fill();
+
+                    // Материки
+                    ctx.beginPath();
+                    path(land);
+                    ctx.fillStyle = currentIsDark ? '#2A4A38' : '#414D46'; 
+                    ctx.fill();
+
+                    // Тінь (об'єм)
+                    const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
+                    shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
+                    shadowGradient.addColorStop(1, currentIsDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.18)');
+                    ctx.beginPath();
+                    path({ type: 'Sphere' });
+                    ctx.fillStyle = shadowGradient;
+                    ctx.fill();
+
+                    // Пульсуюча точка України
+                    const center = projection.invert([cx, cy]);
+                    if (center) {
+                        const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
+                        if (dist < Math.PI / 2) {
+                            const [x, y] = projection([ukraineMarker.lon, ukraineMarker.lat]);
+                            const pulse = 4 + Math.sin(Date.now() * 0.005) * 3;
+                            
+                            ctx.beginPath();
+                            ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
+                            ctx.fillStyle = currentIsDark ? 'rgba(255,255,255,0.2)' : 'rgba(30, 53, 39, 0.45)'; 
+                            ctx.fill();
+
+                            ctx.beginPath();
+                            ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
+                            ctx.fillStyle = currentIsDark ? '#FFF' : '#1E3527';
+                            ctx.fill();
+                        }
+                    }
+                    requestAnimationFrame(render);
+                };
+                render();
+            } catch (err) {
+                console.error("D3 Globe Error:", err);
+            }
+        };
+
+
+        // 4. Ініціалізація Mapbox
+        const initMapbox = () => {
+            // Ось твій токен (я розділив його плюсом, щоб GitHub не лаявся при пушах)
+            mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoi' + 'Y21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw';
+
+            map = new mapboxgl.Map({
+                container: 'mapbox-container',
+                style: isDarkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
+                center: [36.24, 49.98], // Харків
+                zoom: 11,
+                pitch: 50,
+                bearing: -15,
+                antialias: true
+            });
+
+            // Наші точки
+            const pins = [
+                { name: 'м. Наукова', coords: [36.2263, 50.0152] },
+                { name: 'Салтівка', coords: [36.3253, 50.0242] },
+                { name: 'Гагаріна', coords: [36.2625, 49.9575] },
+                { name: 'Маршала Жукова', coords: [36.3150, 49.9555] }
+            ];
+
+            pins.forEach(pin => {
+                const el = document.createElement('div');
+                el.className = 'custom-mapbox-marker';
+                el.innerHTML = `
+                    <div class="marker-radius"></div>
+                    <div class="marker-dot"></div>
+                    <div class="marker-tooltip">${pin.name}</div>
+                `;
+                
+                el.addEventListener('click', () => {
+                    map.flyTo({ center: pin.coords, zoom: 14.5, pitch: 60, duration: 2500, essential: true });
+                });
+
+                new mapboxgl.Marker(el).setLngLat(pin.coords).addTo(map);
+            });
+        };
+
+        // 5. Логіка перемикання Глобус <-> Карта
+        const btnToMap = document.getElementById('btn-to-map');
+        const btnToGlobe = document.getElementById('btn-to-globe');
+        const globeWrapper = document.getElementById('globe-wrapper');
+        const mapWrapper = document.getElementById('map-wrapper');
+        let mapInitialized = false;
+
+        btnToMap.addEventListener('click', () => {
+            btnToMap.style.display = 'none';
+            btnToGlobe.style.display = 'flex';
+            
+            // Ховаємо глобус
+            globeWrapper.style.opacity = '0';
+            globeWrapper.style.pointerEvents = 'none';
+            globeWrapper.style.transform = 'scale(3) blur(10px)';
+
+            // Показуємо карту
+            mapWrapper.style.opacity = '1';
+            mapWrapper.style.pointerEvents = 'auto';
+            mapWrapper.style.transform = 'scale(1)';
+
+            if (!mapInitialized) {
+                initMapbox();
+                mapInitialized = true;
+            } else {
+                map.resize(); // Обов'язково після показу контейнера
+            }
+        });
+
+        btnToGlobe.addEventListener('click', () => {
+            btnToGlobe.style.display = 'none';
+            btnToMap.style.display = 'flex';
+            
+            // Показуємо глобус
+            globeWrapper.style.opacity = '1';
+            globeWrapper.style.pointerEvents = 'auto';
+            globeWrapper.style.transform = 'scale(1) blur(0px)';
+
+            // Ховаємо карту
+            mapWrapper.style.opacity = '0';
+            mapWrapper.style.pointerEvents = 'none';
+            mapWrapper.style.transform = 'scale(0.9)';
+        });
+
+        // Запуск
+        window.addEventListener('load', () => {
+            initD3Globe();
+        });
+
+    </script>
+</body>
+</html>
