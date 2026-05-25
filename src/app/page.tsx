@@ -511,14 +511,23 @@ export default function GraziaFurnitureSystem() {
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
           style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11', 
-          center: [36.2261, 50.0060], // Центр — Держпром та Площа Свободи
-          zoom: 10.5, // Ідеальний масштаб для Харкова та найближчої області
-          pitch: 0,   // Плоский 2D вигляд зверху (без перспективи)
-          bearing: 0, // Північ чітко зверху (без повороту в сторону Сум)
+          center: [36.2261, 50.0060], // Точний центр — Держпром
+          zoom: 11.5, // Оптимальний масштаб (як на твоєму 3-му скріншоті)
+          pitch: 0,   // Плоский 2D вигляд зверху
+          bearing: 0, // Без обертання
           antialias: true
         });
 
         mapInstanceRef.current = map;
+
+        // ВАЖЛИВИЙ ФІКС: Примусове центрування карти після CSS-анімації появи.
+        // Це гарантує, що Держпром буде рівно по центру екрана, а не з'їде вбік.
+        map.on('load', () => {
+          map.resize();
+        });
+        setTimeout(() => {
+          if (mapInstanceRef.current) mapInstanceRef.current.resize();
+        }, 1100);
 
         map.on('style.load', () => {
           const layers = map.getStyle().layers;
