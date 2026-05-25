@@ -355,12 +355,8 @@ const ParametricFurniture = ({ config }: { config: any }) => {
 // --- ВИПРАВЛЕНИЙ КОМПОНЕНТ 3D СМАРТФОНА ---
 const SmartphoneWidget = () => {
   return (
-    <motion.div 
-      className="w-[280px] h-[450px] relative z-10"
-      animate={{ y: [0, -12, 0] }}
-      transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
-    >
-      {/* 3D Модель Телефону (Статична, левітує разом із загальним контейнером) */}
+    <div className="w-[280px] h-[450px] relative z-10">
+      {/* 3D Модель Телефону (Статична, для максимальної продуктивності та ідеальної синхронізації) */}
       <div className="absolute inset-0 z-0">
         <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
           <ambientLight intensity={0.6} />
@@ -375,7 +371,7 @@ const SmartphoneWidget = () => {
         </Canvas>
       </div>
 
-      {/* HTML Інтерфейс (Тепер намертво прив'язаний до контейнера і левітує з ним) */}
+      {/* HTML Інтерфейс (Намертво прив'язаний до екрану) */}
       <div 
         className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
         style={{ transform: 'translate(-50%, -50%) rotateY(-8.5deg)' }}
@@ -409,7 +405,7 @@ const SmartphoneWidget = () => {
         {/* Імітація полоски Home */}
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
