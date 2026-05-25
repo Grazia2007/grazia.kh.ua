@@ -142,8 +142,12 @@ export default function GraziaFurnitureSystem() {
     // Перевіряємо локальне сховище або систему
     const savedTheme = localStorage.getItem('grazia-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
+    
+    // Встановлюємо тему
+    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+    setIsDarkMode(shouldBeDark);
+    
+    if (shouldBeDark) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
@@ -426,7 +430,7 @@ export default function GraziaFurnitureSystem() {
         mapInstanceRef.current = null;
       }
     };
-  }, [mapLevel, dbProjects]);
+  }, [mapLevel, dbProjects, isDarkMode]); // Додали isDarkMode щоб карта реагувала на перемикання
 
   const triggerMapFocus = () => {
     setIsTransitioning(true);
@@ -578,8 +582,8 @@ export default function GraziaFurnitureSystem() {
 
         <div className="header-actions flex items-center gap-6 pointer-events-auto">
           {/* 🌞 ПРЕМІУМ ПЕРЕМИКАЧ ТЕМИ REACT 🌛 */}
-          <div className="theme-switch-wrapper flex items-center gap-3">
-            <span className="text-[10px] font-mono uppercase tracking-widest opacity-40 select-none">
+          <div className="theme-switch-wrapper flex items-center gap-3 w-[100px] justify-end">
+            <span className="text-[10px] font-mono uppercase tracking-widest opacity-40 select-none w-[30px] text-right">
               {isDarkMode ? 'Ніч' : 'День'}
             </span>
             <button
