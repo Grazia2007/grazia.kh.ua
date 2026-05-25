@@ -374,31 +374,34 @@ const SmartphoneWidget = () => {
               <meshBasicMaterial color="#050505" />
             </mesh>
 
-            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС (Ідеальне масштабування distanceFactor) */}
-            <Html transform position={[0, 0, 0.11]} center distanceFactor={1.65} zIndexRange={[100, 0]}>
+            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС (Жорсткий масштаб scale={0.005} для ідеальної точності) */}
+            <Html transform position={[0, 0, 0.11]} scale={0.005} center>
               <div 
-                style={{ width: '165px', height: '345px', pointerEvents: 'auto' }}
-                className="flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative"
-                onPointerDown={(e) => e.stopPropagation()} // Блокуємо OrbitControls при кліку на екран!
+                style={{ width: '330px', height: '690px', pointerEvents: 'auto' }}
+                className="flex flex-col items-center justify-center gap-10 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[48px] p-8 shadow-[inset_0_0_40px_rgba(0,0,0,0.8)] border-[4px] border-black/50 overflow-hidden relative"
+                onPointerDown={(e) => e.stopPropagation()} 
+                onPointerUp={(e) => e.stopPropagation()}
+                onPointerMove={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
               >
                 {/* Імітація "чубчика" (Dynamic Island) */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-black rounded-full z-10 pointer-events-none"></div>
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 w-24 h-7 bg-black rounded-full z-10 pointer-events-none"></div>
                 
-                <div className="text-white text-center mt-4 pointer-events-none">
-                  <span className="block text-[8px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-                  <span className="block text-sm font-serif">Socials</span>
+                <div className="text-white text-center mt-8 pointer-events-none">
+                  <span className="block text-[16px] font-mono text-white/50 uppercase tracking-widest mb-2">Grazia</span>
+                  <span className="block text-2xl font-serif">Socials</span>
                 </div>
                 
-                <a href="https://www.instagram.com/grazia.kh.ua/" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer">
-                  <InstagramIconSVG size={24} color="white" />
+                <a href="https://www.instagram.com/grazia.kh.ua/" target="_blank" rel="noopener noreferrer" className="w-28 h-28 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[2rem] flex items-center justify-center shadow-[0_10px_30px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto">
+                  <InstagramIconSVG size={48} color="white" />
                 </a>
                 
-                <a href="https://www.youtube.com/@graziakhua/videos" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-[#FF0000] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer">
-                  <YoutubeIconSVG size={24} color="white" />
+                <a href="https://www.youtube.com/@graziakhua/videos" target="_blank" rel="noopener noreferrer" className="w-28 h-28 bg-[#FF0000] rounded-[2rem] flex items-center justify-center shadow-[0_10px_30px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto">
+                  <YoutubeIconSVG size={48} color="white" />
                 </a>
 
                 {/* Імітація полоски Home */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-14 h-1 bg-white/30 rounded-full pointer-events-none"></div>
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-28 h-2 bg-white/30 rounded-full pointer-events-none"></div>
               </div>
             </Html>
           </group>
@@ -468,7 +471,7 @@ const DEFAULT_MAP_LOCATIONS = [
     rating: 5,
     photos: [
       { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg', caption: 'Монолітний матовий графіт. Фасади оброблені спеціальним захисним нано-покриттям, яке повністю запобігає появі відбитків пальців та дрібних подряпин.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg', caption: 'Геометрія(s) простору. Світлові лінії на стелі ідеально повторюють контур робочої зони кухні, підкреслюючи архітектурну точність проєкту.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg', caption: 'Геометрія простору. Світлові лінії на стелі ідеально повторюють контур робочої зони кухні, підкреслюючи архітектурну точність проєкту.' },
       { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-47.jpg', caption: 'Скляна вітрина преміум-класу. LED-стрічка прихованого монтажу інтегрована безпосередньо у вертикальний алюмінієвий профіль, створюючи магічне м\'яке світіння полиць.' },
       { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-48.jpg', caption: 'Прихована зона сушіння посуду. Ми інтегрували італійську дворівневу сушку з нержавіючої сталі у верхню шафу з плавним підйомним механізмом Aventos від Blum.' },
       { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-51.jpg', caption: 'Вбудований двокамерний холодильник. Спеціальні посилені петлі витримують вагу важкого меблевого фасаду, забезпечуючи ідеальні зазори.' },
