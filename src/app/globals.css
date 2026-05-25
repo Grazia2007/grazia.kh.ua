@@ -1,26 +1,64 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* =========================================
+     СВІТЛА ТЕМА (За замовчуванням)
+     ========================================= */
+  --bg-main: #F5F4F1;
+  --text-main: #0D0D0D;
+  
+  /* Тексти з прозорістю (замінюють text-[#0D0D0D]/60 тощо) */
+  --text-muted: rgba(13, 13, 13, 0.7);
+  --text-light: rgba(13, 13, 13, 0.4);
+  
+  /* Акцентні кольори (Зелений) */
+  --accent-main: #1E3527;
+  --accent-hover: #15241b;
+  
+  /* Елементи інтерфейсу */
+  --bg-card: #EBEAE6;
+  --border-color: rgba(13, 13, 13, 0.1);
+  --nav-bg: rgba(245, 244, 241, 0.85);
+  --modal-bg: rgba(245, 244, 241, 0.95);
+  
+  /* Інвертовані кольори (Чорні кнопки, білий текст) */
+  --btn-bg: #0D0D0D;
+  --btn-text: #F5F4F1;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  /* =========================================
+     ТЕМНА ТЕМА
+     ========================================= */
+  --bg-main: #0a0a0a;
+  --text-main: #F5F4F1;
+  
+  --text-muted: rgba(245, 244, 241, 0.7);
+  --text-light: rgba(245, 244, 241, 0.4);
+  
+  /* Акцентний колір у темній темі робимо трохи світлішим для контрасту */
+  --accent-main: #2d503a; 
+  --accent-hover: #3b694b;
+  
+  --bg-card: #141414;
+  --border-color: rgba(245, 244, 241, 0.1);
+  --nav-bg: rgba(10, 10, 10, 0.85);
+  --modal-bg: rgba(10, 10, 10, 0.95);
+  
+  /* Інвертовані кольори (Білі кнопки, чорний текст) */
+  --btn-bg: #F5F4F1;
+  --btn-text: #0D0D0D;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: var(--bg-main);
+  color: var(--text-main);
   font-family: Arial, Helvetica, sans-serif;
+  /* Плавний перехід кольорів при зміні теми */
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* Прибираємо стандартні аутлайни для карти Mapbox */
+.mapboxgl-canvas:focus {
+  outline: none;
 }

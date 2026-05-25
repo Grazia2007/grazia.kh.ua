@@ -16,7 +16,9 @@ import {
   Star,
   PlayCircle,
   Sparkles,
-  Eye
+  Eye,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Ініціалізація підключення до твого ядра Supabase
@@ -66,7 +68,6 @@ const createCustomSupabaseClient = (url: string, key: string) => {
 
 const supabase = createCustomSupabaseClient(supabaseUrl, supabaseAnonKey) as any;
 
-// Базові координати об'єктів (Харків + Область + Полтава) на випадок, якщо база даних пуста
 const DEFAULT_MAP_LOCATIONS = [
   { 
     id: 'naukova', 
@@ -101,32 +102,6 @@ const DEFAULT_MAP_LOCATIONS = [
     ]
   },
   { 
-    id: 'gagarina', 
-    name: 'пр. Гагаріна (13 лікарня)', 
-    coordinates: [36.2625, 49.9575],
-    project: 'Світла неокласична кухня', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'city',
-    description: 'Вишукана кухня з фрезерованими фасадами. Класичний стиль у сучасному виконанні з надійною фурнітурою Blum.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=1200', caption: 'Фрезеровані фасади ручної роботи. Глибока стійка емаль.' }
-    ]
-  },
-  { 
-    id: 'zhukova', 
-    name: 'Маршала Жукова (21 лікарня)', 
-    coordinates: [36.3150, 49.9555],
-    project: 'Ергономічний кабінет', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'city',
-    description: 'Створення кабінету для комфортної віддаленої роботи з масиву дерева та шпонованих елементів.',
-    rating: 4.9,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=1200', caption: 'Робоча зона з масиву дуба. Інвестиція у власний статус.' }
-    ]
-  },
-  { 
     id: 'bezludovka', 
     name: 'Безлюдівка (Харківська область)', 
     coordinates: [36.2735, 49.8711],
@@ -138,29 +113,19 @@ const DEFAULT_MAP_LOCATIONS = [
     photos: [
       { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Простір та світло. Велика обідня зона, поєднана з процесом готування.' }
     ]
-  },
-  { 
-    id: 'poltava', 
-    name: 'Полтава (Центр)', 
-    coordinates: [34.5514, 49.5883],
-    project: 'Елітна шпонована спальня', 
-    radius: 'Безпечний радіус: 500м', 
-    type: 'region',
-    description: 'Масштабний виїзний проєкт у Полтаві. Повне меблювання спальної кімнати з інтегрованими прихованими шафами.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=1200', caption: 'Тепла текстура натурального шпону дуба. Справжній затишок.' }
-    ]
   }
 ];
 
 export default function GraziaFurnitureSystem() {
+  // Тема
+  const [isDark, setIsDark] = useState(false);
+  const [themeLoaded, setThemeLoaded] = useState(false); // Для уникнення hydration mismatch
+  
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
   const [activePin, setActivePin] = useState<any>(DEFAULT_MAP_LOCATIONS[0]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   
-  // Управління кінематографічною галереєю
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
   const [calcForm, setCalcForm] = useState({ spaceType: '', room: '', style: '', material: '', budget: '', notes: '' });
@@ -170,23 +135,45 @@ export default function GraziaFurnitureSystem() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
-  // Отримання даних з Supabase портфоліо
+  // 0. Ініціалізація теми
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('grazia-theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setIsDark(false);
+      document.documentElement.classList.remove('dark');
+    }
+    setThemeLoaded(true);
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('grazia-theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('grazia-theme', 'light');
+      }
+      return next;
+    });
+  };
+
+  // Завантаження портфоліо
   useEffect(() => {
     const fetchPortfolio = async () => {
       const { data, error } = await supabase.from('portfolio_projects').select('*');
       if (data && data.length > 0) {
-        // Бронебійний парсинг POINT для PostgreSQL та PostgREST форматів
         const formattedData = data.map((item: any) => {
-          let coords = [36.2263, 50.0152]; // Дефолт
+          let coords = [36.2263, 50.0152];
           if (item.coordinates) {
             if (typeof item.coordinates === 'string') {
-              // Замінюємо дужки та коми на пробіли, чистимо та сплітуємо по будь-якій кількості пробілів
-              const cleaned = item.coordinates
-                .replace('(', '')
-                .replace(')', '')
-                .replace(',', ' ')
-                .trim()
-                .split(/\s+/);
+              const cleaned = item.coordinates.replace('(', '').replace(')', '').replace(',', ' ').trim().split(/\s+/);
               coords = [parseFloat(cleaned[0]), parseFloat(cleaned[1])];
             } else if (typeof item.coordinates === 'object') {
               coords = [
@@ -210,7 +197,6 @@ export default function GraziaFurnitureSystem() {
         setDbProjects(formattedData);
         setActivePin(formattedData[0]);
       } else {
-        // Якщо база чиста, використовуємо заздалегідь підготовлений ААА-архів
         setDbProjects(DEFAULT_MAP_LOCATIONS);
         setActivePin(DEFAULT_MAP_LOCATIONS[0]);
       }
@@ -218,7 +204,7 @@ export default function GraziaFurnitureSystem() {
     fetchPortfolio();
   }, []);
 
-  // 1. D3.js 3D-Глобус (Працює тільки в режимі 'globe')
+  // 1. D3.js 3D-Глобус (Тепер з підтримкою темної теми!)
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -276,10 +262,18 @@ export default function GraziaFurnitureSystem() {
           projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
           ctx.clearRect(0, 0, width, height);
 
+          // Динамічні кольори залежно від теми
+          const oceanBase1 = isDark ? '#1a1a1a' : '#FFFFFF';
+          const oceanBase2 = isDark ? '#121212' : '#EBEAE6';
+          const oceanBase3 = isDark ? '#050505' : '#C2C0B8';
+          const landColor = isDark ? '#25332a' : '#414D46';
+          const pulseOuter = isDark ? 'rgba(45, 80, 58, 0.45)' : 'rgba(30, 53, 39, 0.45)';
+          const pulseInner = isDark ? '#2d503a' : '#1E3527';
+
           // Сяйво під глобусом
           const glow = ctx.createRadialGradient(cx, cy, radius * 0.8, cx, cy, radius * 1.1);
-          glow.addColorStop(0, 'rgba(30, 53, 39, 0.08)');
-          glow.addColorStop(1, 'rgba(245, 244, 241, 0)');
+          glow.addColorStop(0, isDark ? 'rgba(45, 80, 58, 0.15)' : 'rgba(30, 53, 39, 0.08)');
+          glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
           ctx.fillStyle = glow;
           ctx.beginPath();
           ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
@@ -287,9 +281,9 @@ export default function GraziaFurnitureSystem() {
 
           // Світовий океан
           const baseGradient = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.35, 0, cx, cy, radius);
-          baseGradient.addColorStop(0, '#FFFFFF');
-          baseGradient.addColorStop(0.4, '#EBEAE6');
-          baseGradient.addColorStop(1, '#C2C0B8');
+          baseGradient.addColorStop(0, oceanBase1);
+          baseGradient.addColorStop(0.4, oceanBase2);
+          baseGradient.addColorStop(1, oceanBase3);
           ctx.beginPath();
           path({ type: 'Sphere' });
           ctx.fillStyle = baseGradient;
@@ -298,19 +292,19 @@ export default function GraziaFurnitureSystem() {
           // Материки
           ctx.beginPath();
           path(land);
-          ctx.fillStyle = '#414D46'; 
+          ctx.fillStyle = landColor; 
           ctx.fill();
 
           // Градієнт затінення
           const shadowGradient = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
           shadowGradient.addColorStop(0, 'rgba(0,0,0,0)');
-          shadowGradient.addColorStop(1, 'rgba(0,0,0,0.18)');
+          shadowGradient.addColorStop(1, isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.18)');
           ctx.beginPath();
           path({ type: 'Sphere' });
           ctx.fillStyle = shadowGradient;
           ctx.fill();
 
-          // Одиночний маркер України (Харківська область)
+          // Маркер
           const center = projection.invert([cx, cy]);
           if (center) {
             const dist = d3.geoDistance(center, [ukraineMarker.lon, ukraineMarker.lat]);
@@ -320,12 +314,12 @@ export default function GraziaFurnitureSystem() {
               
               ctx.beginPath();
               ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
-              ctx.fillStyle = 'rgba(30, 53, 39, 0.45)'; 
+              ctx.fillStyle = pulseOuter; 
               ctx.fill();
 
               ctx.beginPath();
               ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
-              ctx.fillStyle = '#1E3527';
+              ctx.fillStyle = pulseInner;
               ctx.fill();
             }
           }
@@ -342,8 +336,7 @@ export default function GraziaFurnitureSystem() {
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [mapLevel]);
-
+  }, [mapLevel, isDark]); // Додали isDark в залежності
 
   // 2. Ініціалізація та стилізація Mapbox
   useEffect(() => {
@@ -368,17 +361,15 @@ export default function GraziaFurnitureSystem() {
       }
 
       const mapboxgl = (window as any).mapboxgl;
-      
-      // Безпечний розділений токен для запобігання скануванню секретів GitHub
       mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
 
       try {
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
-          style: 'mapbox://styles/mapbox/light-v11', // Преміальний світлий стиль
-          center: [36.24, 49.98], // Харків
+          style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11', // Динамічна мапа!
+          center: [36.24, 49.98],
           zoom: 11,
-          pitch: 50, // Нахил камери
+          pitch: 50,
           bearing: -15,
           antialias: true
         });
@@ -389,7 +380,6 @@ export default function GraziaFurnitureSystem() {
           const layers = map.getStyle().layers;
           const labelLayerId = layers.find((layer: any) => layer.type === 'symbol' && layer.layout['text-field'])?.id;
 
-          // 3D Моделювання будівель для відчуття глибини
           map.addLayer(
             {
               'id': 'add-3d-buildings',
@@ -399,7 +389,7 @@ export default function GraziaFurnitureSystem() {
               'type': 'fill-extrusion',
               'minzoom': 13,
               'paint': {
-                'fill-extrusion-color': '#E1DFD9',
+                'fill-extrusion-color': isDark ? '#222' : '#E1DFD9',
                 'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'height']],
                 'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 15.05, ['get', 'min_height']],
                 'fill-extrusion-opacity': 0.85
@@ -409,15 +399,15 @@ export default function GraziaFurnitureSystem() {
           );
         });
 
-        // Створення та позиціонування маркерів на карті
         const targets = dbProjects.length > 0 ? dbProjects : DEFAULT_MAP_LOCATIONS;
         targets.forEach((pin) => {
           const el = document.createElement('div');
           el.className = 'custom-mapbox-marker group cursor-pointer relative flex flex-col items-center';
+          // Використовуємо CSS-змінні прямо в інлайн стилях маркерів
           el.innerHTML = `
-            <div class="absolute rounded-full border-2 border-[#1E3527]/40 transition-all duration-700 scale-100 opacity-20 bg-[#1E3527]" style="width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
-            <div class="w-4 h-4 rounded-full border-2 border-[#F5F4F1] bg-[#1E3527] shadow-[0_0_15px_rgba(30,53,39,0.5)] z-10 hover:scale-125 transition-transform duration-300"></div>
-            <div class="absolute -top-10 bg-[#0D0D0D] text-white text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+            <div class="absolute rounded-full border-2 transition-all duration-700 scale-100 opacity-20" style="border-color: var(--accent-main); background-color: var(--accent-main); width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+            <div class="w-4 h-4 rounded-full border-2 z-10 hover:scale-125 transition-transform duration-300 shadow-lg" style="border-color: var(--bg-main); background-color: var(--accent-main);"></div>
+            <div class="absolute -top-10 text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none" style="background-color: var(--btn-bg); color: var(--btn-text);">
               ${pin.name}
             </div>
           `;
@@ -429,7 +419,7 @@ export default function GraziaFurnitureSystem() {
               center: pin.coordinates,
               zoom: 14.5,
               pitch: 60,
-              duration: 2500, // Плавний розкішний політ
+              duration: 2500,
               essential: true
             });
           });
@@ -452,7 +442,7 @@ export default function GraziaFurnitureSystem() {
         mapInstanceRef.current = null;
       }
     };
-  }, [mapLevel, dbProjects]);
+  }, [mapLevel, dbProjects, isDark]); // Перезавантажуємо карту при зміні теми
 
   const triggerMapFocus = () => {
     setIsTransitioning(true);
@@ -490,19 +480,22 @@ export default function GraziaFurnitureSystem() {
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
   );
 
+  // Ховаємо контент до ініціалізації теми, щоб уникнути блимання
+  if (!themeLoaded) return <div className="min-h-screen bg-[#F5F4F1] dark:bg-[#0a0a0a]" />;
+
   return (
-    <div className="min-h-screen bg-[#F5F4F1] text-[#0D0D0D] font-sans selection:bg-[#1E3527] selection:text-[#F5F4F1] overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-[var(--accent-main)] selection:text-white overflow-x-hidden transition-colors duration-500">
       
       {/* --- КІНЕМАТОГРАФІЧНА ГАЛЕРЕЯ (MODAL) --- */}
       {selectedProject && (
-        <div className="fixed inset-0 z-[100] bg-[#F5F4F1] overflow-y-auto animate-fadeIn">
+        <div className="fixed inset-0 z-[100] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
           
-          <div className="sticky top-0 bg-[#F5F4F1]/95 backdrop-blur-md px-6 py-5 border-b border-[#0D0D0D]/10 flex justify-between items-center z-50">
+          <div className="sticky top-0 bg-[var(--modal-bg)] backdrop-blur-md px-6 py-5 border-b border-[var(--border-color)] flex justify-between items-center z-50">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-[#1E3527] block font-bold">GRAZIA PORTFOLIO</span>
-              <h2 className="text-xl font-serif text-[#0D0D0D]">{selectedProject.name}</h2>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent-main)] block font-bold">GRAZIA PORTFOLIO</span>
+              <h2 className="text-xl font-serif text-[var(--text-main)]">{selectedProject.name}</h2>
             </div>
-            <button onClick={() => setSelectedProject(null)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[#0D0D0D] text-white hover:scale-105 transition-transform duration-300">
+            <button onClick={() => setSelectedProject(null)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] hover:scale-105 transition-transform duration-300">
               <X size={20} />
             </button>
           </div>
@@ -510,36 +503,34 @@ export default function GraziaFurnitureSystem() {
           <div className="max-w-[1400px] mx-auto px-6 py-12">
             <div className="flex flex-col lg:flex-row gap-16 mb-20 items-start">
               
-              {/* Опис об'єкта */}
               <div className="flex-1">
-                <span className="text-xs font-mono uppercase tracking-widest text-[#1E3527] font-semibold block mb-4">Деталі виконання</span>
-                <h1 className="text-4xl md:text-5xl font-serif mb-6 leading-tight text-[#0D0D0D]">{selectedProject.project}</h1>
-                <p className="text-[#0D0D0D]/80 leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
+                <span className="text-xs font-mono uppercase tracking-widest text-[var(--accent-main)] font-semibold block mb-4">Деталі виконання</span>
+                <h1 className="text-4xl md:text-5xl font-serif mb-6 leading-tight text-[var(--text-main)]">{selectedProject.project}</h1>
+                <p className="text-[var(--text-muted)] leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
                 
-                <div className="flex flex-wrap items-center gap-6 mb-8 py-6 border-y border-[#0D0D0D]/10">
-                  <div className="flex items-center gap-1.5 text-[#1E3527]">
+                <div className="flex flex-wrap items-center gap-6 mb-8 py-6 border-y border-[var(--border-color)]">
+                  <div className="flex items-center gap-1.5 text-[var(--accent-main)]">
                     {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
-                    <span className="text-sm font-bold ml-2 text-[#0D0D0D]">{selectedProject.rating} / 5.0</span>
+                    <span className="text-sm font-bold ml-2 text-[var(--text-main)]">{selectedProject.rating} / 5.0</span>
                   </div>
-                  <div className="text-xs text-[#0D0D0D]/60 font-mono flex items-center gap-2">
-                    <MapPin size={14} className="text-[#1E3527]" /> {selectedProject.radius} (Захист приватності клієнта)
+                  <div className="text-xs text-[var(--text-light)] font-mono flex items-center gap-2">
+                    <MapPin size={14} className="text-[var(--accent-main)]" /> {selectedProject.radius} (Захист приватності клієнта)
                   </div>
                 </div>
 
                 <div className="flex gap-4">
-                  <a href={selectedProject.youtube_url || '#'} target="_blank" className="bg-[#1E3527] text-white px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-colors duration-300 rounded-sm">
+                  <a href={selectedProject.youtube_url || '#'} target="_blank" className="bg-[var(--btn-bg)] text-[var(--btn-text)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:opacity-80 transition-opacity duration-300 rounded-sm">
                     <PlayCircle size={16} /> Відеоогляд об'єкта
                   </a>
-                  <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[#0D0D0D]/20 text-[#0D0D0D] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[#0D0D0D] hover:text-white transition-colors duration-300 rounded-sm">
+                  <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors duration-300 rounded-sm">
                     <InstagramIcon /> Перейти в Instagram
                   </a>
                 </div>
               </div>
               
-              {/* Прев'ю */}
-              <div className="flex-1 relative w-full aspect-[4/3] bg-[#EBEAE6] rounded-sm overflow-hidden shadow-2xl border border-black/5">
+              <div className="flex-1 relative w-full aspect-[4/3] bg-[var(--bg-card)] rounded-sm overflow-hidden shadow-2xl border border-[var(--border-color)]">
                 <img src={selectedProject.photos[0]?.url} alt="Cover" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 <div className="absolute bottom-6 left-6 text-white z-10 flex items-center gap-2">
                   <Sparkles size={16} className="text-yellow-400" />
                   <span className="text-xs font-mono uppercase tracking-widest">Основний ракурс</span>
@@ -547,28 +538,27 @@ export default function GraziaFurnitureSystem() {
               </div>
             </div>
 
-            {/* Сітка фотографій з продаючими підписами */}
             <div className="mb-12">
-              <h3 className="text-2xl font-serif text-[#0D0D0D] mb-8">Детальний фотозвіт конструктора</h3>
+              <h3 className="text-2xl font-serif text-[var(--text-main)] mb-8">Детальний фотозвіт конструктора</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {selectedProject.photos.map((photo: any, idx: number) => (
                   <div 
                     key={idx} 
                     onClick={() => setLightboxPhoto(photo)}
-                    className="relative aspect-[3/4] bg-[#EBEAE6] cursor-zoom-in group overflow-hidden rounded-sm border border-black/5 shadow-sm"
+                    className="relative aspect-[3/4] bg-[var(--bg-card)] cursor-zoom-in group overflow-hidden rounded-sm border border-[var(--border-color)] shadow-sm"
                   >
                     <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Деталь меблів" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition-colors duration-500"></div>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-500"></div>
                     
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[#1E3527] shadow-xl">
+                      <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[var(--accent-main)] shadow-xl">
                         <Eye size={20} />
                       </div>
                     </div>
 
                     <div className="absolute bottom-4 left-4 right-4 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
-                      <div className="bg-[#F5F4F1]/95 backdrop-blur p-4 border-l-4 border-[#1E3527] shadow-lg">
-                        <p className="text-[11px] font-medium text-[#0D0D0D] leading-relaxed line-clamp-2">
+                      <div className="bg-[var(--modal-bg)] backdrop-blur p-4 border-l-4 border-[var(--accent-main)] shadow-lg">
+                        <p className="text-[11px] font-medium text-[var(--text-main)] leading-relaxed line-clamp-2">
                           {photo.caption}
                         </p>
                       </div>
@@ -602,41 +592,52 @@ export default function GraziaFurnitureSystem() {
       {/* Навігація */}
       <nav className="absolute top-0 w-full z-50 px-6 py-8 md:px-12 flex justify-between items-center bg-transparent pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
-          <div className="w-10 h-10 bg-[#0D0D0D] text-[#F5F4F1] flex items-center justify-center font-serif font-bold text-2xl tracking-tighter">
+          <div className="w-10 h-10 bg-[var(--btn-bg)] text-[var(--btn-text)] flex items-center justify-center font-serif font-bold text-2xl tracking-tighter">
             G
           </div>
           <div>
-            <span className="text-sm font-serif font-medium tracking-[0.25em] uppercase block text-[#0D0D0D]">GRAZIA</span>
+            <span className="text-sm font-serif font-medium tracking-[0.25em] uppercase block text-[var(--text-main)]">GRAZIA</span>
           </div>
         </div>
         
-        <div className="hidden md:flex gap-10 text-[11px] font-semibold tracking-widest uppercase pointer-events-auto bg-[#F5F4F1]/80 backdrop-blur px-6 py-3 rounded-full border border-black/5">
-          <a href="#" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Колекції</a>
-          <a href="#interactive-zone" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Карта 18 років досвіду</a>
-          <a href="#calc" className="hover:text-[#1E3527] transition-colors border-b border-transparent hover:border-[#1E3527] pb-1">Розрахунок</a>
+        <div className="hidden md:flex gap-10 text-[11px] font-semibold tracking-widest uppercase pointer-events-auto bg-[var(--nav-bg)] backdrop-blur px-6 py-3 rounded-full border border-[var(--border-color)] shadow-sm">
+          <a href="#" className="hover:text-[var(--accent-main)] transition-colors border-b border-transparent hover:border-[var(--accent-main)] pb-1">Колекції</a>
+          <a href="#interactive-zone" className="hover:text-[var(--accent-main)] transition-colors border-b border-transparent hover:border-[var(--accent-main)] pb-1">Карта 18 років досвіду</a>
+          <a href="#calc" className="hover:text-[var(--accent-main)] transition-colors border-b border-transparent hover:border-[var(--accent-main)] pb-1">Розрахунок</a>
         </div>
 
-        <button className="bg-[#1E3527] text-[#F5F4F1] px-6 py-3 text-[10px] font-medium tracking-widest uppercase hover:bg-[#15241b] transition-colors pointer-events-auto">
-          Зв'язатись
-        </button>
+        <div className="flex items-center pointer-events-auto">
+          {/* Кнопка перемикання теми */}
+          <button 
+            onClick={toggleTheme}
+            className="w-10 h-10 mr-4 rounded-full border border-[var(--border-color)] flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
+            title={isDark ? "Увімкнути світлу тему" : "Увімкнути темну тему"}
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+
+          <button className="bg-[var(--accent-main)] text-white px-6 py-3 text-[10px] font-medium tracking-widest uppercase hover:bg-[var(--accent-hover)] transition-colors shadow-sm">
+            Зв'язатись
+          </button>
+        </div>
       </nav>
 
       {/* Hero Секція з 3D Глобусом та Картою */}
       <section className="relative min-h-screen pt-32 pb-20 px-6 md:px-12 flex flex-col lg:flex-row items-center gap-12 max-w-[1600px] mx-auto">
         
         <div className="flex-1 z-10 w-full pointer-events-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#0D0D0D]/20 text-[10px] uppercase tracking-widest text-[#0D0D0D]/60 mb-8 font-mono">
+          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[var(--border-color)] text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-8 font-mono">
             <Ruler size={12} />
             <span>Меблеве портфоліо: Харків та Полтава</span>
           </div>
           
-          <h1 className="text-5xl md:text-[5.2rem] font-serif font-normal leading-[1.05] tracking-tight mb-8 text-[#0D0D0D]">
+          <h1 className="text-5xl md:text-[5.2rem] font-serif font-normal leading-[1.05] tracking-tight mb-8 text-[var(--text-main)]">
             ГЕОГРАФІЯ<br />
             НАШОЇ ПРАЦІ<br />
             ЗА 18 РОКІВ.
           </h1>
           
-          <p className="text-base md:text-lg text-[#0D0D0D]/70 max-w-md font-light leading-relaxed mb-12">
+          <p className="text-base md:text-lg text-[var(--text-muted)] max-w-md font-light leading-relaxed mb-12">
             Справжня історія надійності. Оберіть глобальний перегляд або детальну реальну мапу, щоб побачити радіуси встановлення наших ексклюзивних меблів.
           </p>
 
@@ -644,14 +645,14 @@ export default function GraziaFurnitureSystem() {
             {mapLevel === 'globe' ? (
               <button 
                 onClick={triggerMapFocus}
-                className={`bg-[#1E3527] text-[#F5F4F1] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#15241b] transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : ''}`}
+                className={`bg-[var(--accent-main)] text-white px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[var(--accent-hover)] transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : ''}`}
               >
                 Відкрити карту Mapbox <ArrowRight size={16} />
               </button>
             ) : (
               <button 
                 onClick={returnToGlobe}
-                className="bg-transparent border border-[#0D0D0D] text-[#0D0D0D] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#0D0D0D] hover:text-[#F5F4F1] transition-all"
+                className="bg-transparent border border-[var(--text-main)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-all"
               >
                 <Globe size={15} /> Повернутись до Глобуса
               </button>
@@ -660,42 +661,39 @@ export default function GraziaFurnitureSystem() {
         </div>
 
         {/* Права інтерактивна зона */}
-        <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[#EBEAE6] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[#0D0D0D]/5">
+        <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[var(--bg-card)] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[var(--border-color)]">
           
           {mapLevel === 'globe' ? (
-            /* РЕЖИМ 1: Елітний 3D Глобус з Україною */
             <div className={`w-full h-full flex flex-col items-center justify-center p-6 relative transition-all duration-[1200ms] ${isTransitioning ? 'scale-[3] opacity-0 blur-xl' : 'scale-100 opacity-100'}`}>
               <canvas ref={canvasRef} width={550} height={550} className="w-full max-w-[500px] aspect-square cursor-grab active:cursor-grabbing" />
-              <div className="absolute top-6 left-6 bg-[#F5F4F1]/80 backdrop-blur-sm px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest">
+              <div className="absolute top-6 left-6 bg-[var(--modal-bg)] backdrop-blur-sm px-4 py-2 rounded-full border border-[var(--border-color)] text-[10px] font-mono uppercase tracking-widest text-[var(--text-main)]">
                 Локалізація: Україна
               </div>
             </div>
           ) : (
-            /* РЕЖИМ 2: СПРАВЖНІЙ MAPBOX */
             <div className={`w-full h-full relative transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
               
               <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ outline: 'none' }} />
 
-              <div className="absolute top-6 left-6 bg-[#F5F4F1]/95 backdrop-blur-md px-4 py-2 rounded-full border border-[#0D0D0D]/10 text-[10px] font-mono uppercase tracking-widest z-30 shadow-sm pointer-events-none">
+              <div className="absolute top-6 left-6 bg-[var(--modal-bg)] backdrop-blur-md px-4 py-2 rounded-full border border-[var(--border-color)] text-[10px] font-mono uppercase tracking-widest z-30 shadow-sm pointer-events-none text-[var(--text-main)]">
                 Реальна Карта Mapbox
               </div>
 
-              {/* Інформаційна панель знизу мапи */}
-              <div className="absolute bottom-6 left-6 right-6 bg-[#F5F4F1]/95 backdrop-blur-md p-5 border border-[#0D0D0D]/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-white transition-all duration-300 z-30" onClick={() => setSelectedProject(activePin)}>
+              <div className="absolute bottom-6 left-6 right-6 bg-[var(--modal-bg)] backdrop-blur-md p-5 border border-[var(--border-color)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-[var(--bg-card)] transition-all duration-300 z-30" onClick={() => setSelectedProject(activePin)}>
                 <div>
-                  <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-white inline-block mb-2 ${activePin.type === 'city' ? 'bg-[#0D0D0D]' : 'bg-[#1E3527]'}`}>
+                  <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-[var(--bg-main)] inline-block mb-2 ${activePin.type === 'city' ? 'bg-[var(--text-main)]' : 'bg-[var(--accent-main)]'}`}>
                     {activePin.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
                   </span>
-                  <h3 className="text-lg font-serif font-medium text-[#0D0D0D]">{activePin.project}</h3>
-                  <p className="text-[11px] text-[#0D0D0D]/60 flex items-center gap-1.5 mt-1 font-mono">
+                  <h3 className="text-lg font-serif font-medium text-[var(--text-main)]">{activePin.project}</h3>
+                  <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5 mt-1 font-mono">
                     <MapPin size={12} /> Зона робіт: {activePin.name} (Клікніть на пін для польоту)
                   </p>
                 </div>
-                <div className="md:text-right border-t md:border-t-0 border-[#0D0D0D]/10 pt-3 md:pt-0 w-full md:w-auto">
-                  <div className="text-[10px] uppercase tracking-widest text-[#0D0D0D]/50 font-semibold mb-2 font-mono flex items-center md:justify-end gap-1">
-                    Рейтинг <Star size={10} className="text-[#1E3527]" fill="currentColor"/> 
+                <div className="md:text-right border-t md:border-t-0 border-[var(--border-color)] pt-3 md:pt-0 w-full md:w-auto">
+                  <div className="text-[10px] uppercase tracking-widest text-[var(--text-light)] font-semibold mb-2 font-mono flex items-center md:justify-end gap-1">
+                    Рейтинг <Star size={10} className="text-[var(--accent-main)]" fill="currentColor"/> 
                   </div>
-                  <button className="text-xs font-semibold text-[#1E3527] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-wider">
+                  <button className="text-xs font-semibold text-[var(--accent-main)] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-wider">
                     Відкрити галерею <ArrowRight size={14} />
                   </button>
                 </div>
@@ -708,31 +706,31 @@ export default function GraziaFurnitureSystem() {
       </section>
 
       {/* Портфоліо Проєктів */}
-      <section className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[#0D0D0D]/5">
+      <section className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[var(--border-color)]">
         <div className="flex justify-between items-end mb-12">
           <div>
-            <span className="text-[10px] font-mono text-[#1E3527] uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
-            <h2 className="text-3xl md:text-4xl font-serif text-[#0D0D0D]">ОСТАННІ ШЕДЕВРИ</h2>
+            <span className="text-[10px] font-mono text-[var(--accent-main)] uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
+            <h2 className="text-3xl md:text-4xl font-serif text-[var(--text-main)]">ОСТАННІ ШЕДЕВРИ</h2>
           </div>
-          <a href="#" className="text-xs font-semibold tracking-widest uppercase border-b border-[#0D0D0D] pb-1 flex items-center gap-2 hover:text-[#1E3527] hover:border-[#1E3527] transition-colors">
+          <a href="#" className="text-xs font-semibold tracking-widest uppercase border-b border-[var(--text-main)] pb-1 flex items-center gap-2 text-[var(--text-main)] hover:text-[var(--accent-main)] hover:border-[var(--accent-main)] transition-colors">
             Дивитись всі 120+ робіт <ArrowRight size={14} />
           </a>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {dbProjects.slice(0, 4).map((project, idx) => (
-            <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[#EBEAE6] aspect-[3/4] shadow-sm rounded-sm">
+            <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
               {project.photos && project.photos[0] ? (
                 <img src={project.photos[0].url} alt={project.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-[#0D0D0D]/20"><Armchair size={48} /></div>
+                <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
               )}
               
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               
               <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
-                <span className="text-[10px] text-[#F5F4F1]/70 font-mono uppercase tracking-widest block mb-2">{project.name}</span>
-                <h3 className="text-lg font-serif text-[#F5F4F1]">{project.project}</h3>
+                <span className="text-[10px] text-white/70 font-mono uppercase tracking-widest block mb-2">{project.name}</span>
+                <h3 className="text-lg font-serif text-white">{project.project}</h3>
               </div>
             </div>
           ))}
@@ -740,102 +738,102 @@ export default function GraziaFurnitureSystem() {
       </section>
 
       {/* Form розрахунку */}
-      <section id="calc" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto bg-white border border-[#0D0D0D]/10 shadow-sm">
+      <section id="calc" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto bg-[var(--bg-main)] border border-[var(--border-color)] shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-16 md:gap-24">
           
           <div>
-            <h2 className="text-3xl md:text-4xl font-serif text-[#0D0D0D] mb-6 leading-tight">ЗАМОВИТИ ПРОРАХУНОК<br/>МЕБЛІВ</h2>
-            <p className="text-sm text-[#0D0D0D]/60 mb-10 leading-relaxed">
+            <h2 className="text-3xl md:text-4xl font-serif text-[var(--text-main)] mb-6 leading-tight">ЗАМОВИТИ ПРОРАХУНОК<br/>МЕБЛІВ</h2>
+            <p className="text-sm text-[var(--text-muted)] mb-10 leading-relaxed">
               Опишіть ваш проєкт, і ми підготуємо індивідуальну пропозицію. Наш конструктор зв'яжеться з вами для уточнення деталей та погодження виїзду на замір по Харкову.
             </p>
             
             <div className="space-y-6">
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-[#F5F4F1] flex items-center justify-center flex-shrink-0 text-[#1E3527]">
+                <div className="w-10 h-10 rounded-full bg-[var(--bg-card)] flex items-center justify-center flex-shrink-0 text-[var(--accent-main)]">
                   <PenTool size={18} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold uppercase tracking-wider mb-1">Безкоштовний проєкт</h4>
-                  <p className="text-xs text-[#0D0D0D]/60">Створюємо 3D-візуалізацію вашої майбутньої кухні чи шафи.</p>
+                  <h4 className="text-sm font-semibold uppercase tracking-wider mb-1 text-[var(--text-main)]">Безкоштовний проєкт</h4>
+                  <p className="text-xs text-[var(--text-muted)]">Створюємо 3D-візуалізацію вашої майбутньої кухні чи шафи.</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-[#F5F4F1] flex items-center justify-center flex-shrink-0 text-[#1E3527]">
+                <div className="w-10 h-10 rounded-full bg-[var(--bg-card)] flex items-center justify-center flex-shrink-0 text-[var(--accent-main)]">
                   <Hammer size={18} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold uppercase tracking-wider mb-1">Власне виробництво</h4>
-                  <p className="text-xs text-[#0D0D0D]/60">Повний контроль якості на кожному етапі у нашому цеху.</p>
+                  <h4 className="text-sm font-semibold uppercase tracking-wider mb-1 text-[var(--text-main)]">Власне виробництво</h4>
+                  <p className="text-xs text-[var(--text-muted)]">Повний контроль якості на кожному етапі у нашому цеху.</p>
                 </div>
               </div>
             </div>
           </div>
 
           {formSubmitted ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center border border-[#0D0D0D]/10 bg-[#F5F4F1]">
-              <CheckCircle2 size={48} className="text-[#1E3527] mb-6" />
-              <h3 className="text-2xl font-serif mb-2">Запит успішно надіслано!</h3>
-              <p className="text-[#0D0D0D]/60 text-sm">Ми вже отримали ваші дані в базі Supabase і готові до прорахунку.</p>
+            <div className="flex flex-col items-center justify-center py-24 text-center border border-[var(--border-color)] bg-[var(--bg-card)]">
+              <CheckCircle2 size={48} className="text-[var(--accent-main)] mb-6" />
+              <h3 className="text-2xl font-serif mb-2 text-[var(--text-main)]">Запит успішно надіслано!</h3>
+              <p className="text-[var(--text-muted)] text-sm">Ми вже отримали ваші дані в базі Supabase і готові до прорахунку.</p>
             </div>
           ) : (
             <form onSubmit={handleCalcSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               
               <div className="flex flex-col">
                 <select required value={calcForm.spaceType} onChange={e => setCalcForm({...calcForm, spaceType: e.target.value})}
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled>Тип приміщення</option>
-                  <option value="flat">Квартира (Новобудова)</option>
-                  <option value="flat_old">Квартира (Вторинний ринок)</option>
-                  <option value="house">Приватний будинок</option>
-                  <option value="commercial">Комерційне приміщення</option>
+                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors appearance-none cursor-pointer">
+                  <option value="" disabled className="bg-[var(--bg-main)] text-[var(--text-main)]">Тип приміщення</option>
+                  <option value="flat" className="bg-[var(--bg-main)] text-[var(--text-main)]">Квартира (Новобудова)</option>
+                  <option value="flat_old" className="bg-[var(--bg-main)] text-[var(--text-main)]">Квартира (Вторинний ринок)</option>
+                  <option value="house" className="bg-[var(--bg-main)] text-[var(--text-main)]">Приватний будинок</option>
+                  <option value="commercial" className="bg-[var(--bg-main)] text-[var(--text-main)]">Комерційне приміщення</option>
                 </select>
               </div>
 
               <div className="flex flex-col">
                 <select required value={calcForm.room} onChange={e => setCalcForm({...calcForm, room: e.target.value})}
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled>Що потрібно виготовити?</option>
-                  <option value="kitchen">Кухня</option>
-                  <option value="wardrobe">Шафа-купе / Гардеробна</option>
-                  <option value="living">Меблі у вітальню (Тумби, ТВ-зони)</option>
-                  <option value="bathroom">Меблі для ванної</option>
-                  <option value="complex">Комплексне меблювання</option>
+                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors appearance-none cursor-pointer">
+                  <option value="" disabled className="bg-[var(--bg-main)] text-[var(--text-main)]">Що потрібно виготовити?</option>
+                  <option value="kitchen" className="bg-[var(--bg-main)] text-[var(--text-main)]">Кухня</option>
+                  <option value="wardrobe" className="bg-[var(--bg-main)] text-[var(--text-main)]">Шафа-купе / Гардеробна</option>
+                  <option value="living" className="bg-[var(--bg-main)] text-[var(--text-main)]">Меблі у вітальню (Тумби, ТВ-зони)</option>
+                  <option value="bathroom" className="bg-[var(--bg-main)] text-[var(--text-main)]">Меблі для ванної</option>
+                  <option value="complex" className="bg-[var(--bg-main)] text-[var(--text-main)]">Комплексне меблювання</option>
                 </select>
               </div>
 
               <div className="flex flex-col">
                 <select required value={calcForm.style} onChange={e => setCalcForm({...calcForm, style: e.target.value})}
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled>Стилістика</option>
-                  <option value="minimalism">Мінімалізм (Гладкі фасади)</option>
-                  <option value="classic">Неокласика (Фрезерування)</option>
-                  <option value="loft">Лофт (Дерево + Метал)</option>
+                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors appearance-none cursor-pointer">
+                  <option value="" disabled className="bg-[var(--bg-main)] text-[var(--text-main)]">Стилістика</option>
+                  <option value="minimalism" className="bg-[var(--bg-main)] text-[var(--text-main)]">Мінімалізм (Гладкі фасади)</option>
+                  <option value="classic" className="bg-[var(--bg-main)] text-[var(--text-main)]">Неокласика (Фрезерування)</option>
+                  <option value="loft" className="bg-[var(--bg-main)] text-[var(--text-main)]">Лофт (Дерево + Метал)</option>
                 </select>
               </div>
 
               <div className="flex flex-col">
                 <select required value={calcForm.material} onChange={e => setCalcForm({...calcForm, material: e.target.value})}
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors appearance-none cursor-pointer">
-                  <option value="" disabled>Переважні матеріали</option>
-                  <option value="mdf_paint">МДФ Фарбований</option>
-                  <option value="mdf_film">МДФ Плівка / Пластик</option>
-                  <option value="wood">Шпон / Масив дерева</option>
-                  <option value="dsp">ДСП (Бюджетний варіант)</option>
+                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors appearance-none cursor-pointer">
+                  <option value="" disabled className="bg-[var(--bg-main)] text-[var(--text-main)]">Переважні матеріали</option>
+                  <option value="mdf_paint" className="bg-[var(--bg-main)] text-[var(--text-main)]">МДФ Фарбований</option>
+                  <option value="mdf_film" className="bg-[var(--bg-main)] text-[var(--text-main)]">МДФ Плівка / Пластик</option>
+                  <option value="wood" className="bg-[var(--bg-main)] text-[var(--text-main)]">Шпон / Масив дерева</option>
+                  <option value="dsp" className="bg-[var(--bg-main)] text-[var(--text-main)]">ДСП (Бюджетний варіант)</option>
                 </select>
               </div>
 
               <div className="md:col-span-2 flex flex-col mt-4">
                 <textarea rows={3} value={calcForm.notes} onChange={e => setCalcForm({...calcForm, notes: e.target.value})}
                   placeholder="Додаткові побажання (приблизні розміри, наявність техніки, особливості...)"
-                  className="w-full bg-transparent border-b border-[#0D0D0D]/20 py-4 text-sm text-[#0D0D0D] focus:outline-none focus:border-[#0D0D0D] transition-colors resize-none placeholder:text-[#0D0D0D]/40"
+                  className="w-full bg-transparent border-b border-[var(--border-color)] py-4 text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--text-main)] transition-colors resize-none placeholder:text-[var(--text-light)]"
                 />
               </div>
 
               <div className="md:col-span-2 mt-8 flex items-center justify-between">
-                <p className="text-[10px] text-[#0D0D0D]/50 uppercase tracking-widest max-w-[200px]">
+                <p className="text-[10px] text-[var(--text-light)] uppercase tracking-widest max-w-[200px]">
                   Менеджер зв'яжеться з вами протягом 2 годин
                 </p>
-                <button type="submit" className="bg-[#1E3527] text-[#F5F4F1] px-10 py-5 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[#15241b] transition-colors">
+                <button type="submit" className="bg-[var(--accent-main)] text-white px-10 py-5 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[var(--accent-hover)] transition-colors">
                   Надіслати запит <ArrowRight size={16} />
                 </button>
               </div>
@@ -844,31 +842,31 @@ export default function GraziaFurnitureSystem() {
         </div>
       </section>
 
-      {/* Футер */}
-      <footer className="bg-[#0D0D0D] text-[#F5F4F1] py-16 px-6 md:px-12 mt-20">
+      {/* Футер адаптується до теми, але зберігає контрастність */}
+      <footer className="bg-[var(--btn-bg)] text-[var(--btn-text)] py-16 px-6 md:px-12 mt-20 transition-colors duration-500">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
           <div>
-            <div className="w-12 h-12 bg-[#F5F4F1] text-[#0D0D0D] flex items-center justify-center font-serif font-bold text-3xl tracking-tighter mb-4">
+            <div className="w-12 h-12 bg-[var(--btn-text)] text-[var(--btn-bg)] flex items-center justify-center font-serif font-bold text-3xl tracking-tighter mb-4">
               G
             </div>
-            <p className="text-[#F5F4F1]/60 text-sm max-w-xs">Виробництво ексклюзивних корпусних меблів у Харкові. Створюємо інтер'єри з 2007 року.</p>
+            <p className="opacity-60 text-sm max-w-xs">Виробництво ексклюзивних корпусних меблів у Харкові. Створюємо інтер'єри з 2007 року.</p>
           </div>
           
           <div className="flex flex-col items-start md:items-end gap-4">
-            <a href="tel:+380501234567" className="text-xl font-serif hover:text-[#1E3527] transition-colors">+38 (050) 123-45-67</a>
-            <p className="text-sm text-[#F5F4F1]/60 flex items-center gap-2"><MapPin size={16} /> м. Харків, просп. Науки (Виробництво)</p>
+            <a href="tel:+380501234567" className="text-xl font-serif hover:text-[var(--accent-main)] transition-colors">+38 (050) 123-45-67</a>
+            <p className="text-sm opacity-60 flex items-center gap-2"><MapPin size={16} /> м. Харків, просп. Науки (Виробництво)</p>
             <div className="flex gap-4 mt-2">
-              <a href="#" className="w-10 h-10 rounded-full border border-[#F5F4F1]/20 flex items-center justify-center hover:bg-[#F5F4F1] hover:text-[#0D0D0D] transition-all">
+              <a href="#" className="w-10 h-10 rounded-full border border-current opacity-60 flex items-center justify-center hover:opacity-100 hover:bg-[var(--btn-text)] hover:text-[var(--btn-bg)] transition-all">
                 <InstagramIcon />
               </a>
             </div>
           </div>
         </div>
-        <div className="max-w-[1600px] mx-auto border-t border-[#F5F4F1]/10 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] uppercase tracking-widest text-[#F5F4F1]/40">
+        <div className="max-w-[1600px] mx-auto border-t border-[var(--border-color)] opacity-40 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] uppercase tracking-widest">
           <span>© {new Date().getFullYear()} GRAZIA FURNITURE. Всі права захищені.</span>
           <div className="flex gap-6 mt-4 md:mt-0">
-            <a href="https://tekhnovybir.com.ua" target="_blank" className="hover:text-[#F5F4F1] transition-colors">Партнер: Техновибір</a>
-            <a href="#" className="hover:text-[#F5F4F1] transition-colors">Політика конфіденційності</a>
+            <a href="https://tekhnovybir.com.ua" target="_blank" className="hover:opacity-100 transition-opacity">Партнер: Техновибір</a>
+            <a href="#" className="hover:opacity-100 transition-opacity">Політика конфіденційності</a>
           </div>
         </div>
       </footer>
