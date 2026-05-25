@@ -894,7 +894,7 @@ export default function GraziaFurnitureSystem() {
 
       {/* --- ПЛАВАЮЧА КНОПКА TELEGRAM (З ПРЯМИМ ПОСИЛАННЯМ НА ТВІЙ ЧАТ) --- */}
       <a
-        href="https://t.me/Psycho66626"
+        href="https://t.me/grazia2007_bot"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] w-14 h-14 bg-[#2AABEE] text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(42,171,238,0.3)] hover:scale-110 hover:shadow-[0_0_25px_rgba(42,171,238,0.5)] transition-all duration-300 group"
