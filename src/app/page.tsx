@@ -331,7 +331,7 @@ const ParametricFurniture = ({ config }: { config: any }) => {
     );
   }
 
-  // ВАННА
+// --- ВАННА ---
   return (
     <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
       <mesh position={[0, 0.6, 0]} material={baseMatsMain} castShadow receiveShadow>
@@ -355,10 +355,10 @@ const ParametricFurniture = ({ config }: { config: any }) => {
 // --- ВИПРАВЛЕНИЙ КОМПОНЕНТ 3D СМАРТФОНА ---
 const SmartphoneWidget = () => {
   return (
-    <div className="w-[280px] h-[450px] relative z-10">
+    <div className="w-[300px] h-[480px] relative z-10">
       {/* 3D Модель Телефону (Статична, для максимальної продуктивності та ідеальної синхронізації) */}
       <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
+        <Canvas camera={{ position: [0, 0, 6], fov: 40 }} className="z-0">
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 5, 5]} intensity={1.5} />
           <Environment preset="city" />
@@ -371,10 +371,10 @@ const SmartphoneWidget = () => {
         </Canvas>
       </div>
 
-      {/* HTML Інтерфейс (Намертво прив'язаний до екрану) */}
+      {/* HTML ІНТЕРФЕЙС ПОВЕРХ 3D CANVAS (Статичний) */}
       <div 
         className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
-        style={{ transform: 'translate(-50%, -50%) rotateY(-8.5deg)' }}
+        style={{ transform: 'translate(-50%, -50%) rotateY(-8.6deg)', transformOrigin: 'center center' }}
       >
         {/* Імітація "чубчика" (Dynamic Island) */}
         <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
