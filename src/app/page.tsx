@@ -607,14 +607,17 @@ export default function GraziaFurnitureSystem() {
         </div>
 
         <div className="flex items-center pointer-events-auto">
-          {/* Кнопка перемикання теми */}
-          <button 
+          {/* Анімований перемикач теми */}
+          <div 
             onClick={toggleTheme}
-            className="w-10 h-10 mr-4 rounded-full border border-[var(--border-color)] flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
+            className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
             title={isDark ? "Увімкнути світлу тему" : "Увімкнути темну тему"}
           >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+            <div className="theme-toggle-stars"></div>
+            <div className="theme-toggle-clouds"></div>
+            <div className="theme-toggle-mountains"></div>
+            <div className="theme-toggle-slider"></div>
+          </div>
 
           <button className="bg-[var(--accent-main)] text-white px-6 py-3 text-[10px] font-medium tracking-widest uppercase hover:bg-[var(--accent-hover)] transition-colors shadow-sm">
             Зв'язатись

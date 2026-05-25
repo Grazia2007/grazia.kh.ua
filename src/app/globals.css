@@ -62,3 +62,153 @@ body {
 .mapboxgl-canvas:focus {
   outline: none;
 }
+
+/* =========================================
+   АНІМОВАНИЙ ПЕРЕМИКАЧ ДЕНЬ/НІЧ
+   ========================================= */
+.theme-toggle-wrapper {
+  --toggle-width: 64px;
+  --toggle-height: 32px;
+  --toggle-padding: 4px;
+  position: relative;
+  width: var(--toggle-width);
+  height: var(--toggle-height);
+  border-radius: 32px;
+  cursor: pointer;
+  overflow: hidden;
+  background-color: #73C0F4; /* Денне небо */
+  transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.15);
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.theme-toggle-wrapper.dark {
+  background-color: #1a233a; /* Нічне небо */
+}
+
+/* Повзунок (Сонце / Місяць) */
+.theme-toggle-slider {
+  position: absolute;
+  top: var(--toggle-padding);
+  left: var(--toggle-padding);
+  width: calc(var(--toggle-height) - (var(--toggle-padding) * 2));
+  height: calc(var(--toggle-height) - (var(--toggle-padding) * 2));
+  border-radius: 50%;
+  background-color: #FFD700; /* Сонце */
+  box-shadow: inset -2px -2px 4px rgba(0,0,0,0.15), 0 0 10px rgba(255, 215, 0, 0.5);
+  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55), background-color 0.6s ease, box-shadow 0.6s ease;
+  z-index: 10;
+}
+
+.theme-toggle-wrapper.dark .theme-toggle-slider {
+  transform: translateX(calc(var(--toggle-width) - var(--toggle-height)));
+  background-color: #F5F5F7; /* Місяць */
+  box-shadow: inset -3px -2px 5px rgba(0,0,0,0.2), 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* Кратери місяця */
+.theme-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.15);
+  top: 4px;
+  left: 12px;
+  box-shadow: -5px 7px 0 -1px rgba(0,0,0,0.15), 2px 9px 0 -0.5px rgba(0,0,0,0.15);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.theme-toggle-wrapper.dark .theme-toggle-slider::before {
+  opacity: 1;
+}
+
+/* Зірки (видимі вночі) */
+.theme-toggle-stars {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 14px 12px 0 0 white, 24px 2px 0 0 white, 36px 14px 0 -0.5px white;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+
+.theme-toggle-wrapper.dark .theme-toggle-stars {
+  opacity: 0.8;
+  transform: translateY(0);
+}
+
+/* Гори (видимі вночі) */
+.theme-toggle-mountains {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 15px;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+.theme-toggle-mountains::before {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
+  background: #4A6382;
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+
+.theme-toggle-mountains::after {
+  content: '';
+  position: absolute;
+  bottom: -12px;
+  right: -5px;
+  width: 28px;
+  height: 28px;
+  background: #2C3E50;
+  border-radius: 3px;
+  transform: rotate(45deg);
+  z-index: 3;
+}
+
+.theme-toggle-wrapper.dark .theme-toggle-mountains {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Хмарки (видимі вдень) */
+.theme-toggle-clouds {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  width: 16px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    -8px -4px 0 -1px rgba(255, 255, 255, 0.95),
+    -16px 2px 0 -0.5px rgba(255, 255, 255, 0.95);
+  z-index: 2;
+}
+
+.theme-toggle-wrapper.dark .theme-toggle-clouds {
+  opacity: 0;
+  transform: translateY(15px);
+}
