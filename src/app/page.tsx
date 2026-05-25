@@ -367,26 +367,22 @@ const SmartphoneWidget = () => {
             <RoundedBox args={[1.8, 3.6, 0.2]} radius={0.2} smoothness={4} castShadow>
               <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.8} />
             </RoundedBox>
-            
-            {/* Чорне скло екрану (основа) */}
-            <mesh position={[0, 0, 0.101]}>
-              <planeGeometry args={[1.65, 3.45]} />
-              <meshBasicMaterial color="#050505" />
-            </mesh>
 
-            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС (Ідеальний математичний масштаб + примусові кліки) */}
-            <Html transform position={[0, 0, 0.105]} scale={0.01} center zIndexRange={[100, 0]}>
+            {/* ВІДРЕМОНТОВАНИЙ HTML ІНТЕРФЕЙС 
+                (Без 3D-площини, жорсткий scale={0.01}, ідеальне стикування кутів) 
+            */}
+            <Html transform position={[0, 0, 0.101]} scale={0.01} center zIndexRange={[100, 0]}>
               <div 
-                style={{ width: '165px', height: '345px', pointerEvents: 'auto' }}
-                className="flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-2 border-black/50 overflow-hidden relative"
+                style={{ width: '176px', height: '356px', pointerEvents: 'auto' }}
+                className="flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden relative"
                 onPointerDown={(e) => e.stopPropagation()} 
               >
                 {/* Імітація "чубчика" (Dynamic Island) */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-3.5 bg-black rounded-full z-10 pointer-events-none"></div>
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
                 
-                <div className="text-white text-center mt-4 pointer-events-none">
-                  <span className="block text-[8px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-                  <span className="block text-sm font-serif">Socials</span>
+                <div className="text-white text-center mt-6 pointer-events-none">
+                  <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
+                  <span className="block text-lg font-serif">Socials</span>
                 </div>
                 
                 <a 
@@ -395,9 +391,9 @@ const SmartphoneWidget = () => {
                   rel="noopener noreferrer" 
                   onClick={(e) => { e.stopPropagation(); window.open('https://www.instagram.com/grazia.kh.ua/', '_blank'); }}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+                  className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
                 >
-                  <InstagramIconSVG size={24} color="white" />
+                  <InstagramIconSVG size={28} color="white" />
                 </a>
                 
                 <a 
@@ -406,13 +402,13 @@ const SmartphoneWidget = () => {
                   rel="noopener noreferrer" 
                   onClick={(e) => { e.stopPropagation(); window.open('https://www.youtube.com/@graziakhua/videos', '_blank'); }}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="w-14 h-14 bg-[#FF0000] rounded-2xl flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
+                  className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto"
                 >
-                  <YoutubeIconSVG size={24} color="white" />
+                  <YoutubeIconSVG size={28} color="white" />
                 </a>
 
                 {/* Імітація полоски Home */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-14 h-1 bg-white/30 rounded-full pointer-events-none"></div>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
               </div>
             </Html>
           </group>
@@ -510,7 +506,7 @@ const DEFAULT_MAP_LOCATIONS = [
     project: 'Заміська кухня-їдальня', 
     radius: 'Безпечний радіус: 300м', 
     type: 'region',
-    description: 'Проєкт масштабної кухні для великого заміського будинк у Харківській області. Тільки вологостійкі преміальні матеріали.',
+    description: 'Проєкт масштабної кухні для великого заміського будинку у Харківській області. Тільки вологостійкі преміальні матеріали.',
     rating: 5,
     photos: [
       { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Простір та світло. Велика обідня зона, поєднана з процесом готування.' }
