@@ -101,6 +101,23 @@ const DEFAULT_MAP_LOCATIONS = [
   }
 ];
 
+// Утиліта для безпечного завантаження зовнішніх скриптів
+const loadScript = (id: string, src: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (document.getElementById(id) || document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = id;
+    script.src = src;
+    script.crossOrigin = 'anonymous'; // Допомагає відловлювати Script error
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.head.appendChild(script);
+  });
+};
+
 export default function GraziaFurnitureSystem() {
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
@@ -188,36 +205,23 @@ export default function GraziaFurnitureSystem() {
   // 1. D3.js 3D-Глобус
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
+    
+    let isMounted = true; // Захист від зомбі-процесів анімації
     let animationFrameId: number;
-
-    const loadScripts = async () => {
-      if (!(window as any).d3) {
-        await new Promise((resolve) => {
-          const script = document.createElement('script');
-          script.src = 'https://d3js.org/d3.v7.min.js';
-          script.onload = resolve;
-          document.head.appendChild(script);
-        });
-      }
-      if (!(window as any).topojson) {
-        await new Promise((resolve) => {
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/topojson-client@3';
-          script.onload = resolve;
-          document.head.appendChild(script);
-        });
-      }
-      initSolidGlobe();
-    };
 
     const initSolidGlobe = async () => {
       try {
+        await loadScript('d3-script', 'https://d3js.org/d3.v7.min.js');
+        await loadScript('topojson-script', 'https://unpkg.com/topojson-client@3');
+        
+        if (!isMounted || !canvasRef.current) return;
+
         const d3 = (window as any).d3;
         const topojson = (window as any).topojson;
+
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
         const width = canvas.width;
         const height = canvas.height;
@@ -228,18 +232,22 @@ export default function GraziaFurnitureSystem() {
         const projection = d3.geoOrthographic().translate([cx, cy]).scale(radius).clipAngle(90);
         const path = d3.geoPath(projection, ctx);
         const worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
+        
+        if (!isMounted || !canvasRef.current) return; // Перевірка після довгого fetch
+        
         const land = topojson.feature(worldData, worldData.objects.land);
-
         const ukraineMarker = { lon: 31.16, lat: 48.37 }; 
         let time = 0;
         const initialRotation = [-20, -40, 0]; 
 
         const render = () => {
+          if (!isMounted || !canvasRef.current) return; // Зупинка анімації якщо компонент видалено
+          
           time += 0.003; 
           projection.rotate([initialRotation[0] + time * 15, initialRotation[1], initialRotation[2]]);
           ctx.clearRect(0, 0, width, height);
 
-          // Перевіряємо актуальну тему для рендерингу
+          // Динамічно зчитуємо тему без додавання її у dependencies useEffect
           const currentIsDark = document.documentElement.classList.contains('dark');
 
           // Сяйво під глобусом
@@ -303,17 +311,21 @@ export default function GraziaFurnitureSystem() {
         console.error("Помилка глобуса:", error);
       }
     };
-    loadScripts();
+    
+    initSolidGlobe();
 
     return () => {
+      isMounted = false;
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [mapLevel, isDarkMode]); // Додали isDarkMode у залежності
+  }, [mapLevel]); // Видалили isDarkMode щоб глобус не перезавантажувався цілком при зміні теми
 
 
   // 2. Ініціалізація та стилізація Mapbox
   useEffect(() => {
     if (mapLevel !== 'kharkiv' || !mapContainerRef.current) return;
+    
+    let isMounted = true; // Захист від ініціалізації на видаленому DOM елементі
 
     const initMapbox = async () => {
       if (!document.getElementById('mapbox-css')) {
@@ -324,21 +336,16 @@ export default function GraziaFurnitureSystem() {
         document.head.appendChild(link);
       }
 
-      if (!(window as any).mapboxgl) {
-        await new Promise((resolve) => {
-          const script = document.createElement('script');
-          script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js';
-          script.onload = resolve;
-          document.head.appendChild(script);
-        });
-      }
-
-      const mapboxgl = (window as any).mapboxgl;
-      
-      // Безпечний розділений токен
-      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoi' + 'Y21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
-
       try {
+        await loadScript('mapbox-js', 'https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js');
+        
+        if (!isMounted || !mapContainerRef.current) return; // Перериваємо якщо користувач вже перемкнув назад на глобус
+
+        const mapboxgl = (window as any).mapboxgl;
+        
+        // Безпечний розділений токен
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoi' + 'Y21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
+
         const currentIsDark = document.documentElement.classList.contains('dark');
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
@@ -353,6 +360,7 @@ export default function GraziaFurnitureSystem() {
         mapInstanceRef.current = map;
 
         map.on('style.load', () => {
+          if (!isMounted || !map.getStyle()) return;
           const layers = map.getStyle().layers;
           const labelLayerId = layers.find((layer: any) => layer.type === 'symbol' && layer.layout['text-field'])?.id;
 
@@ -412,6 +420,7 @@ export default function GraziaFurnitureSystem() {
     initMapbox();
 
     return () => {
+      isMounted = false;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -619,7 +628,7 @@ export default function GraziaFurnitureSystem() {
         <div className="flex-1 z-10 w-full pointer-events-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#0D0D0D]/20 dark:border-white/20 text-[10px] uppercase tracking-widest opacity-60 mb-8 font-mono">
             <Ruler size={12} />
-            <span>Меблеве портфоліо: Харків та область</span>
+            <span>Меблеве портфоліо: Харків та Полтава</span>
           </div>
           
           <h1 className="text-5xl md:text-[5.2rem] font-serif font-normal leading-[1.05] tracking-tight mb-8">
