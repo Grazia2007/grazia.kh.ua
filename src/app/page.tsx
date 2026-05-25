@@ -123,7 +123,7 @@ const DEFAULT_MAP_LOCATIONS = [
 export default function GraziaFurnitureSystem() {
   // Тема
   const [isDark, setIsDark] = useState(false);
-  const [themeLoaded, setThemeLoaded] = useState(false); // Для уникнення hydration mismatch
+  const [themeLoaded, setThemeLoaded] = useState(false); 
   
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
@@ -142,8 +142,9 @@ export default function GraziaFurnitureSystem() {
   // 0. Ініціалізація теми
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    if (savedTheme === 'dark') {
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
       setIsDark(true);
       document.documentElement.classList.add('dark');
     } else {
@@ -207,7 +208,7 @@ export default function GraziaFurnitureSystem() {
     fetchPortfolio();
   }, []);
 
-  // 1. D3.js 3D-Глобус (Тепер з підтримкою темної теми!)
+  // 1. D3.js 3D-Глобус 
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -480,11 +481,13 @@ export default function GraziaFurnitureSystem() {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       if (cleanupEventsFn) cleanupEventsFn();
     };
-  }, [mapLevel, isDark, themeLoaded]); // ДОДАНО themeLoaded щоб глобус стартував після завантаження теми
+  }, [mapLevel, isDark, themeLoaded]); 
 
   // 2. Ініціалізація та стилізація Mapbox
   useEffect(() => {
     if (mapLevel !== 'kharkiv' || !mapContainerRef.current) return;
+
+    let resizeObserver: ResizeObserver | null = null; // Додаємо спостерігача
 
     const initMapbox = async () => {
       if (!document.getElementById('mapbox-css')) {
@@ -512,22 +515,21 @@ export default function GraziaFurnitureSystem() {
           container: mapContainerRef.current,
           style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11', 
           center: [36.2261, 50.0060], // Точний центр — Держпром
-          zoom: 11.5, // Оптимальний масштаб (як на твоєму 3-му скріншоті)
-          pitch: 0,   // Плоский 2D вигляд зверху
-          bearing: 0, // Без обертання
+          zoom: 11.5, 
+          pitch: 0,   
+          bearing: 0, 
           antialias: true
         });
 
         mapInstanceRef.current = map;
 
-        // ВАЖЛИВИЙ ФІКС: Примусове центрування карти після CSS-анімації появи.
-        // Це гарантує, що Держпром буде рівно по центру екрана, а не з'їде вбік.
-        map.on('load', () => {
-          map.resize();
-        });
-        setTimeout(() => {
-          if (mapInstanceRef.current) mapInstanceRef.current.resize();
-        }, 1100);
+        // БЕЗШОВНЕ КАЛІБРУВАННЯ: Замість setTimeout використовуємо миттєвий ResizeObserver
+        if (mapContainerRef.current) {
+          resizeObserver = new ResizeObserver(() => {
+            if (mapInstanceRef.current) mapInstanceRef.current.resize();
+          });
+          resizeObserver.observe(mapContainerRef.current);
+        }
 
         map.on('style.load', () => {
           const layers = map.getStyle().layers;
@@ -589,12 +591,16 @@ export default function GraziaFurnitureSystem() {
     initMapbox();
 
     return () => {
+      // Прибираємо за собою спостерігача при закритті карти
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
     };
-  }, [mapLevel, dbProjects, isDark, themeLoaded]); // Також додали themeLoaded сюди про всяк випадок
+  }, [mapLevel, dbProjects, isDark, themeLoaded]);
 
   const triggerMapFocus = () => {
     setIsTransitioning(true);
