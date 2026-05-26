@@ -23,7 +23,9 @@ import {
   LayoutGrid,
   Phone,
   Check,
-  Quote
+  Quote,
+  Palette,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 // 3D Бібліотеки
@@ -65,31 +67,51 @@ const FadeIn = ({ children, delay = 0, className = "" }: { children: React.React
   </motion.div>
 );
 
-// --- РОЗШИРЕНА СИСТЕМА МАТЕРІАЛІВ ---
+// --- ПРЕМІУМ ПАЛІТРА ---
+const PREDEFINED_COLORS = [
+  { hex: '#F5F5F7', name: 'Soft White' },
+  { hex: '#E2DCD0', name: 'Cashmere' },
+  { hex: '#D1C7BD', name: 'Mushroom' },
+  { hex: '#8F9394', name: 'Dusty Grey' },
+  { hex: '#2C2C2C', name: 'Graphite' },
+  { hex: '#1E3527', name: 'Emerald' },
+  { hex: '#1A2421', name: 'Deep Forest' },
+  { hex: '#1F2A38', name: 'Navy Blue' },
+];
+
+const WOOD_TEXTURES = [
+  { name: 'Шпон: Світлий Дуб', bg: 'linear-gradient(135deg, #D4B895, #b89369)' },
+  { name: 'Шпон: Горіх', bg: 'linear-gradient(135deg, #5E4028, #3e2716)' },
+  { name: 'Шпон: Чорне дерево', bg: 'linear-gradient(135deg, #211C18, #110e0c)' },
+];
+
+// --- РОЗШИРЕНА СИСТЕМА МАТЕРІАЛІВ 3D ---
 const getMaterialProps = (colorStr: string) => {
-  const isWood = colorStr.includes('Шпон') || colorStr.includes('Дерево') || colorStr.includes('Дуб') || colorStr.includes('Горіх');
+  const isWood = colorStr.includes('Шпон');
   const isStone = colorStr.includes('Мармур') || colorStr.includes('Камінь');
   
   let hex = '#dddddd';
   
-  if (colorStr.includes('Білий')) hex = '#F5F5F7';
-  if (colorStr.includes('Графіт')) hex = '#2C2C2C';
-  if (colorStr.includes('Кашемір')) hex = '#E2DCD0';
-  if (colorStr.includes('Смарагд')) hex = '#1E3527';
-  
-  if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
-  if (colorStr.includes('Горіх')) hex = '#5E4028';
-  if (colorStr.includes('Чорне дерево')) hex = '#211C18';
-  
-  if (colorStr === 'Білий Камінь') hex = '#F9F9F9';
-  if (colorStr === 'Чорний Мармур') hex = '#1A1A1A';
+  // Якщо це кастомний HEX або колір з палітри
+  if (colorStr.startsWith('#')) {
+    hex = colorStr;
+  } else {
+    // Фолбек для текстур
+    if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
+    if (colorStr.includes('Горіх')) hex = '#5E4028';
+    if (colorStr.includes('Чорне дерево')) hex = '#211C18';
+    if (colorStr.includes('Білий Камінь')) hex = '#F9F9F9';
+    if (colorStr.includes('Чорний Мармур')) hex = '#1A1A1A';
+    if (colorStr.includes('ДСП') && colorStr.includes('Світле')) hex = '#E5D3B3';
+    if (colorStr.includes('HPL') && colorStr.includes('Бетон')) hex = '#8c8c8c';
+  }
 
   return {
     color: hex,
     roughness: isWood ? 0.85 : isStone ? 0.2 : 0.15,
     metalness: isStone ? 0.1 : 0.05,
-    clearcoat: isWood ? 0 : isStone ? 0.5 : 0.3,
-    clearcoatRoughness: 0.1,
+    clearcoat: isWood ? 0 : isStone ? 0.5 : 0.2, // Легкий глянець для фарби
+    clearcoatRoughness: 0.15,
   };
 };
 
@@ -108,16 +130,16 @@ const ParametricFurniture = ({ config }: { config: any }) => {
   const { type, layout, leftModule, rightModule, upperTier, colors } = config;
 
   const baseMatsMain = useMemo(() => createMats(colors.carcass, colors.base, [4]), [colors.carcass, colors.base]);
-  const upperMatsMain = useMemo(() => createMats(colors.carcass, colors.upper, [4]), [colors.carcass, colors.upper]);
-  const topTierMatsMain = useMemo(() => createMats(colors.carcass, colors.topTier, [4]), [colors.carcass, colors.topTier]);
+  const upperMatsMain = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsMain = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
   
   const baseMatsLeft = useMemo(() => createMats(colors.carcass, colors.base, [0, 4]), [colors.carcass, colors.base]);
-  const upperMatsLeft = useMemo(() => createMats(colors.carcass, colors.upper, [0, 4]), [colors.carcass, colors.upper]);
-  const topTierMatsLeft = useMemo(() => createMats(colors.carcass, colors.topTier, [0, 4]), [colors.carcass, colors.topTier]);
+  const upperMatsLeft = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [0, 4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsLeft = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [0, 4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
   
   const baseMatsRight = useMemo(() => createMats(colors.carcass, colors.base, [1, 4]), [colors.carcass, colors.base]);
-  const upperMatsRight = useMemo(() => createMats(colors.carcass, colors.upper, [1, 4]), [colors.carcass, colors.upper]);
-  const topTierMatsRight = useMemo(() => createMats(colors.carcass, colors.topTier, [1, 4]), [colors.carcass, colors.topTier]);
+  const upperMatsRight = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [1, 4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsRight = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [1, 4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
 
   const carcassOnlyMats = useMemo(() => createMats(colors.carcass, colors.carcass, []), [colors.carcass]);
   const countertopMat = useMemo(() => new THREE.MeshPhysicalMaterial(getMaterialProps(colors.countertop)), [colors.countertop]);
@@ -469,21 +491,22 @@ export default function GraziaFurnitureSystem() {
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
   
-  // СТЕЙТ ДЛЯ НОВОГО 3D КОНФІГУРАТОРА
+  // --- СТЕЙТ РОЗШИРЕНОЇ ВОРОНКИ ---
   const [configStep, setConfigStep] = useState(1);
   const [activeColorZone, setActiveColorZone] = useState('base'); 
   const [configData, setConfigData] = useState({
     type: 'Кухня', 
+    furnitureClass: 'Стандарт', // Нове: Клас меблів
     layout: 'Пряма',
     leftModule: 'none', 
     rightModule: 'none', 
     upperTier: 'Одноярусні',
     colors: {
-      base: 'Фарбований МДФ: Графіт',
-      upper: 'Фарбований МДФ: Білий',
+      base: '#2C2C2C', // Тепер зберігаємо HEX або Назву
+      upper: '#F5F5F7',
       topTier: 'Шпон: Світлий Дуб',
-      countertop: 'Білий Камінь',
-      carcass: 'Графіт' 
+      countertop: 'Камінь: Білий Камінь', // Матеріал + Колір
+      carcass: '#1A1A1A' 
     },
     dimensions: { length: '', width: '', height: '' },
     gift: '',
@@ -497,6 +520,34 @@ export default function GraziaFurnitureSystem() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+
+  // Динамічні вкладки кольорів залежно від типу
+  const colorTabs = useMemo(() => {
+    if (configData.type === 'Кухня') {
+      const tabs = [
+        { id: 'base', label: 'Нижні фасади' },
+        { id: 'upper', label: 'Верхні фасади' }
+      ];
+      if (configData.upperTier === 'Двоярусні (з антресолями)') {
+        tabs.push({ id: 'topTier', label: 'Антресолі' });
+      }
+      tabs.push({ id: 'carcass', label: 'Корпус' });
+      tabs.push({ id: 'countertop', label: 'Стільниця' });
+      return tabs;
+    } else {
+      return [
+        { id: 'base', label: 'Основний колір (Фасади)' },
+        { id: 'carcass', label: 'Корпус' }
+      ];
+    }
+  }, [configData.type, configData.upperTier]);
+
+  useEffect(() => {
+    // Скидаємо активну зону, якщо тип змінився і такої зони більше немає
+    if (!colorTabs.find(t => t.id === activeColorZone)) {
+      setActiveColorZone('base');
+    }
+  }, [colorTabs, activeColorZone]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('grazia-theme');
@@ -977,19 +1028,49 @@ export default function GraziaFurnitureSystem() {
   const handleCalcSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setIsSubmitting(true);
+    
+    // Формуємо супер-детальний Payload для Telegram
+    const detailedMessage = `
+🔥 НОВИЙ ЛІД (3D КОНФІГУРАТОР) 🔥
+======================
+📞 Телефон: ${configData.phone}
+⏰ Час: ${configData.time}
+🎁 Подарунок: ${configData.gift || 'Не обрано'}
+
+📦 ТИП: ${configData.type}
+💎 КЛАС: ${configData.furnitureClass}
+📏 ГАБАРИТИ: ${configData.dimensions.length} x ${configData.dimensions.width} x ${configData.dimensions.height} мм
+
+${configData.type === 'Кухня' ? `
+📐 ПЛАНУВАННЯ: ${configData.layout}
+🏢 ПЕНАЛИ: 
+   - Лів: ${configData.leftModule !== 'none' ? configData.leftModule : 'Немає'}
+   - Прав: ${configData.rightModule !== 'none' ? configData.rightModule : 'Немає'}
+🔝 ВЕРХНІ СЕКЦІЇ: ${configData.upperTier}
+` : ''}
+
+🎨 КОЛЬОРИ:
+- Нижні (Основні): ${configData.colors.base}
+${configData.type === 'Кухня' ? `- Верхні: ${configData.colors.upper}` : ''}
+${configData.type === 'Кухня' && configData.upperTier.includes('антресол') ? `- Антресолі: ${configData.colors.topTier}` : ''}
+- Корпус: ${configData.colors.carcass}
+${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.countertop}` : ''}
+    `.trim();
+
     try {
       await supabase.from('orders').insert({
         store_id: 'furniture',
         customer_name: 'Лід з 3D Конфігуратора',
         total_amount: 0,
         status: 'draft',
-        ttn_number: `3D: ${configData.type} / ${configData.layout} / Пенали: L(${configData.leftModule}), R(${configData.rightModule}) / Корпус: ${configData.colors.carcass} / Розміри: ${configData.dimensions.length}x${configData.dimensions.width}x${configData.dimensions.height}`
+        ttn_number: detailedMessage // Зберігаємо деталі і в базу
       });
 
+      // Відправка в ТГ (якщо налаштовано)
       await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configData)
+        body: JSON.stringify({ message: detailedMessage, rawData: configData })
       });
 
       setFormSubmitted(true);
@@ -1002,6 +1083,8 @@ export default function GraziaFurnitureSystem() {
   };
 
   if (!themeLoaded) return <div className="min-h-screen bg-[#F5F4F1] dark:bg-[#0a0a0a]" />;
+
+  const TOTAL_STEPS = 7;
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-[var(--accent-main)] selection:text-white overflow-x-hidden transition-colors duration-500 relative">
@@ -1276,40 +1359,8 @@ export default function GraziaFurnitureSystem() {
         </div>
       </FadeIn>
 
-      {/* Портфоліо Проєктів */}
-      <FadeIn delay={0.2} className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[var(--border-color)]">
-        <div className="flex justify-between items-end mb-12">
-          <div>
-            <span className="text-[10px] font-mono text-[var(--accent-main)] uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
-            <h2 className="text-3xl md:text-4xl font-serif text-[var(--text-main)]">ОСТАННІ ШЕДЕВРИ</h2>
-          </div>
-          <a href="#" className="text-xs font-semibold tracking-widest uppercase border-b border-[var(--text-main)] pb-1 flex items-center gap-2 text-[var(--text-main)] hover:text-[var(--accent-main)] hover:border-[var(--accent-main)] transition-colors">
-            Дивитись всі 120+ робіт <ArrowRight size={14} />
-          </a>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {dbProjects.slice(0, 4).map((project, idx) => (
-            <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
-              {project.photos && project.photos[0] ? (
-                <img src={project.photos[0].url} alt={project.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
-              )}
-              
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              
-              <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
-                <span className="text-[10px] text-white/70 font-mono uppercase tracking-widest block mb-2">{project.name}</span>
-                <h3 className="text-lg font-serif text-white">{project.project}</h3>
-              </div>
-            </div>
-          ))}
-        </div>
-      </FadeIn>
-
       {/* --- КАРУСЕЛЬ ВІДГУКІВ --- */}
-      <FadeIn delay={0.2} className="py-24 overflow-hidden border-t border-[var(--border-color)] bg-[var(--bg-main)]">
+      <FadeIn delay={0.2} className="py-24 overflow-hidden border-y border-[var(--border-color)] bg-[var(--bg-main)] relative z-10">
         <div className="max-w-[1600px] mx-auto px-6 md:px-12 mb-16 text-center md:text-left flex flex-col md:flex-row justify-between items-end gap-6">
           <div>
             <span className="text-[10px] font-mono text-[var(--accent-main)] uppercase tracking-widest block mb-2">Що кажуть клієнти</span>
@@ -1321,19 +1372,16 @@ export default function GraziaFurnitureSystem() {
         </div>
         
         <div className="relative w-full overflow-hidden flex">
-          {/* Градієнти по боках для м'якого зникнення */}
           <div className="absolute left-0 top-0 bottom-0 w-16 md:w-48 bg-gradient-to-r from-[var(--bg-main)] to-transparent z-10 pointer-events-none"></div>
           <div className="absolute right-0 top-0 bottom-0 w-16 md:w-48 bg-gradient-to-l from-[var(--bg-main)] to-transparent z-10 pointer-events-none"></div>
           
           <motion.div
             animate={{ x: ["0%", "-50%"] }}
-            transition={{ repeat: Infinity, ease: "linear", duration: 60 }} // ДУЖЕ повільний скрол
+            transition={{ repeat: Infinity, ease: "linear", duration: 60 }}
             className="flex gap-6 px-6 w-max"
           >
-             {/* Рендеримо три копії масиву для ідеальної безшовності */}
              {[...REVIEWS_DATA, ...REVIEWS_DATA, ...REVIEWS_DATA].map((review, idx) => (
                <div key={idx} className="w-[350px] md:w-[420px] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-8 flex flex-col justify-between shrink-0 shadow-sm hover:shadow-xl transition-shadow duration-500 cursor-default group">
-                 {/* Верхня частина: Прев'ю проєкту */}
                  <div className="flex gap-4 items-center mb-6 pb-6 border-b border-[var(--border-color)]">
                    <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0">
                      <img src={review.projectThumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Preview"/>
@@ -1344,7 +1392,6 @@ export default function GraziaFurnitureSystem() {
                    </div>
                  </div>
                  
-                 {/* Нижня частина: Сам відгук */}
                  <div className="relative">
                    <Quote className="absolute -top-2 -left-2 text-[var(--border-color)] opacity-50" size={32} />
                    <div className="flex text-[var(--accent-main)] mb-4 relative z-10 pl-6">
@@ -1369,8 +1416,8 @@ export default function GraziaFurnitureSystem() {
         </div>
       </FadeIn>
 
-      {/* --- PREMIUM 3D CONFIGURATOR --- */}
-      <FadeIn delay={0.3} className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto">
+      {/* --- PREMIUM 3D CONFIGURATOR (ОНОВЛЕНИЙ) --- */}
+      <FadeIn delay={0.3} className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto" id="calc">
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
           
           {/* ЛІВА ЧАСТИНА: СПРАВЖНЯ 3D СЦЕНА */}
@@ -1382,11 +1429,7 @@ export default function GraziaFurnitureSystem() {
               <Canvas camera={{ position: [5, 4, 6], fov: 45 }}>
                 <ambientLight intensity={0.5} />
                 <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
-                
-                {/* Студійне HDR освітлення для красивих відблисків */}
                 <Environment preset="city" />
-                
-                {/* Компонент, який будує меблі */}
                 <Suspense fallback={null}>
                   <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
                     <Center>
@@ -1394,19 +1437,8 @@ export default function GraziaFurnitureSystem() {
                     </Center>
                   </Float>
                 </Suspense>
-
-                {/* М'які тіні на підлозі */}
                 <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
-                
-                {/* Управління камерою */}
-                <OrbitControls 
-                  enableZoom={true} 
-                  enablePan={false} 
-                  minPolarAngle={Math.PI / 4} 
-                  maxPolarAngle={Math.PI / 2} 
-                  autoRotate 
-                  autoRotateSpeed={0.5} 
-                />
+                <OrbitControls enableZoom={true} enablePan={false} minPolarAngle={Math.PI / 4} maxPolarAngle={Math.PI / 2} autoRotate autoRotateSpeed={0.5} />
               </Canvas>
             </div>
 
@@ -1424,6 +1456,9 @@ export default function GraziaFurnitureSystem() {
             <div className="absolute top-6 left-6 flex flex-col gap-2 z-20 pointer-events-none">
               {configData.type && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.type}</span>}
               {configData.layout && configData.type === 'Кухня' && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.layout}</span>}
+              <span className={`backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm ${configData.furnitureClass === 'Преміум' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-black/50'}`}>
+                {configData.furnitureClass}
+              </span>
             </div>
           </div>
 
@@ -1434,14 +1469,14 @@ export default function GraziaFurnitureSystem() {
             {!formSubmitted && (
               <div className="mb-10">
                 <div className="flex justify-between text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] mb-3">
-                  <span>Крок {configStep} з 6</span>
-                  <span>{Math.round((configStep / 6) * 100)}%</span>
+                  <span>Крок {configStep} з {TOTAL_STEPS}</span>
+                  <span>{Math.round((configStep / TOTAL_STEPS) * 100)}%</span>
                 </div>
                 <div className="w-full h-1 bg-[var(--border-color)] rounded-full overflow-hidden">
                   <motion.div 
                     className="h-full bg-[var(--accent-main)]"
                     initial={{ width: 0 }}
-                    animate={{ width: `${(configStep / 6) * 100}%` }}
+                    animate={{ width: `${(configStep / TOTAL_STEPS) * 100}%` }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
                   />
                 </div>
@@ -1461,7 +1496,11 @@ export default function GraziaFurnitureSystem() {
                       {['Кухня', 'Шафа-купе / Гардеробна', 'Меблі у вітальню', 'Меблі для ванної'].map((item) => (
                         <div 
                           key={item}
-                          onClick={() => setConfigData({...configData, type: item})}
+                          onClick={() => {
+                            setConfigData({...configData, type: item});
+                            // Якщо не кухня, скидаємо вкладку кольору на безпечну
+                            if (item !== 'Кухня' && !['base', 'carcass'].includes(activeColorZone)) setActiveColorZone('base');
+                          }}
                           className={`p-6 border rounded-lg cursor-pointer transition-all duration-300 flex flex-col items-center text-center gap-4 ${configData.type === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
                         >
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${configData.type === item ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
@@ -1474,14 +1513,44 @@ export default function GraziaFurnitureSystem() {
                   </motion.div>
                 )}
 
-                {/* КРОК 2: ФОРМ-ФАКТОР (ТІЛЬКИ КУХНЯ) */}
+                {/* НОВИЙ КРОК 2: КЛАС МЕБЛІВ (БЮДЖЕТ) */}
                 {configStep === 2 && !formSubmitted && (
+                  <motion.div key="step1.5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
+                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Клас виконання</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Це допоможе нам одразу підібрати правильну фурнітуру та матеріали під ваш бюджет.</p>
+                    
+                    <div className="space-y-4">
+                      {[
+                        { id: 'Економ', desc: 'Базові матеріали, надійна стандартна фурнітура (плівка, базовий ДСП).', icon: <Layers size={20}/> },
+                        { id: 'Стандарт', desc: 'Оптимальний вибір. Фарбовані фасади, доводчики середнього сегменту (Muller).', icon: <Hammer size={20}/> },
+                        { id: 'Преміум', desc: 'Максимальна якість. Фурнітура Blum/Hettich, натуральний шпон, камінь, преміум емалі.', icon: <Sparkles size={20}/> }
+                      ].map((item) => (
+                        <div 
+                          key={item.id}
+                          onClick={() => setConfigData({...configData, furnitureClass: item.id})}
+                          className={`p-5 border rounded-lg cursor-pointer transition-all duration-300 flex items-start gap-4 ${configData.furnitureClass === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
+                        >
+                          <div className={`mt-1 flex-shrink-0 ${configData.furnitureClass === item.id ? 'text-[var(--accent-main)]' : 'text-[var(--text-light)]'}`}>
+                            {item.icon}
+                          </div>
+                          <div>
+                            <span className="font-bold text-lg text-[var(--text-main)] block mb-1">{item.id}</span>
+                            <span className="text-sm text-[var(--text-muted)]">{item.desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* КРОК 3 (Колишній 2): ФОРМ-ФАКТОР */}
+                {configStep === 3 && !formSubmitted && (
                   <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Конфігурація</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-6">Налаштуйте планування та модулі для техніки.</p>
                     
                     {configData.type === 'Кухня' ? (
-                      <div className="space-y-6">
+                      <div className="space-y-6 overflow-y-auto pr-2 pb-4 no-scrollbar">
                         {/* Планування */}
                         <div>
                           <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Основна геометрія</span>
@@ -1501,7 +1570,7 @@ export default function GraziaFurnitureSystem() {
                         {/* Ярусність */}
                         <div>
                           <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Верхні секції</span>
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {['Одноярусні', 'Двоярусні (з антресолями)'].map((tier) => (
                               <div 
                                 key={tier}
@@ -1518,31 +1587,35 @@ export default function GraziaFurnitureSystem() {
                         </div>
                         
                         {/* Пенали */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Лівий пенал</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Лівий пенал (Колона)</span>
                             <select 
                               value={configData.leftModule}
                               onChange={(e) => setConfigData({...configData, leftModule: e.target.value})}
                               className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm cursor-pointer"
                             >
-                              <option value="none">Немає</option>
-                              <option value="fridge_built">Вбуд. Холодильник</option>
-                              <option value="fridge_open">Ніша під Холодильник</option>
-                              <option value="oven">Духовка + НВЧ</option>
+                              <option value="none">Відсутній</option>
+                              <option value="fridge_built">Вбудований Холодильник</option>
+                              <option value="fridge_open">Ніша під звичайний Холодильник</option>
+                              <option value="oven">Пенал: Духовка + Мікрохвильовка</option>
+                              <option value="oven">Пенал: Духовка + Кавоварка</option>
+                              <option value="storage">Пенал для зберігання (Полиці)</option>
                             </select>
                           </div>
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Правий пенал</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Правий пенал (Колона)</span>
                             <select 
                               value={configData.rightModule}
                               onChange={(e) => setConfigData({...configData, rightModule: e.target.value})}
                               className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm cursor-pointer"
                             >
-                              <option value="none">Немає</option>
-                              <option value="fridge_built">Вбуд. Холодильник</option>
-                              <option value="fridge_open">Ніша під Холодильник</option>
-                              <option value="oven">Духовка + НВЧ</option>
+                              <option value="none">Відсутній</option>
+                              <option value="fridge_built">Вбудований Холодильник</option>
+                              <option value="fridge_open">Ніша під звичайний Холодильник</option>
+                              <option value="oven">Пенал: Духовка + Мікрохвильовка</option>
+                              <option value="oven">Пенал: Духовка + Кавоварка</option>
+                              <option value="storage">Пенал для зберігання (Полиці)</option>
                             </select>
                           </div>
                         </div>
@@ -1550,27 +1623,22 @@ export default function GraziaFurnitureSystem() {
                     ) : (
                       <div className="p-8 border border-[var(--border-color)] rounded-lg text-center bg-[var(--bg-card)]">
                         <Box size={40} className="mx-auto text-[var(--text-light)] mb-4" />
-                        <p className="text-[var(--text-main)] font-medium">Для цього типу меблів планування стандартне.</p>
-                        <p className="text-sm text-[var(--text-muted)] mt-2">Ви зможете обговорити деталі з нашим дизайнером.</p>
+                        <p className="text-[var(--text-main)] font-medium">Для цього типу меблів планування розраховується індивідуально.</p>
+                        <p className="text-sm text-[var(--text-muted)] mt-2">Ви зможете обговорити всі деталі наповнення з нашим дизайнером.</p>
                       </div>
                     )}
                   </motion.div>
                 )}
 
-                {/* КРОК 3: РОЗДІЛЬНИЙ КОЛІР */}
-                {configStep === 3 && !formSubmitted && (
+                {/* КРОК 4 (Колишній 3): РОЗУМНІ КОЛЬОРИ (HEX/RAL/TEXTURES) */}
+                {configStep === 4 && !formSubmitted && (
                   <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Студія Дизайну</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-6">Оберіть зону та розфарбуйте її на свій смак.</p>
+                    <p className="text-[var(--text-muted)] text-sm mb-6">Оберіть зону та налаштуйте колір або матеріал.</p>
                     
+                    {/* ДИНАМІЧНІ ВКЛАДКИ ЗОН */}
                     <div className="flex gap-2 mb-6 border-b border-[var(--border-color)] pb-2 overflow-x-auto no-scrollbar">
-                      {[
-                        { id: 'base', label: 'Нижні фасади' },
-                        { id: 'upper', label: 'Верхні фасади' },
-                        ...(configData.upperTier === 'Двоярусні (з антресолями)' ? [{ id: 'topTier', label: 'Антресолі' }] : []),
-                        { id: 'carcass', label: 'Корпус' },
-                        { id: 'countertop', label: 'Стільниця' }
-                      ].map((tab) => (
+                      {colorTabs.map((tab) => (
                         <button 
                           key={tab.id}
                           onClick={() => setActiveColorZone(tab.id)}
@@ -1581,71 +1649,90 @@ export default function GraziaFurnitureSystem() {
                       ))}
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="space-y-6 overflow-y-auto pr-2 pb-4 no-scrollbar">
+                      
+                      {/* ЛОГІКА ДЛЯ СТІЛЬНИЦІ */}
                       {activeColorZone === 'countertop' ? (
                         <>
+                          {/* Тип матеріалу */}
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Камінь / Мармур</span>
-                            <div className="flex gap-3">
-                              {['Білий Камінь', 'Чорний Мармур'].map(color => (
-                                <div key={color} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: color}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors.countertop === color ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                    <div className="w-full h-full rounded-full shadow-inner" style={{ backgroundColor: color === 'Білий Камінь' ? '#F9F9F9' : '#1A1A1A' }}></div>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Вибір матеріалу стільниці</span>
+                            <div className="grid grid-cols-2 gap-3 mb-6">
+                              {['Вологостійке ДСП (Egger)', 'Штучний Камінь (Акрил)', 'HPL Компакт-плита', 'Натуральний Кварц/Мармур'].map(mat => {
+                                const isSelected = configData.colors.countertop.includes(mat.split(' ')[0]); // Проста перевірка
+                                return (
+                                  <div key={mat} 
+                                       onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: `${mat.split(' ')[0]}: Базовий`}}))}
+                                       className={`p-3 border rounded-lg cursor-pointer transition-all duration-300 text-xs font-medium text-center ${isSelected ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`}
+                                  >
+                                    {mat}
                                   </div>
-                                  <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)]">{color}</span>
-                                </div>
-                              ))}
+                                )
+                              })}
                             </div>
                           </div>
+
+                          {/* Текстури каменю/ДСП */}
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Дерево (EGGER)</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Популярні текстури (Демо)</span>
                             <div className="flex gap-3">
-                              {['Світлий Дуб', 'Горіх'].map(wood => (
-                                <div key={wood} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: `Шпон: ${wood}`}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors.countertop.includes(wood) ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                    <div className="w-full h-full rounded-full shadow-inner bg-gradient-to-br from-[#8B5A2B] to-[#D2B48C]"></div>
+                              {['Білий Камінь', 'Чорний Мармур', 'ДСП: Світле Дерево', 'HPL: Бетон'].map(color => (
+                                <div key={color} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: color}}))} className="flex flex-col items-center gap-2 cursor-pointer group w-16">
+                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors.countertop === color ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                    <div className="w-full h-full rounded-full shadow-inner" style={{ 
+                                      backgroundColor: color.includes('Білий') ? '#F9F9F9' : color.includes('Чорний') ? '#1A1A1A' : color.includes('Дерево') ? '#E5D3B3' : '#8c8c8c' 
+                                    }}></div>
                                   </div>
-                                  <span className="text-[9px] uppercase tracking-wider text-center text-[var(--text-main)]">{wood}</span>
+                                  <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)] text-center">{color.split(':')[1] || color}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                         </>
                       ) : (
+                        
+                        /* ЛОГІКА ДЛЯ ФАСАДІВ ТА КОРПУСУ */
                         <>
+                          {/* Палітра RAL/HEX */}
                           <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Преміум Фарбування (Мат / Глянець)</span>
-                            <div className="flex gap-3">
-                              {['Білий', 'Графіт', 'Кашемір', 'Смарагд'].map(color => {
-                                const fullColorName = `Фарбований МДФ: ${color}`;
-                                return (
-                                  <div key={color} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: fullColorName}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                    <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors[activeColorZone as keyof typeof configData.colors] === fullColorName ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                      <div className="w-full h-full rounded-full shadow-inner" style={{
-                                        backgroundColor: color === 'Білий' ? '#f8f9fa' : color === 'Графіт' ? '#2d3436' : color === 'Кашемір' ? '#dcdde1' : '#013220'
-                                      }}></div>
-                                    </div>
-                                    <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)]">{color}</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3 flex justify-between items-center">
+                              <span>Преміум Емаль / RAL</span>
+                              <div className="relative cursor-pointer group">
+                                <label className="flex items-center gap-1 text-[var(--accent-main)] font-semibold cursor-pointer">
+                                  <Palette size={14}/> СВІЙ КОЛІР (HEX)
+                                  <input 
+                                    type="color" 
+                                    value={configData.colors[activeColorZone as keyof typeof configData.colors].startsWith('#') ? configData.colors[activeColorZone as keyof typeof configData.colors] : '#ffffff'}
+                                    onChange={(e) => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: e.target.value}}))}
+                                    className="absolute opacity-0 w-full h-full cursor-pointer"
+                                  />
+                                </label>
+                              </div>
+                            </span>
+                            <div className="flex flex-wrap gap-4">
+                              {PREDEFINED_COLORS.map(color => (
+                                <div key={color.hex} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: color.hex}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors[activeColorZone as keyof typeof configData.colors] === color.hex ? 'border-[var(--accent-main)] scale-110 shadow-lg' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                    <div className="w-full h-full rounded-full shadow-inner border border-black/10" style={{ backgroundColor: color.hex }}></div>
                                   </div>
-                                );
-                              })}
+                                  <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)]">{color.name}</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
 
-                          <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Натуральні текстури (Шпон)</span>
-                            <div className="flex gap-3">
-                              {['Світлий Дуб', 'Горіх', 'Чорне дерево'].map(wood => {
-                                const fullWoodName = `Шпон: ${wood}`;
-                                return (
-                                  <div key={wood} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: fullWoodName}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                    <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors[activeColorZone as keyof typeof configData.colors] === fullWoodName ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                      <div className="w-full h-full rounded-full shadow-inner bg-gradient-to-br from-[#8B5A2B] to-[#D2B48C]"></div>
-                                    </div>
-                                    <span className="text-[9px] uppercase tracking-wider text-center text-[var(--text-main)]">{wood}</span>
+                          {/* Текстури дерева */}
+                          <div className="pt-4 border-t border-[var(--border-color)]">
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Натуральний Шпон / ДСП під дерево</span>
+                            <div className="flex gap-4">
+                              {WOOD_TEXTURES.map(wood => (
+                                <div key={wood.name} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: wood.name}}))} className="flex flex-col items-center gap-2 cursor-pointer group w-20">
+                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors[activeColorZone as keyof typeof configData.colors] === wood.name ? 'border-[var(--accent-main)] scale-110 shadow-lg' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
+                                    <div className="w-full h-full rounded-full shadow-inner border border-black/20" style={{ background: wood.bg }}></div>
                                   </div>
-                                );
-                              })}
+                                  <span className="text-[9px] uppercase tracking-wider text-center text-[var(--text-main)] leading-tight">{wood.name.replace('Шпон: ', '')}</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </>
@@ -1654,8 +1741,8 @@ export default function GraziaFurnitureSystem() {
                   </motion.div>
                 )}
 
-                {/* КРОК 4: РОЗМІРИ */}
-                {configStep === 4 && !formSubmitted && (
+                {/* КРОК 5: РОЗМІРИ */}
+                {configStep === 5 && !formSubmitted && (
                   <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Габарити виробу</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-8">Вкажіть приблизні розміри для точного прорахунку (в міліметрах).</p>
@@ -1709,8 +1796,8 @@ export default function GraziaFurnitureSystem() {
                   </motion.div>
                 )}
 
-                {/* КРОК 5: ПОДАРУНОК */}
-                {configStep === 5 && !formSubmitted && (
+                {/* КРОК 6: ПОДАРУНОК */}
+                {configStep === 6 && !formSubmitted && (
                   <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Ваш гарантований подарунок</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть бонус, який ми додамо до вашого замовлення безкоштовно.</p>
@@ -1736,8 +1823,8 @@ export default function GraziaFurnitureSystem() {
                   </motion.div>
                 )}
 
-                {/* КРОК 6: ФІНАЛ (КОНТАКТИ) */}
-                {configStep === 6 && !formSubmitted && (
+                {/* КРОК 7: ФІНАЛ (КОНТАКТИ) */}
+                {configStep === 7 && !formSubmitted && (
                   <motion.div key="step6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Проєкт готовий до прорахунку</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-8">Залиште ваш контакт, і наш дизайнер-технолог Марина зв'яжеться з вами.</p>
@@ -1817,11 +1904,11 @@ export default function GraziaFurnitureSystem() {
                   <ChevronLeft size={16} /> Назад
                 </button>
                 
-                {configStep < 6 ? (
+                {configStep < TOTAL_STEPS ? (
                   <button 
                     onClick={() => {
                       if (configStep === 1 && configData.type !== 'Кухня') {
-                        setConfigStep(3);
+                        setConfigStep(4); // Стрибаємо одразу на кольори, пропускаючи клас(2) і конфігурацію(3) для не-кухонь
                       } else {
                         setConfigStep(configStep + 1);
                       }
