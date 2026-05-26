@@ -55,8 +55,10 @@ const TelegramIconSVG = ({ size = 24, color = "currentColor" }) => (
   </svg>
 );
 
-const FadeIn = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => (
+// ВИПРАВЛЕНО: Додано підтримку 'id' для компонента
+const FadeIn = ({ children, delay = 0, className = "", id }: { children: React.ReactNode, delay?: number, className?: string, id?: string }) => (
   <motion.div
+    id={id}
     initial={{ opacity: 0, y: 40, filter: 'blur(10px)' }}
     whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
     viewport={{ once: true, margin: "-100px" }}
@@ -1356,6 +1358,38 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" alt="Фурнітура та текстури" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"/>
             </div>
           </div>
+        </div>
+      </FadeIn>
+
+      {/* Портфоліо Проєктів */}
+      <FadeIn delay={0.2} className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[var(--border-color)]">
+        <div className="flex justify-between items-end mb-12">
+          <div>
+            <span className="text-[10px] font-mono text-[var(--accent-main)] uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
+            <h2 className="text-3xl md:text-4xl font-serif text-[var(--text-main)]">ОСТАННІ ШЕДЕВРИ</h2>
+          </div>
+          <a href="#" className="text-xs font-semibold tracking-widest uppercase border-b border-[var(--text-main)] pb-1 flex items-center gap-2 text-[var(--text-main)] hover:text-[var(--accent-main)] hover:border-[var(--accent-main)] transition-colors">
+            Дивитись всі 120+ робіт <ArrowRight size={14} />
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {dbProjects.slice(0, 4).map((project, idx) => (
+            <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
+              {project.photos && project.photos[0] ? (
+                <img src={project.photos[0].url} alt={project.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
+              )}
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
+                <span className="text-[10px] text-white/70 font-mono uppercase tracking-widest block mb-2">{project.name}</span>
+                <h3 className="text-lg font-serif text-white">{project.project}</h3>
+              </div>
+            </div>
+          ))}
         </div>
       </FadeIn>
 
