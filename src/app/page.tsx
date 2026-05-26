@@ -1072,7 +1072,16 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
       await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: detailedMessage, rawData: configData })
+        body: JSON.stringify({ 
+          ...configData, 
+          // Дублюємо поля для зворотної сумісності зі старим бекендом
+          length: configData.dimensions.length,
+          width: configData.dimensions.width,
+          height: configData.dimensions.height,
+          color: configData.colors.base,
+          // Передаємо повністю готовий текст повідомлення!
+          message: detailedMessage 
+        })
       });
 
       setFormSubmitted(true);
