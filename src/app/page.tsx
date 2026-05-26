@@ -22,7 +22,8 @@ import {
   Box,
   LayoutGrid,
   Phone,
-  Check
+  Check,
+  Quote
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 // 3D Бібліотеки
@@ -71,18 +72,15 @@ const getMaterialProps = (colorStr: string) => {
   
   let hex = '#dddddd';
   
-  // Фарбовані фасади / Корпус
   if (colorStr.includes('Білий')) hex = '#F5F5F7';
   if (colorStr.includes('Графіт')) hex = '#2C2C2C';
   if (colorStr.includes('Кашемір')) hex = '#E2DCD0';
   if (colorStr.includes('Смарагд')) hex = '#1E3527';
   
-  // Дерево
   if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
   if (colorStr.includes('Горіх')) hex = '#5E4028';
   if (colorStr.includes('Чорне дерево')) hex = '#211C18';
   
-  // Стільниці
   if (colorStr === 'Білий Камінь') hex = '#F9F9F9';
   if (colorStr === 'Чорний Мармур') hex = '#1A1A1A';
 
@@ -95,8 +93,6 @@ const getMaterialProps = (colorStr: string) => {
   };
 };
 
-// Хелпер для створення масиву матеріалів (Корпус з усіх боків, Фасад тільки спереду/збоку)
-// Індекси в Three.js для BoxGeometry: 0:Right(+X), 1:Left(-X), 2:Top(+Y), 3:Bottom(-Y), 4:Front(+Z), 5:Back(-Z)
 const createMats = (carcassStr: string, facadeStr: string, facadeIndices: number[]) => {
   const cMat = new THREE.MeshPhysicalMaterial(getMaterialProps(carcassStr));
   const fMat = new THREE.MeshPhysicalMaterial(getMaterialProps(facadeStr));
@@ -107,21 +103,18 @@ const createMats = (carcassStr: string, facadeStr: string, facadeIndices: number
   return mats;
 };
 
-// --- ОНОВЛЕНИЙ 3D КОМПОНЕНТ З ІДЕАЛЬНИМ ФАРБУВАННЯМ ФАСАДІВ ТА КУТІВ ---
+// --- ОНОВЛЕНИЙ 3D КОМПОНЕНТ ---
 const ParametricFurniture = ({ config }: { config: any }) => {
   const { type, layout, leftModule, rightModule, upperTier, colors } = config;
 
-  // Генеруємо матеріальні масиви залежно від зони (Main, Left Wing, Right Wing)
   const baseMatsMain = useMemo(() => createMats(colors.carcass, colors.base, [4]), [colors.carcass, colors.base]);
   const upperMatsMain = useMemo(() => createMats(colors.carcass, colors.upper, [4]), [colors.carcass, colors.upper]);
   const topTierMatsMain = useMemo(() => createMats(colors.carcass, colors.topTier, [4]), [colors.carcass, colors.topTier]);
   
-  // Ліве крило: фасад має бути спереду (+Z) та на внутрішній стороні, яка дивиться вправо (+X)
   const baseMatsLeft = useMemo(() => createMats(colors.carcass, colors.base, [0, 4]), [colors.carcass, colors.base]);
   const upperMatsLeft = useMemo(() => createMats(colors.carcass, colors.upper, [0, 4]), [colors.carcass, colors.upper]);
   const topTierMatsLeft = useMemo(() => createMats(colors.carcass, colors.topTier, [0, 4]), [colors.carcass, colors.topTier]);
   
-  // Праве крило: фасад має бути спереду (+Z) та на внутрішній стороні, яка дивиться вліво (-X)
   const baseMatsRight = useMemo(() => createMats(colors.carcass, colors.base, [1, 4]), [colors.carcass, colors.base]);
   const upperMatsRight = useMemo(() => createMats(colors.carcass, colors.upper, [1, 4]), [colors.carcass, colors.upper]);
   const topTierMatsRight = useMemo(() => createMats(colors.carcass, colors.topTier, [1, 4]), [colors.carcass, colors.topTier]);
@@ -140,10 +133,9 @@ const ParametricFurniture = ({ config }: { config: any }) => {
 
   if (type === 'Кухня' || type === '') {
     const hasAntresol = upperTier === 'Двоярусні (з антресолями)';
-    const tallModHeight = hasAntresol ? 2.7 : 2.3; // Висота підігнана під ярусність
+    const tallModHeight = hasAntresol ? 2.7 : 2.3;
     const tallModY = tallModHeight / 2; 
 
-    // Компонент Пеналу (Сприймаємо як частину основної стіни для фасадів)
     const TallModule = ({ position, rotation = [0, 0, 0], moduleType }: { position: [number, number, number], rotation?: [number, number, number], moduleType: string }) => {
       if (moduleType === 'none') return null;
       const mats = moduleType === 'fridge_open' ? carcassOnlyMats : baseMatsMain;
@@ -168,8 +160,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
 
     return (
       <group ref={groupRef} scale={[0.7, 0.7, 0.7]} position={[0, -0.4, 0]}>
-        
-        {/* ЦЕНТРАЛЬНА СТІНА (Основна пряма лінія) */}
         <group position={[0, 0, 0]}>
           <mesh position={[0, 0.45, 0]} material={baseMatsMain} castShadow receiveShadow>
             <boxGeometry args={[3, 0.9, 0.6]} />
@@ -180,31 +170,26 @@ const ParametricFurniture = ({ config }: { config: any }) => {
           
           {hasAntresol ? (
             <>
-              {/* Двоярусні: Робочий ярус */}
               <mesh position={[0, 1.8, -0.125]} material={upperMatsMain} castShadow receiveShadow>
                 <boxGeometry args={[3, 0.6, 0.35]} />
               </mesh>
-              {/* Двоярусні: Антресолі */}
               <mesh position={[0, 2.4, 0]} material={topTierMatsMain} castShadow receiveShadow>
                 <boxGeometry args={[3, 0.6, 0.6]} />
               </mesh>
             </>
           ) : (
-            // Одноярусні: Високі цільні шафи, ідеально стиковані з висотою пеналу
             <mesh position={[0, 1.9, -0.125]} material={upperMatsMain} castShadow receiveShadow>
               <boxGeometry args={[3, 0.8, 0.35]} />
             </mesh>
           )}
         </group>
 
-        {/* ЛІВЕ КРИЛО ТА ПЕНАЛИ */}
         {(() => {
           const isLeftCorner = layout === 'Кутова (Ліворуч)' || layout === 'П-подібна';
           return (
             <group>
               {isLeftCorner && (
                 <group>
-                  {/* База висунута вперед */}
                   <mesh position={[-1.2, 0.45, 0.9]} material={baseMatsLeft} castShadow receiveShadow>
                     <boxGeometry args={[0.6, 0.9, 1.2]} />
                   </mesh>
@@ -212,7 +197,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
                     <boxGeometry args={[0.65, 0.04, 1.25]} />
                   </mesh>
 
-                  {/* Верхні секції кута */}
                   {hasAntresol ? (
                     <>
                       <mesh position={[-1.325, 1.8, 0.775]} material={upperMatsLeft} castShadow receiveShadow>
@@ -229,7 +213,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
                   )}
                 </group>
               )}
-              {/* Пенал ставимо або в кінці кута (вперед і обертаємо в центр), або на краю прямої кухні (вліво) */}
               {leftModule !== 'none' && (
                 <TallModule 
                   position={isLeftCorner ? [-1.2, tallModY, 1.8] : [-1.8, tallModY, 0]} 
@@ -241,14 +224,12 @@ const ParametricFurniture = ({ config }: { config: any }) => {
           );
         })()}
 
-        {/* ПРАВЕ КРИЛО ТА ПЕНАЛИ */}
         {(() => {
           const isRightCorner = layout === 'Кутова (Праворуч)' || layout === 'П-подібна';
           return (
             <group>
               {isRightCorner && (
                 <group>
-                  {/* База висунута вперед */}
                   <mesh position={[1.2, 0.45, 0.9]} material={baseMatsRight} castShadow receiveShadow>
                     <boxGeometry args={[0.6, 0.9, 1.2]} />
                   </mesh>
@@ -256,7 +237,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
                     <boxGeometry args={[0.65, 0.04, 1.25]} />
                   </mesh>
 
-                  {/* Верхні секції кута */}
                   {hasAntresol ? (
                     <>
                       <mesh position={[1.325, 1.8, 0.775]} material={upperMatsRight} castShadow receiveShadow>
@@ -273,7 +253,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
                   )}
                 </group>
               )}
-              {/* Пенал ставимо або в кінці кута (вперед і обертаємо в центр), або на краю прямої кухні (вправо) */}
               {rightModule !== 'none' && (
                 <TallModule 
                   position={isRightCorner ? [1.2, tallModY, 1.8] : [1.8, tallModY, 0]} 
@@ -285,7 +264,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
           );
         })()}
 
-        {/* Острів */}
         {layout === 'З островом' && (
           <group position={[0, 0, 1.8]}>
             <mesh position={[0, 0.45, 0]} material={baseMatsMain} castShadow receiveShadow>
@@ -300,14 +278,12 @@ const ParametricFurniture = ({ config }: { config: any }) => {
     );
   }
 
-  // ШАФА-КУПЕ / ГАРДЕРОБНА
   if (type.includes('Шафа')) {
     return (
       <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
         <mesh position={[0, 1.25, 0]} material={baseMatsMain} castShadow receiveShadow>
           <boxGeometry args={[2.5, 2.5, 0.7]} />
         </mesh>
-        {/* Декоративні профілі (розсувна система) */}
         <mesh position={[-0.6, 1.25, 0.36]} castShadow>
           <boxGeometry args={[0.02, 2.4, 0.02]} />
           <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
@@ -320,7 +296,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
     );
   }
 
-  // ТВ-ЗОНА ВІТАЛЬНЯ
   if (type.includes('вітальню')) {
     return (
       <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
@@ -337,7 +312,6 @@ const ParametricFurniture = ({ config }: { config: any }) => {
     );
   }
 
-// --- ВАННА ---
   return (
     <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
       <mesh position={[0, 0.6, 0]} material={baseMatsMain} castShadow receiveShadow>
@@ -358,71 +332,81 @@ const ParametricFurniture = ({ config }: { config: any }) => {
   );
 };
 
-// --- ВИПРАВЛЕНИЙ КОМПОНЕНТ 3D СМАРТФОНА ---
-const SmartphoneWidget = () => {
-  return (
-    <div className="w-[300px] h-[480px] relative z-10">
-      {/* 3D Модель Телефону (Статична, для максимальної продуктивності та ідеальної синхронізації) */}
-      <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 6], fov: 40 }} className="z-0">
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[5, 5, 5]} intensity={1.5} />
-          <Environment preset="city" />
-          
-          <group rotation={[0, -0.15, 0]}>
-            <RoundedBox args={[1.8, 3.6, 0.2]} radius={0.2} smoothness={4} castShadow>
-              <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.8} />
-            </RoundedBox>
-          </group>
-        </Canvas>
-      </div>
+// БАЗА ВІДГУКІВ
+const REVIEWS_DATA = [
+  {
+    author: 'Анна В.',
+    text: 'Неймовірна якість! Фасади ідеально матові, як і хотіли. Інтеграція LED-підсвітки у скляну вітрину виглядає магічно ввечері. Дякуємо за бездоганний монтаж.',
+    projectThumbnail: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg',
+    projectName: 'Флагманська матова графітова кухня'
+  },
+  {
+    author: 'Олександр М.',
+    text: 'Дуже вдячний за продуману до дрібниць ТВ-зону. Всі дроти сховані, підсвітка виглядає дуже дорого. Всі гості запитують, де ми замовляли меблі. Сервіс на найвищому рівні.',
+    projectThumbnail: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=600',
+    projectName: 'Модульна вітальня та гардероб'
+  },
+  {
+    author: 'Олена С.',
+    text: 'Замовляли кухню в заміський будинок. Матеріали преміум, фурнітура Blum працює як годинник. Дизайн ідеально вписався в наш інтер\'єр, дуже радимо GRAZIA.',
+    projectThumbnail: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=600',
+    projectName: 'Заміська кухня-їдальня'
+  },
+  {
+    author: 'Віталій К.',
+    text: 'Довго шукали підрядника, який зможе реалізувати складний кутовий пенал. GRAZIA впорались на 10/10. Жодних зазорів, все монолітно та надійно.',
+    projectThumbnail: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-50.jpg',
+    projectName: 'Організація висувних систем Legrabox'
+  }
+];
 
-      {/* HTML ІНТЕРФЕЙС ПОВЕРХ 3D CANVAS (Статичний) */}
-      <div 
-        className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
-        style={{ transform: 'translate(-50%, -50%) rotateY(-8.6deg)', transformOrigin: 'center center' }}
-      >
-        {/* Імітація "чубчика" (Dynamic Island) */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
-        
-        <div className="text-white text-center mt-4 pointer-events-none">
-          <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-          <span className="block text-lg font-serif">Socials</span>
-        </div>
-        
-        <a 
-          href="https://www.instagram.com/grazia.kh.ua/" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
-        >
-          <InstagramIconSVG size={28} color="white" />
-        </a>
-        
-        <a 
-          href="https://www.youtube.com/@graziakhua/videos" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
-        >
-          <YoutubeIconSVG size={28} color="white" />
-        </a>
-
-        <a 
-          href="https://t.me/MarinaGrazia" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="w-14 h-14 bg-[#2AABEE] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(42,171,238,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
-        >
-          <TelegramIconSVG size={28} color="white" />
-        </a>
-
-        {/* Імітація полоски Home */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
-      </div>
-    </div>
-  );
-};
+const DEFAULT_MAP_LOCATIONS = [
+  { 
+    id: 'naukova', 
+    name: 'м. Наукова (Харків, Центр)', 
+    coordinates: [36.2263, 50.0152],
+    project: 'Флагманська матова графітова кухня з інтегрованою LED-вітриною', 
+    radius: 'Безпечний радіус: 300м', 
+    type: 'city',
+    description: 'Еталон інженерної думки та преміального мінімалізму. У цьому проєкті ми реалізували монолітний фасад без видимих ручок, інтегрували німецьку побутову техніку Teka та створили унікальну систему вертикального LED-освітлення скляної вітрини з торцевим підсвічуванням полиць.',
+    rating: 5,
+    photos: [
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg', caption: 'Монолітний матовий графіт. Фасади оброблені спеціальним захисним нано-покриттям, яке повністю запобігає появі відбитків пальців та дрібних подряпин.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg', caption: 'Геометрія простору. Світлові лінії на стелі ідеально повторюють контур робочої зони кухні, підкреслюючи архітектурну точність проєкту.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-47.jpg', caption: 'Скляна вітрина преміум-класу. LED-стрічка прихованого монтажу інтегрована безпосередньо у вертикальний алюмінієвий профіль, створюючи магічне м\'яке світіння полиць.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-48.jpg', caption: 'Прихована зона сушіння посуду. Ми інтегрували італійську дворівневу сушку з нержавіючої сталі у верхню шафу з плавним підйомним механізмом Aventos від Blum.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-51.jpg', caption: 'Вбудований двокамерний холодильник. Спеціальні посилені петлі витримують вагу важкого меблевого фасаду, забезпечуючи ідеальні зазори.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-50.jpg', caption: 'Організація висувних систем Legrabox. Повний висув та плавний дотяг. Ящики витримують навантаження до 40 кг без просідання напрямних.' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-45.jpg', caption: 'Ергономіка мийної зони. Вбудована посудомийна машина Teka та духова шафа розташовані на зручній для спини висоті, перетворюючи приготування на задоволення.' }
+    ]
+  },
+  { 
+    id: 'saltovka', 
+    name: 'Салтівка (522 м/р)', 
+    coordinates: [36.3253, 50.0242],
+    project: 'Модульна вітальня та гардероб', 
+    radius: 'Безпечний радіус: 300м', 
+    type: 'city',
+    description: 'Оптимізація простору для великої родини. Створили приховані системи зберігання та інтегрували ТВ-зону в єдиний монолитиний ансамбль у стилі Soft-Minimalism.',
+    rating: 5,
+    photos: [
+      { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200', caption: 'ТВ-зона з прихованою проводкою та підвісними консолями. Ніякого візуального шуму.' }
+    ]
+  },
+  { 
+    id: 'bezludovka', 
+    name: 'Безлюдівка (Харківська область)', 
+    coordinates: [36.2735, 49.8711],
+    project: 'Заміська кухня-їдальня', 
+    radius: 'Безпечний радіус: 300м', 
+    type: 'region',
+    description: 'Проєкт масштабної кухні для великого заміського будинку у Харківській області. Тільки вологостійкі преміальні матеріали.',
+    rating: 5,
+    photos: [
+      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Простір та світло. Велика обідня зона, поєднана з процесом готування.' }
+    ]
+  }
+];
 
 let cachedWorldData: any = null;
 
@@ -472,53 +456,6 @@ const createCustomSupabaseClient = (url: string, key: string) => {
 
 const supabase = createCustomSupabaseClient(supabaseUrl, supabaseAnonKey) as any;
 
-const DEFAULT_MAP_LOCATIONS = [
-  { 
-    id: 'naukova', 
-    name: 'м. Наукова (Харків, Центр)', 
-    coordinates: [36.2263, 50.0152],
-    project: 'Флагманська матова графітова кухня з інтегрованою LED-вітриною', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'city',
-    description: 'Еталон інженерної думки та преміального мінімалізму. У цьому проєкті ми реалізували монолітний фасад без видимих ручок, інтегрували німецьку побутову техніку Teka та створили унікальну систему вертикального LED-освітлення скляної вітрини з торцевим підсвічуванням полиць.',
-    rating: 5,
-    photos: [
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg', caption: 'Монолітний матовий графіт. Фасади оброблені спеціальним захисним нано-покриттям, яке повністю запобігає появі відбитків пальців та дрібних подряпин.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg', caption: 'Геометрія простору. Світлові лінії на стелі ідеально повторюють контур робочої зони кухні, підкреслюючи архітектурну точність проєкту.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-47.jpg', caption: 'Скляна вітрина преміум-класу. LED-стрічка прихованого монтажу інтегрована безпосередньо у вертикальний алюмінієвий профіль, створюючи магічне м\'яке світіння полиць.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-48.jpg', caption: 'Прихована зона сушіння посуду. Ми інтегрували італійську дворівневу сушку з нержавіючої сталі у верхню шафу з плавним підйомним механізмом Aventos від Blum.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-51.jpg', caption: 'Вбудований двокамерний холодильник. Спеціальні посилені петлі витримують вагу важкого меблевого фасаду, забезпечуючи ідеальні зазори.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-50.jpg', caption: 'Організація висувних систем Legrabox. Повний висув та плавний дотяг. Ящики витримують навантаження до 40 кг без просідання напрямних.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-45.jpg', caption: 'Ергономіка мийної зони. Вбудована посудомийна машина Teka та духова шафа розташовані на зручній для спини висоті, перетворюючи приготування на задоволення.' }
-    ]
-  },
-  { 
-    id: 'saltovka', 
-    name: 'Салтівка (522 м/р)', 
-    coordinates: [36.3253, 50.0242],
-    project: 'Модульна вітальня та гардероб', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'city',
-    description: 'Оптимізація простору для великої родини. Створили приховані системи зберігання та інтегрували ТВ-зону в єдиний монолитиний ансамбль у стилі Soft-Minimalism.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200', caption: 'ТВ-зона з прихованою проводкою та підвісними консолями. Ніякого візуального шуму.' }
-    ]
-  },
-  { 
-    id: 'bezludovka', 
-    name: 'Безлюдівка (Харківська область)', 
-    coordinates: [36.2735, 49.8711],
-    project: 'Заміська кухня-їдальня', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'region',
-    description: 'Проєкт масштабної кухні для великого заміського будинку у Харківській області. Тільки вологостійкі преміальні матеріали.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Простір та світло. Велика обідня зона, поєднана з процесом готування.' }
-    ]
-  }
-];
 
 export default function GraziaFurnitureSystem() {
   const [isDark, setIsDark] = useState(false);
@@ -1067,8 +1004,10 @@ export default function GraziaFurnitureSystem() {
   if (!themeLoaded) return <div className="min-h-screen bg-[#F5F4F1] dark:bg-[#0a0a0a]" />;
 
   return (
-    <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-[var(--accent-main)] selection:text-white overflow-x-hidden transition-colors duration-500">
-      
+    <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-[var(--accent-main)] selection:text-white overflow-x-hidden transition-colors duration-500 relative">
+      {/* ПЛАВНИЙ СКРОЛ (Smooth Scroll) */}
+      <style dangerouslySetInnerHTML={{__html: `html { scroll-behavior: smooth; }`}} />
+
       {/* --- КІНЕМАТОГРАФІЧНА ГАЛЕРЕЯ (MODAL) --- */}
       {selectedProject && (
         <div className="fixed inset-0 z-[100] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
@@ -1303,6 +1242,40 @@ export default function GraziaFurnitureSystem() {
         </div>
       </FadeIn>
 
+      {/* --- БЕКСТЕЙДЖ / ПРОЦЕС СТВОРЕННЯ --- */}
+      <FadeIn delay={0.2} className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto">
+        <div className="flex flex-col lg:flex-row gap-16 items-center">
+          <div className="flex-1 lg:pr-12">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent-main)] block mb-4">Бекстейдж виробництва</span>
+            <h2 className="text-4xl md:text-5xl font-serif mb-8 text-[var(--text-main)] leading-tight">Безкомпромісна якість у кожній деталі</h2>
+            <p className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed mb-6 font-light">
+              Ми не приховуємо процес, адже пишаємося ним. Використовуємо лише оригінальні європейські матеріали: вологостійке австрійське ДСП Egger, італійські емалі преміум-класу та натуральний шпон рідкісних порід дерева.
+            </p>
+            <p className="text-[var(--text-muted)] text-base md:text-lg leading-relaxed mb-8 font-light">
+              Кожен елемент проходить багаторівневий контроль якості на високоточному обладнанні. Ніяких зазорів, ідеальна геометрія та довговічність, перевірена часом.
+            </p>
+            <div className="flex gap-8 border-t border-[var(--border-color)] pt-8">
+               <div>
+                 <div className="text-3xl font-serif text-[var(--text-main)] mb-1">100%</div>
+                 <div className="text-[10px] font-mono uppercase text-[var(--text-light)] tracking-widest">Контроль якості</div>
+               </div>
+               <div>
+                 <div className="text-3xl font-serif text-[var(--text-main)] mb-1">E1</div>
+                 <div className="text-[10px] font-mono uppercase text-[var(--text-light)] tracking-widest">Екологічність</div>
+               </div>
+            </div>
+          </div>
+          <div className="flex-1 w-full grid grid-cols-2 gap-4 relative">
+            <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl">
+              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" alt="Преміальні матеріали" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"/>
+            </div>
+            <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl translate-y-12">
+              <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" alt="Фурнітура та текстури" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"/>
+            </div>
+          </div>
+        </div>
+      </FadeIn>
+
       {/* Портфоліо Проєктів */}
       <FadeIn delay={0.2} className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[var(--border-color)]">
         <div className="flex justify-between items-end mb-12">
@@ -1332,6 +1305,67 @@ export default function GraziaFurnitureSystem() {
               </div>
             </div>
           ))}
+        </div>
+      </FadeIn>
+
+      {/* --- КАРУСЕЛЬ ВІДГУКІВ --- */}
+      <FadeIn delay={0.2} className="py-24 overflow-hidden border-t border-[var(--border-color)] bg-[var(--bg-main)]">
+        <div className="max-w-[1600px] mx-auto px-6 md:px-12 mb-16 text-center md:text-left flex flex-col md:flex-row justify-between items-end gap-6">
+          <div>
+            <span className="text-[10px] font-mono text-[var(--accent-main)] uppercase tracking-widest block mb-2">Що кажуть клієнти</span>
+            <h2 className="text-3xl md:text-5xl font-serif text-[var(--text-main)]">БЕЗДОГАННА РЕПУТАЦІЯ</h2>
+          </div>
+          <p className="text-[var(--text-muted)] text-sm max-w-sm md:text-right">
+            Понад 18 років ми створюємо інтер'єри, які перевершують очікування. Усі відгуки підкріплені реальними проєктами.
+          </p>
+        </div>
+        
+        <div className="relative w-full overflow-hidden flex">
+          {/* Градієнти по боках для м'якого зникнення */}
+          <div className="absolute left-0 top-0 bottom-0 w-16 md:w-48 bg-gradient-to-r from-[var(--bg-main)] to-transparent z-10 pointer-events-none"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-16 md:w-48 bg-gradient-to-l from-[var(--bg-main)] to-transparent z-10 pointer-events-none"></div>
+          
+          <motion.div
+            animate={{ x: ["0%", "-50%"] }}
+            transition={{ repeat: Infinity, ease: "linear", duration: 60 }} // ДУЖЕ повільний скрол
+            className="flex gap-6 px-6 w-max"
+          >
+             {/* Рендеримо три копії масиву для ідеальної безшовності */}
+             {[...REVIEWS_DATA, ...REVIEWS_DATA, ...REVIEWS_DATA].map((review, idx) => (
+               <div key={idx} className="w-[350px] md:w-[420px] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-8 flex flex-col justify-between shrink-0 shadow-sm hover:shadow-xl transition-shadow duration-500 cursor-default group">
+                 {/* Верхня частина: Прев'ю проєкту */}
+                 <div className="flex gap-4 items-center mb-6 pb-6 border-b border-[var(--border-color)]">
+                   <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0">
+                     <img src={review.projectThumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Preview"/>
+                   </div>
+                   <div>
+                     <span className="text-[9px] uppercase tracking-widest text-[var(--text-light)] font-mono block mb-1">Реалізований проєкт</span>
+                     <h4 className="text-sm font-serif text-[var(--text-main)] line-clamp-2 leading-snug">{review.projectName}</h4>
+                   </div>
+                 </div>
+                 
+                 {/* Нижня частина: Сам відгук */}
+                 <div className="relative">
+                   <Quote className="absolute -top-2 -left-2 text-[var(--border-color)] opacity-50" size={32} />
+                   <div className="flex text-[var(--accent-main)] mb-4 relative z-10 pl-6">
+                     {[1,2,3,4,5].map(i => <Star key={i} size={14} fill="currentColor" />)}
+                   </div>
+                   <p className="text-[var(--text-main)] text-sm md:text-base leading-relaxed mb-8 font-light italic relative z-10 pl-6">
+                     "{review.text}"
+                   </p>
+                   <div className="flex items-center gap-3 pl-6">
+                     <div className="w-10 h-10 rounded-full bg-[var(--border-color)] flex items-center justify-center text-[var(--text-main)] font-serif font-bold text-sm shadow-inner">
+                       {review.author.charAt(0)}
+                     </div>
+                     <div>
+                       <span className="text-xs font-semibold text-[var(--text-main)] uppercase tracking-widest block">{review.author}</span>
+                       <span className="text-[10px] text-[var(--text-light)] flex items-center gap-1 mt-0.5"><CheckCircle2 size={10} className="text-green-500" /> Перевірений клієнт</span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             ))}
+          </motion.div>
         </div>
       </FadeIn>
 
@@ -1812,43 +1846,19 @@ export default function GraziaFurnitureSystem() {
         </div>
       </FadeIn>
 
-      {/* --- БЛОК ПАРТНЕРІВ (МАРКІЗА) --- */}
-      <FadeIn delay={0.2} className="w-full overflow-hidden bg-[var(--bg-card)] border-y border-[var(--border-color)] py-12 mt-24">
-        <div className="max-w-[1600px] mx-auto px-6 mb-6 text-center">
-           <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)]">Працюємо з найкращими європейськими брендами</span>
-        </div>
-        <div className="flex w-[200%]">
-          <motion.div 
-            animate={{ x: ["0%", "-50%"] }} 
-            transition={{ repeat: Infinity, ease: "linear", duration: 100 }}
-            className="flex items-center gap-32 whitespace-nowrap pl-16"
-          >
-            {/* Набір 1 */}
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">BLUM</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">EGGER</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">VIYAR</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">HETTICH</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">MATROLUXE</span>
-            
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">BLUM</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">EGGER</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">VIYAR</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">HETTICH</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60 hover:opacity-100 transition-opacity">MATROLUXE</span>
-            
-            {/* Набір 2 (для безшовного циклу) */}
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">BLUM</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">EGGER</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">VIYAR</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">HETTICH</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">MATROLUXE</span>
-            
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">BLUM</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">EGGER</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">VIYAR</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">HETTICH</span>
-            <span className="text-3xl font-serif text-[var(--text-muted)] opacity-60">MATROLUXE</span>
-          </motion.div>
+      {/* --- СТАТИЧНИЙ БЛОК ПАРТНЕРІВ --- */}
+      <FadeIn delay={0.2} className="w-full bg-[var(--bg-card)] border-y border-[var(--border-color)] py-16 mt-24">
+        <div className="max-w-[1600px] mx-auto px-6">
+          <div className="text-center mb-10">
+             <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)]">Працюємо з найкращими європейськими брендами</span>
+          </div>
+          <div className="flex flex-wrap justify-center gap-10 md:gap-24 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+             {['BLUM', 'EGGER', 'VIYAR', 'HETTICH', 'MATROLUXE'].map(brand => (
+               <div key={brand} className="text-2xl md:text-3xl font-serif text-[var(--text-main)] hover:text-[var(--accent-main)] transition-colors cursor-default">
+                 {brand}
+               </div>
+             ))}
+          </div>
         </div>
       </FadeIn>
 
