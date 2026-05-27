@@ -711,11 +711,20 @@ export default function GraziaFurnitureSystem() {
         const d3 = (window as any).d3;
         const topojson = (window as any).topojson;
 
-        const width = canvas.width;
-        const height = canvas.height;
+        const rect = canvas.getBoundingClientRect();
+        const clientWidth = rect.width || canvas.parentElement?.clientWidth || 800;
+        const clientHeight = rect.height || canvas.parentElement?.clientHeight || 600;
+        const dpr = window.devicePixelRatio || 2;
+        
+        const width = clientWidth * dpr;
+        const height = clientHeight * dpr;
+        
+        canvas.width = width;
+        canvas.height = height;
+
         const cx = width / 2;
         const cy = height / 2;
-        const baseRadius = width * 0.42;
+        const baseRadius = Math.min(width, height) * 0.35;
 
         const projection = d3.geoOrthographic()
           .translate([cx, cy])
@@ -827,7 +836,7 @@ export default function GraziaFurnitureSystem() {
             rotation[0] = startRotation[0] + (targetRotation[0] - startRotation[0]) * ease;
             rotation[1] = startRotation[1] + (targetRotation[1] - startRotation[1]) * ease;
 
-            projection.scale(baseRadius + (baseRadius * 2.5) * ease);
+            projection.scale(baseRadius + (baseRadius * 3.5) * ease);
 
             if (zoomProgress > 0.45 && !hasTriggeredMap) {
               hasTriggeredMap = true;
@@ -882,8 +891,8 @@ export default function GraziaFurnitureSystem() {
             ctx.fill();
 
             ctx.shadowColor = 'white';
-            ctx.shadowBlur = 10 * pulseAlpha;
-            ctx.lineWidth = 1.5;
+            ctx.shadowBlur = 10 * pulseAlpha * dpr;
+            ctx.lineWidth = 1.5 * dpr;
             ctx.strokeStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
             ctx.stroke();
             
@@ -903,15 +912,15 @@ export default function GraziaFurnitureSystem() {
             const dist = d3.geoDistance(center, [kharkivMarker.lon, kharkivMarker.lat]);
             if (dist < Math.PI / 2) {
               const [x, y] = projection([kharkivMarker.lon, kharkivMarker.lat]);
-              const pulse = 4 + Math.sin(Date.now() * 0.005) * 3;
+              const pulse = (4 + Math.sin(Date.now() * 0.005) * 3) * dpr;
               
               ctx.beginPath();
-              ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
+              ctx.arc(x, y, pulse + (7 * dpr), 0, 2 * Math.PI);
               ctx.fillStyle = pulseOuter; 
               ctx.fill();
 
               ctx.beginPath();
-              ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
+              ctx.arc(x, y, 3.5 * dpr, 0, 2 * Math.PI);
               ctx.fillStyle = pulseInner;
               ctx.fill();
             }
@@ -1359,18 +1368,16 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
         <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[var(--bg-card)] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[var(--border-color)]">
           {mapLevel === 'globe' ? (
-            <div className={`w-full h-full flex flex-col items-center justify-center p-6 relative transition-all duration-[1500ms] ${isTransitioning ? 'scale-[3] opacity-0 blur-xl' : 'scale-100 opacity-100'}`}>
+            <div className={`absolute inset-0 w-full h-full transition-all duration-[1500ms] ${isTransitioning ? 'scale-[3] opacity-0 blur-xl' : 'scale-100 opacity-100'}`}>
               <canvas 
                 ref={canvasRef} 
-                width={550} 
-                height={550} 
-                className="w-full max-w-[500px] aspect-square cursor-grab active:cursor-grabbing hover:scale-105 transition-transform duration-500" 
+                className="w-full h-full object-cover cursor-grab active:cursor-grabbing hover:scale-105 transition-transform duration-500" 
                 title="Покрутіть глобус або клікніть, щоб відкрити карту об'єктів"
               />
-              <div className="absolute top-6 left-6 bg-[var(--modal-bg)] backdrop-blur-sm px-4 py-2 rounded-full border border-[var(--border-color)] text-[10px] font-mono uppercase tracking-widest text-[var(--text-main)] shadow-sm">
+              <div className="absolute top-6 left-6 bg-[var(--modal-bg)] backdrop-blur-sm px-4 py-2 rounded-full border border-[var(--border-color)] text-[10px] font-mono uppercase tracking-widest text-[var(--text-main)] shadow-sm pointer-events-none">
                 Локалізація: Україна
               </div>
-              <div className="absolute bottom-6 bg-[var(--modal-bg)] backdrop-blur-md border border-[var(--border-color)] px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] animate-pulse opacity-80 group-hover:opacity-100 transition-opacity">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[var(--modal-bg)] backdrop-blur-md border border-[var(--border-color)] px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] animate-pulse opacity-80 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                 <MousePointer2 size={12} /> Натисніть на глобус, щоб відкрити карту
               </div>
             </div>
