@@ -1669,64 +1669,95 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 Детальна Карта Робіт
               </div>
               
-              {/* ОНОВЛЕНА КАРТКА З ПАГІНАЦІЄЮ ВСЕРЕДИНІ ГРУПИ */}
-              <div 
-                className="absolute bottom-6 left-6 right-6 bg-[var(--modal-bg)] backdrop-blur-md p-5 border border-[var(--border-color)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-[var(--bg-card)] transition-all duration-300 z-30" 
-                onClick={() => setSelectedProject(currentActiveProject)}
-              >
-                <div className="flex-1">
-                  <div className="flex items-center flex-wrap gap-2 mb-2">
-                    <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-[var(--bg-main)] inline-block ${currentActiveProject.type === 'city' ? 'bg-[var(--text-main)]' : 'bg-[var(--accent-main)]'}`}>
-                      {currentActiveProject.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
-                    </span>
-                    
-                    {/* Керування внутрішнім пагінатором для згрупованих проєктів */}
-                    {activeGroupProjects.length > 1 && (
-                      <div 
-                        className="flex items-center gap-2 bg-[var(--btn-bg)]/90 backdrop-blur-sm px-2.5 py-1 rounded-full border border-[var(--border-color)] text-[var(--btn-text)] select-none text-[10px] shadow-sm font-semibold" 
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveProjectIndex((prev) => (prev === 0 ? activeGroupProjects.length - 1 : prev - 1));
-                          }}
-                          className="hover:text-[var(--accent-main)] transition-colors p-0.5"
-                          title="Попередній"
-                        >
-                          <ChevronLeft size={12} />
-                        </button>
-                        <span className="font-mono tracking-tight text-xs font-extrabold text-[var(--accent-main)]">
-                          {activeProjectIndex + 1} з {activeGroupProjects.length}
-                        </span>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveProjectIndex((prev) => (prev + 1) % activeGroupProjects.length);
-                          }}
-                          className="hover:text-[var(--accent-main)] transition-colors p-0.5"
-                          title="Наступний"
-                        >
-                          <ChevronRight size={12} />
-                        </button>
+              {/* ОНОВЛЕНА КАРТКА З ПРЕДПЕРЕГЛЯДОМ ТА ЗОВНІШНІМИ СТРІЛКАМИ ЗЛІВА/СПРАВА */}
+              <div className="absolute bottom-6 left-6 right-6 z-30 pointer-events-none">
+                <div className="max-w-2xl mx-auto relative flex items-center">
+                  
+                  {/* Кнопка "Назад" - ліворуч поза межами */}
+                  {activeGroupProjects.length > 1 && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveProjectIndex((prev) => (prev === 0 ? activeGroupProjects.length - 1 : prev - 1));
+                      }}
+                      className="absolute -left-3 sm:-left-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--modal-bg)] border border-[var(--border-color)] shadow-xl flex items-center justify-center text-[var(--text-main)] hover:scale-110 active:scale-95 transition-all z-40 pointer-events-auto cursor-pointer"
+                      title="Попередній проєкт"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                  )}
+
+                  {/* Основне тіло картки */}
+                  <div 
+                    onClick={() => setSelectedProject(currentActiveProject)}
+                    className="w-full bg-[var(--modal-bg)] backdrop-blur-md p-4 sm:p-5 border border-[var(--border-color)] flex items-center gap-4 sm:gap-5 shadow-2xl rounded-xl transition-all duration-300 hover:bg-[var(--bg-card)] cursor-pointer pointer-events-auto"
+                  >
+                    {/* Квадратний превью-бокс для фотознімка */}
+                    {currentActiveProject.photos && currentActiveProject.photos[0] ? (
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden shrink-0 border border-[var(--border-color)] bg-[var(--bg-main)] relative shadow-sm">
+                        <img 
+                          src={currentActiveProject.photos[0].url} 
+                          alt={currentActiveProject.project} 
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/5"></div>
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden shrink-0 border border-[var(--border-color)] bg-[var(--bg-main)] flex items-center justify-center text-[var(--text-light)]">
+                        <Armchair size={24} />
                       </div>
                     )}
+
+                    {/* Текстовий блок */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap gap-2 mb-1.5">
+                        <span className={`text-[9px] uppercase tracking-widest font-extrabold px-2 py-0.5 text-[var(--bg-main)] inline-block rounded-sm ${currentActiveProject.type === 'city' ? 'bg-[var(--text-main)]' : 'bg-[var(--accent-main)]'}`}>
+                          {currentActiveProject.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
+                        </span>
+                        
+                        <span className="text-[10px] uppercase tracking-widest text-[var(--text-light)] font-bold font-mono flex items-center gap-1 bg-[var(--btn-bg)] px-2 py-0.5 rounded-sm shadow-inner">
+                          <Star size={10} className="text-[var(--accent-main)]" fill="currentColor"/> 
+                          {currentActiveProject.rating || 5.0}
+                        </span>
+
+                        {activeGroupProjects.length > 1 && (
+                          <span className="text-[9px] uppercase tracking-widest font-mono font-extrabold bg-[var(--accent-main)]/10 text-[var(--accent-main)] px-2 py-0.5 rounded-sm">
+                            Проєкт {activeProjectIndex + 1} з {activeGroupProjects.length}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <h3 className="text-base sm:text-lg font-serif font-medium text-[var(--text-main)] truncate pr-2">
+                        {currentActiveProject.project || currentActiveProject.name}
+                      </h3>
+                      
+                      <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1 mt-0.5 font-mono truncate">
+                        <MapPin size={11} className="text-[var(--accent-main)]" /> {currentActiveProject.name}
+                      </p>
+                    </div>
+
+                    {/* Посилання на відкриття галереї */}
+                    <div className="hidden sm:flex flex-col items-end shrink-0 pl-2">
+                      <button className="text-xs font-bold text-[var(--accent-main)] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-wider">
+                        Галерея <ArrowRight size={14} />
+                      </button>
+                    </div>
                   </div>
-                  
-                  <h3 className="text-lg font-serif font-medium text-[var(--text-main)]">{currentActiveProject.project || currentActiveProject.name}</h3>
-                  <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5 mt-1 font-mono">
-                    <MapPin size={12} /> Зона робіт: {currentActiveProject.name} (Клікніть на пін для польоту)
-                  </p>
-                </div>
-                
-                <div className="md:text-right border-t md:border-t-0 border-[var(--border-color)] pt-3 md:pt-0 w-full md:w-auto flex flex-col items-start md:items-end justify-center">
-                  <div className="text-[10px] uppercase tracking-widest text-[var(--text-light)] font-semibold mb-2 font-mono flex items-center md:justify-end gap-1">
-                    Рейтинг <Star size={10} className="text-[var(--accent-main)]" fill="currentColor"/> 
-                    <span className="text-[var(--text-main)] font-bold ml-1">{currentActiveProject.rating || 5.0}</span>
-                  </div>
-                  <button className="text-xs font-semibold text-[var(--accent-main)] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-wider">
-                    Відкрити галерею <ArrowRight size={14} />
-                  </button>
+
+                  {/* Кнопка "Вперед" - праворуч поза межами */}
+                  {activeGroupProjects.length > 1 && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveProjectIndex((prev) => (prev + 1) % activeGroupProjects.length);
+                      }}
+                      className="absolute -right-3 sm:-right-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--modal-bg)] border border-[var(--border-color)] shadow-xl flex items-center justify-center text-[var(--text-main)] hover:scale-110 active:scale-95 transition-all z-40 pointer-events-auto cursor-pointer"
+                      title="Наступний проєкт"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  )}
+
                 </div>
               </div>
               
