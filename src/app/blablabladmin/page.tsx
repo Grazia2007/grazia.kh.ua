@@ -13,7 +13,8 @@ import {
   Trash2,
   Edit3,
   ArrowLeft,
-  List
+  List,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
