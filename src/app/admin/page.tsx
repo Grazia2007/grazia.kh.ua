@@ -27,8 +27,8 @@ export default function AdminPanel() {
   
   // Стани форми
   const [title, setTitle] = useState('');
-  const [locationName, setLocationName] = useState(''); // Публічна назва (напр. "м. Наукова")
-  const [realAddress, setRealAddress] = useState(''); // Приватна адреса для геокодування
+  const [locationName, setLocationName] = useState(''); // Публічна назва
+  const [realAddress, setRealAddress] = useState(''); // Приватна адреса
   const [description, setDescription] = useState('');
   const [rating, setRating] = useState('5.0');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -48,6 +48,16 @@ export default function AdminPanel() {
     }
   };
 
+  // --- АВТОМАТИЧНЕ ГЕНЕРУВАННЯ ПУБЛІЧНОЇ АДРЕСИ ---
+  const handleRealAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setRealAddress(val);
+    
+    // Відрізаємо номер будинку в кінці (з літерами чи без, напр. "136", "136А", ", 45-Б")
+    const publicVal = val.replace(/(,\s*)?\d+[а-яА-Яa-zA-Z-]*\s*$/, '').trim();
+    setLocationName(publicVal);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
@@ -60,7 +70,6 @@ export default function AdminPanel() {
 
   // --- МАГІЯ ЗМІЩЕННЯ КООРДИНАТ (FUZZING) ---
   const geocodeAndFuzz = async (address: string) => {
-    // 1. Отримуємо реальні координати
     const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}`);
     const data = await res.json();
     
@@ -70,9 +79,7 @@ export default function AdminPanel() {
 
     const [realLon, realLat] = data.features[0].center;
 
-    // 2. Алгоритм Fuzzing'у (зміщення на 100-300 метрів)
-    // 1 градус широти/довготи в Україні ≈ 111 км (в середньому для розрахунку зміщення)
-    // 100 метрів ≈ 0.0009 градуса, 300 метрів ≈ 0.0027 градуса
+    // Зміщення на 100-300 метрів
     const getOffset = () => {
       const minOffset = 0.0009;
       const maxOffset = 0.0027;
@@ -84,7 +91,6 @@ export default function AdminPanel() {
     const fuzzedLon = realLon + getOffset();
     const fuzzedLat = realLat + getOffset();
 
-    // Формат (lon, lat) як очікує головна сторінка
     return `(${fuzzedLon}, ${fuzzedLat})`; 
   };
 
@@ -112,7 +118,6 @@ export default function AdminPanel() {
         throw new Error(`Помилка завантаження файлу ${file.name}: ${err.message || 'Невідома помилка'}`);
       }
 
-      // Зберігаємо публічне посилання
       const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
       uploadedUrls.push({ url: publicUrl, caption: '' });
     }
@@ -131,21 +136,17 @@ export default function AdminPanel() {
     setStatusMessage({ type: 'info', text: 'Геокодування та генерація безпечних координат...' });
 
     try {
-      // 1. Отримуємо безпечні координати
       const safeCoordinates = await geocodeAndFuzz(realAddress);
 
       setStatusMessage({ type: 'info', text: `Завантаження ${selectedFiles.length} фотографій...` });
-      
-      // 2. Завантажуємо файли та отримуємо масив URL
       const mediaArray = await uploadPhotos();
 
       setStatusMessage({ type: 'info', text: 'Збереження проєкту в базу даних...' });
 
-      // 3. Зберігаємо проєкт у базу (REST API Supabase)
       const projectData = {
         title: title,
         location_name: locationName,
-        coordinates: safeCoordinates, // ЗБЕРІГАЄМО ЛИШЕ ЗМІЩЕНІ
+        coordinates: safeCoordinates,
         description: description,
         rating: parseFloat(rating),
         radius_meters: 300,
@@ -163,11 +164,10 @@ export default function AdminPanel() {
         body: JSON.stringify(projectData)
       });
 
-      if (!dbRes.ok) throw new Error("Помилка при збереженні проєкту в БД.");
+      if (!dbRes.ok) throw new Error("Помилка при збереженні проєкту в БД (Перевірте RLS політики таблиці).");
 
       setStatusMessage({ type: 'success', text: 'Проєкт успішно опубліковано!' });
       
-      // Очищення форми
       setTitle('');
       setLocationName('');
       setRealAddress('');
@@ -183,7 +183,6 @@ export default function AdminPanel() {
     }
   };
 
-  // ЕКРАН АВТОРИЗАЦІЇ
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 font-sans">
@@ -226,7 +225,6 @@ export default function AdminPanel() {
     );
   }
 
-  // ЕКРАН АДМІН-ПАНЕЛІ
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans p-6 md:p-12 pb-24">
       <div className="max-w-4xl mx-auto">
@@ -262,7 +260,6 @@ export default function AdminPanel() {
 
         <form onSubmit={handleSubmit} className="space-y-8 bg-[#111] p-8 rounded-2xl border border-white/5 shadow-xl">
           
-          {/* БЛОК 1: ТЕКСТИ */}
           <div className="space-y-6">
             <h2 className="text-xs font-mono uppercase tracking-widest text-white/50 border-b border-white/10 pb-2">1. Загальна інформація</h2>
             
@@ -304,25 +301,14 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          {/* БЛОК 2: ГЕОЛОКАЦІЯ */}
           <div className="space-y-6 pt-6 border-t border-white/10">
             <h2 className="text-xs font-mono uppercase tracking-widest text-[#D4B895] flex items-center gap-2 pb-2">
               <MapPin size={14} /> 2. Захищена локація (Fuzzing)
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="relative">
-                <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Публічна зона (Видима всім) *</label>
-                <input 
-                  type="text" 
-                  required
-                  value={locationName}
-                  onChange={e => setLocationName(e.target.value)}
-                  placeholder="Напр. Салтівка (522 м/р)" 
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors"
-                />
-              </div>
-
+              
+              {/* РЕАЛЬНА АДРЕСА ЗЛІВА */}
               <div className="relative">
                 <label className="block text-xs uppercase tracking-widest text-red-400 mb-2 flex items-center gap-1">
                   Реальна адреса (НЕ ЗБЕРІГАЄТЬСЯ) *
@@ -331,18 +317,34 @@ export default function AdminPanel() {
                   type="text" 
                   required
                   value={realAddress}
-                  onChange={e => setRealAddress(e.target.value)}
-                  placeholder="Напр. м. Харків, вул. Культури 22" 
+                  onChange={handleRealAddressChange}
+                  placeholder="Напр. м. Харків, вул. Чайковського 136" 
                   className="w-full bg-red-500/5 border border-red-500/30 rounded-lg px-4 py-3 text-sm focus:border-red-500 outline-none transition-colors"
                 />
                 <p className="text-[10px] text-white/40 mt-2 font-mono leading-relaxed">
-                  Система знайде ці координати і випадково змістить їх на 100-300 метрів. Справжня адреса ніде не фіксується в базі заради безпеки замовника.
+                  Система знайде ці координати і випадково змістить їх на 100-300 метрів.
                 </p>
               </div>
+
+              {/* ПУБЛІЧНА АДРЕСА СПРАВА */}
+              <div className="relative">
+                <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Публічна зона (Видима всім) *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={locationName}
+                  onChange={e => setLocationName(e.target.value)}
+                  placeholder="Напр. м. Харків, вул. Чайковського" 
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors"
+                />
+                <p className="text-[10px] text-white/40 mt-2 font-mono leading-relaxed">
+                  Це поле генерується автоматично (без номеру будинку), але ви можете відредагувати його вручну.
+                </p>
+              </div>
+
             </div>
           </div>
 
-          {/* БЛОК 3: МЕДІА */}
           <div className="space-y-6 pt-6 border-t border-white/10">
             <h2 className="text-xs font-mono uppercase tracking-widest text-white/50 border-b border-white/10 pb-2">3. Фотографії (Галерея)</h2>
             
