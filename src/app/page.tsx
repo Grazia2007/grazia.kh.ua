@@ -400,6 +400,7 @@ const FurnitureThreeCanvas = ({ config, isDark }: { config: any, isDark: boolean
       const cabinetGeo = new THREE.BoxGeometry(0.4, 1.2, 0.3);
       const cabinet = new THREE.Mesh(cabinetGeo, upperMats);
       cabinet.position.set(1.5, 1.5, -0.1);
+      cabinet.castShadow = true;
       furnitureGroup.add(cabinet);
     } else {
       const baseMats = createMatsArray(carcassMat, baseMat, [4]);
@@ -1484,7 +1485,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                     <PlayCircle size={16} /> Відеоогляд об'єкта
                   </a>
                   <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors duration-300 rounded-sm">
-                    <InstagramIconSVG size={16} color="currentColor" /> Перейти в Instagram
+                    <InstagramIconSVG size={16} color="currentColor" /> Перейти in Instagram
                   </a>
                 </div>
               </div>
