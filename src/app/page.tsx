@@ -28,6 +28,8 @@ import {
   Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, ContactShadows, Center, Float, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 
 // --- КАСТОМНІ ІКОНКИ ДЛЯ СОЦМЕРЕЖ ---
@@ -83,563 +85,271 @@ const WOOD_TEXTURES = [
   { name: 'Шпон: Чорне дерево', bg: 'linear-gradient(135deg, #211C18, #110e0c)' },
 ];
 
-// --- ВАНІЛЬНИЙ СТАБІЛЬНИЙ 3D КОМПОНЕНТ ДЛЯ МЕБЛІВ ---
-const FurnitureThreeCanvas = ({ config, isDark }: { config: any, isDark: boolean }) => {
-  const mountRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!mountRef.current) return;
-
-    // Створення сцени, камери та рендерера
-    const scene = new THREE.Scene();
-    scene.background = null;
-
-    const width = mountRef.current.clientWidth || 500;
-    const height = mountRef.current.clientHeight || 400;
-
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(4, 3, 5);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    mountRef.current.appendChild(renderer.domElement);
-
-    // Додавання освітлення
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight.position.set(5, 8, 5);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 1024;
-    dirLight.shadow.mapSize.height = 1024;
-    scene.add(dirLight);
-
-    const dirLight2 = new THREE.DirectionalLight(0xe6f2ff, 0.5);
-    dirLight2.position.set(-5, 3, -5);
-    scene.add(dirLight2);
-
-    const furnitureGroup = new THREE.Group();
-    scene.add(furnitureGroup);
-
-    // Отримання параметрів матеріалів
-    const getVanillaMaterial = (colorStr: string) => {
-      const isWood = colorStr.includes('Шпон');
-      const isStone = colorStr.includes('Мармур') || colorStr.includes('Камінь');
-      
-      let hex = '#dddddd';
-      if (colorStr.startsWith('#')) {
-        hex = colorStr;
-      } else {
-        if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
-        if (colorStr.includes('Горіх')) hex = '#5E4028';
-        if (colorStr.includes('Чорне дерево')) hex = '#211C18';
-        if (colorStr.includes('Білий Камінь')) hex = '#F9F9F9';
-        if (colorStr.includes('Чорний Мармур')) hex = '#1A1A1A';
-        if (colorStr.includes('ДСП') && colorStr.includes('Світле')) hex = '#E5D3B3';
-        if (colorStr.includes('HPL') && colorStr.includes('Бетон')) hex = '#8c8c8c';
-      }
-
-      return new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(hex),
-        roughness: isWood ? 0.85 : isStone ? 0.2 : 0.15,
-        metalness: isStone ? 0.1 : 0.05,
-        clearcoat: isWood ? 0 : isStone ? 0.5 : 0.2,
-        clearcoatRoughness: 0.15,
-      });
-    };
-
-    const { type, layout, leftModule, rightModule, upperTier, colors } = config;
-
-    const carcassMat = getVanillaMaterial(colors.carcass);
-    const baseMat = getVanillaMaterial(colors.base);
-    const upperMat = getVanillaMaterial(colors.upper || colors.base);
-    const topTierMat = getVanillaMaterial(colors.topTier || colors.upper || colors.base);
-    const countertopMat = getVanillaMaterial(colors.countertop);
-    const glassMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 });
-    const fridgeMat = new THREE.MeshStandardMaterial({ color: 0xe5e5e5, roughness: 0.3, metalness: 0.8 });
-
-    const createMatsArray = (cM: THREE.Material, fM: THREE.Material, facadeIdxs: number[]) => {
-      const arr = [cM, cM, cM, cM, cM, cM];
-      facadeIdxs.forEach(idx => { arr[idx] = fM; });
-      return arr;
-    };
-
-    const hasAntresol = upperTier === 'Двоярусні (з антресолями)';
-    const scaleFactor = 0.8;
-    furnitureGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
-    furnitureGroup.position.set(0, -0.6, 0);
-
-    if (type === 'Кухня' || type === '') {
-      const baseMatsMain = createMatsArray(carcassMat, baseMat, [4]);
-      const upperMatsMain = createMatsArray(carcassMat, upperMat, [4]);
-      const topTierMatsMain = createMatsArray(carcassMat, topTierMat, [4]);
-
-      // Головна тумба
-      const baseGeo = new THREE.BoxGeometry(3, 0.9, 0.6);
-      const baseMesh = new THREE.Mesh(baseGeo, baseMatsMain);
-      baseMesh.position.set(0, 0.45, 0);
-      baseMesh.castShadow = true;
-      baseMesh.receiveShadow = true;
-      furnitureGroup.add(baseMesh);
-
-      // Стільниця
-      const ctGeo = new THREE.BoxGeometry(3.05, 0.04, 0.65);
-      const ctMesh = new THREE.Mesh(ctGeo, countertopMat);
-      ctMesh.position.set(0, 0.92, 0);
-      ctMesh.castShadow = true;
-      ctMesh.receiveShadow = true;
-      furnitureGroup.add(ctMesh);
-
-      // Верхній ярус
-      if (hasAntresol) {
-        const upGeo1 = new THREE.BoxGeometry(3, 0.6, 0.35);
-        const upMesh1 = new THREE.Mesh(upGeo1, upperMatsMain);
-        upMesh1.position.set(0, 1.8, -0.125);
-        upMesh1.castShadow = true;
-        furnitureGroup.add(upMesh1);
-
-        const upGeo2 = new THREE.BoxGeometry(3, 0.6, 0.6);
-        const upMesh2 = new THREE.Mesh(upGeo2, topTierMatsMain);
-        upMesh2.position.set(0, 2.4, 0);
-        upMesh2.castShadow = true;
-        furnitureGroup.add(upMesh2);
-      } else {
-        const upGeo = new THREE.BoxGeometry(3, 0.8, 0.35);
-        const upMesh = new THREE.Mesh(upGeo, upperMatsMain);
-        upMesh.position.set(0, 1.9, -0.125);
-        upMesh.castShadow = true;
-        furnitureGroup.add(upMesh);
-      }
-
-      // Кутові планування
-      const isLeftCorner = layout === 'Кутова (Ліворуч)' || layout === 'П-подібна';
-      const isRightCorner = layout === 'Кутова (Праворуч)' || layout === 'П-подібна';
-
-      if (isLeftCorner) {
-        const baseMatsLeft = createMatsArray(carcassMat, baseMat, [0, 4]);
-        const cornerBaseGeo = new THREE.BoxGeometry(0.6, 0.9, 1.2);
-        const cornerBaseMesh = new THREE.Mesh(cornerBaseGeo, baseMatsLeft);
-        cornerBaseMesh.position.set(-1.2, 0.45, 0.9);
-        cornerBaseMesh.castShadow = true;
-        furnitureGroup.add(cornerBaseMesh);
-
-        const cornerCtGeo = new THREE.BoxGeometry(0.65, 0.04, 1.25);
-        const cornerCtMesh = new THREE.Mesh(cornerCtGeo, countertopMat);
-        cornerCtMesh.position.set(-1.2, 0.92, 0.9);
-        cornerCtMesh.castShadow = true;
-        furnitureGroup.add(cornerCtMesh);
-
-        if (hasAntresol) {
-          const cornerUpMatsLeft = createMatsArray(carcassMat, upperMat, [0, 4]);
-          const cornerUpGeo1 = new THREE.BoxGeometry(0.35, 0.6, 1.45);
-          const cornerUpMesh1 = new THREE.Mesh(cornerUpGeo1, cornerUpMatsLeft);
-          cornerUpMesh1.position.set(-1.325, 1.8, 0.775);
-          cornerUpMesh1.castShadow = true;
-          furnitureGroup.add(cornerUpMesh1);
-
-          const cornerTopMatsLeft = createMatsArray(carcassMat, topTierMat, [0, 4]);
-          const cornerUpGeo2 = new THREE.BoxGeometry(0.6, 0.6, 1.2);
-          const cornerUpMesh2 = new THREE.Mesh(cornerUpGeo2, cornerTopMatsLeft);
-          cornerUpMesh2.position.set(-1.2, 2.4, 0.9);
-          cornerUpMesh2.castShadow = true;
-          furnitureGroup.add(cornerUpMesh2);
-        } else {
-          const cornerUpMatsLeft = createMatsArray(carcassMat, upperMat, [0, 4]);
-          const cornerUpGeo = new THREE.BoxGeometry(0.35, 0.8, 1.45);
-          const cornerUpMesh = new THREE.Mesh(cornerUpGeo, cornerUpMatsLeft);
-          cornerUpMesh.position.set(-1.325, 1.9, 0.775);
-          cornerUpMesh.castShadow = true;
-          furnitureGroup.add(cornerUpMesh);
-        }
-      }
-
-      if (isRightCorner) {
-        const baseMatsRight = createMatsArray(carcassMat, baseMat, [1, 4]);
-        const cornerBaseGeo = new THREE.BoxGeometry(0.6, 0.9, 1.2);
-        const cornerBaseMesh = new THREE.Mesh(cornerBaseGeo, baseMatsRight);
-        cornerBaseMesh.position.set(1.2, 0.45, 0.9);
-        cornerBaseMesh.castShadow = true;
-        furnitureGroup.add(cornerBaseMesh);
-
-        const cornerCtGeo = new THREE.BoxGeometry(0.65, 0.04, 1.25);
-        const cornerCtMesh = new THREE.Mesh(cornerCtGeo, countertopMat);
-        cornerCtMesh.position.set(1.2, 0.92, 0.9);
-        cornerCtMesh.castShadow = true;
-        furnitureGroup.add(cornerCtMesh);
-
-        if (hasAntresol) {
-          const cornerUpMatsRight = createMatsArray(carcassMat, upperMat, [1, 4]);
-          const cornerUpGeo1 = new THREE.BoxGeometry(0.35, 0.6, 1.45);
-          const cornerUpMesh1 = new THREE.Mesh(cornerUpGeo1, cornerUpMatsRight);
-          cornerUpMesh1.position.set(1.325, 1.8, 0.775);
-          cornerUpMesh1.castShadow = true;
-          furnitureGroup.add(cornerUpMesh1);
-
-          const cornerTopMatsRight = createMatsArray(carcassMat, topTierMat, [1, 4]);
-          const cornerUpGeo2 = new THREE.BoxGeometry(0.6, 0.6, 1.2);
-          const cornerUpMesh2 = new THREE.Mesh(cornerUpGeo2, cornerTopMatsRight);
-          cornerUpMesh2.position.set(1.2, 2.4, 0.9);
-          cornerUpMesh2.castShadow = true;
-          furnitureGroup.add(cornerUpMesh2);
-        } else {
-          const cornerUpMatsRight = createMatsArray(carcassMat, upperMat, [1, 4]);
-          const cornerUpGeo = new THREE.BoxGeometry(0.35, 0.8, 1.45);
-          const cornerUpMesh = new THREE.Mesh(cornerUpGeo, cornerUpMatsRight);
-          cornerUpMesh.position.set(1.325, 1.9, 0.775);
-          cornerUpMesh.castShadow = true;
-          furnitureGroup.add(cornerUpMesh);
-        }
-      }
-
-      // Пенали
-      const tallModHeight = hasAntresol ? 2.7 : 2.3;
-      const tallModY = tallModHeight / 2;
-
-      const addTallModule = (xPos: number, zPos: number, rotY: number, modType: string) => {
-        if (modType === 'none') return;
-        const group = new THREE.Group();
-        group.position.set(xPos, tallModY, zPos);
-        group.rotation.y = rotY;
-
-        const mainMats = modType === 'fridge_open' ? createMatsArray(carcassMat, carcassMat, []) : baseMatsMain;
-        const boxGeo = new THREE.BoxGeometry(0.6, tallModHeight, 0.6);
-        const box = new THREE.Mesh(boxGeo, mainMats);
-        box.castShadow = true;
-        group.add(box);
-
-        if (modType === 'oven') {
-          const ovenGeo = new THREE.BoxGeometry(0.55, 0.8, 0.02);
-          const oven = new THREE.Mesh(ovenGeo, glassMat);
-          oven.position.set(0, 0.1, 0.31);
-          oven.castShadow = true;
-          group.add(oven);
-        }
-
-        if (modType === 'fridge_open') {
-          const fridgeGeo = new THREE.BoxGeometry(0.55, tallModHeight - 0.5, 0.45);
-          const fridge = new THREE.Mesh(fridgeGeo, fridgeMat);
-          fridge.position.set(0, -0.2, 0.1);
-          fridge.castShadow = true;
-          group.add(fridge);
-        }
-
-        furnitureGroup.add(group);
-      };
-
-      if (leftModule !== 'none') {
-        const xPos = isLeftCorner ? -1.2 : -1.8;
-        const zPos = isLeftCorner ? 1.8 : 0;
-        const rotY = isLeftCorner ? Math.PI / 2 : 0;
-        addTallModule(xPos, zPos, rotY, leftModule);
-      }
-
-      if (rightModule !== 'none') {
-        const xPos = isRightCorner ? 1.2 : 1.8;
-        const zPos = isRightCorner ? 1.8 : 0;
-        const rotY = isRightCorner ? -Math.PI / 2 : 0;
-        addTallModule(xPos, zPos, rotY, rightModule);
-      }
-
-      // Острів
-      if (layout === 'З островом') {
-        const islandGroup = new THREE.Group();
-        islandGroup.position.set(0, 0, 1.8);
-
-        const islandGeo = new THREE.BoxGeometry(1.8, 0.9, 0.8);
-        const island = new THREE.Mesh(islandGeo, baseMatsMain);
-        island.position.set(0, 0.45, 0);
-        island.castShadow = true;
-        islandGroup.add(island);
-
-        const islandCtGeo = new THREE.BoxGeometry(1.85, 0.04, 0.85);
-        const islandCt = new THREE.Mesh(islandCtGeo, countertopMat);
-        islandCt.position.set(0, 0.92, 0);
-        islandCt.castShadow = true;
-        islandGroup.add(islandCt);
-
-        furnitureGroup.add(islandGroup);
-      }
-    } else if (type.includes('Шафа')) {
-      const mainMats = createMatsArray(carcassMat, baseMat, [4]);
-      const wGeo = new THREE.BoxGeometry(2.5, 2.5, 0.7);
-      const wardrobe = new THREE.Mesh(wGeo, mainMats);
-      wardrobe.position.set(0, 1.25, 0);
-      wardrobe.castShadow = true;
-      furnitureGroup.add(wardrobe);
-
-      const hGeo = new THREE.BoxGeometry(0.02, 2.4, 0.02);
-      const hMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 });
-
-      const handle1 = new THREE.Mesh(hGeo, hMat);
-      handle1.position.set(-0.6, 1.25, 0.36);
-      furnitureGroup.add(handle1);
-
-      const handle2 = new THREE.Mesh(hGeo, hMat);
-      handle2.position.set(0.6, 1.25, 0.36);
-      furnitureGroup.add(handle2);
-    } else if (type.includes('вітальню')) {
-      const baseMats = createMatsArray(carcassMat, baseMat, [4]);
-      const upperMats = createMatsArray(carcassMat, upperMat, [4]);
-
-      const tvBaseGeo = new THREE.BoxGeometry(3, 0.4, 0.5);
-      const tvBase = new THREE.Mesh(tvBaseGeo, baseMats);
-      tvBase.position.set(0, 0.3, 0);
-      tvBase.castShadow = true;
-      furnitureGroup.add(tvBase);
-
-      const screenGeo = new THREE.BoxGeometry(1.6, 0.9, 0.05);
-      const screen = new THREE.Mesh(screenGeo, glassMat);
-      screen.position.set(0, 1.4, -0.2);
-      furnitureGroup.add(screen);
-
-      const cabinetGeo = new THREE.BoxGeometry(0.4, 1.2, 0.3);
-      const cabinet = new THREE.Mesh(cabinetGeo, upperMats);
-      cabinet.position.set(1.5, 1.5, -0.1);
-      cabinet.castShadow = true;
-      furnitureGroup.add(cabinet);
-    } else {
-      const baseMats = createMatsArray(carcassMat, baseMat, [4]);
-      const cabGeo = new THREE.BoxGeometry(1.5, 0.6, 0.5);
-      const cab = new THREE.Mesh(cabGeo, baseMats);
-      cab.position.set(0, 0.6, 0);
-      cab.castShadow = true;
-      furnitureGroup.add(cab);
-
-      const ctGeo = new THREE.BoxGeometry(1.55, 0.04, 0.55);
-      const ct = new THREE.Mesh(ctGeo, countertopMat);
-      ct.position.set(0, 0.92, 0);
-      furnitureGroup.add(ct);
-
-      const mirrorGeo = new THREE.BoxGeometry(1.2, 0.8, 0.02);
-      const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0 });
-      const mirror = new THREE.Mesh(mirrorGeo, mirrorMat);
-      mirror.position.set(0, 1.7, -0.2);
-      furnitureGroup.add(mirror);
-
-      const basinGeo = new THREE.CylinderGeometry(0.2, 0.15, 0.15, 32);
-      const basinMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 });
-      const basin = new THREE.Mesh(basinGeo, basinMat);
-      basin.position.set(0, 1.0, 0);
-      furnitureGroup.add(basin);
-    }
-
-    // Тінь на підлозі
-    const floorGeo = new THREE.PlaneGeometry(15, 15);
-    const floorMat = new THREE.ShadowMaterial({ opacity: 0.15 });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -0.05;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    // Інтерактивне обертання мишкою
-    let isDragging = false;
-    let prevMousePos = { x: 0, y: 0 };
-
-    const onMouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      prevMousePos = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      const dx = e.clientX - prevMousePos.x;
-      const dy = e.clientY - prevMousePos.y;
-
-      furnitureGroup.rotation.y += dx * 0.005;
-      furnitureGroup.rotation.x += dy * 0.005;
-      furnitureGroup.rotation.x = Math.max(-Math.PI / 6, Math.min(Math.PI / 3, furnitureGroup.rotation.x));
-
-      prevMousePos = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseUp = () => { isDragging = false; };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        isDragging = true;
-        prevMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!isDragging || e.touches.length !== 1) return;
-      const dx = e.touches[0].clientX - prevMousePos.x;
-      const dy = e.touches[0].clientY - prevMousePos.y;
-
-      furnitureGroup.rotation.y += dx * 0.008;
-      furnitureGroup.rotation.x += dy * 0.008;
-      furnitureGroup.rotation.x = Math.max(-Math.PI / 6, Math.min(Math.PI / 3, furnitureGroup.rotation.x));
-
-      prevMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    };
-
-    const domEl = renderer.domElement;
-    domEl.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    domEl.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
-    window.addEventListener('touchend', onMouseUp);
-
-    const handleResize = () => {
-      if (!mountRef.current) return;
-      const w = mountRef.current.clientWidth;
-      const h = mountRef.current.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener('resize', handleResize);
-
-    let animId: number;
-    let clock = new THREE.Clock();
-
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-
-      if (!isDragging) {
-        furnitureGroup.rotation.y += 0.002;
-        const elapsed = clock.getElapsedTime();
-        furnitureGroup.position.y = -0.6 + Math.sin(elapsed * 1.5) * 0.04;
-      }
-
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
-      domEl.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      domEl.removeEventListener('touchstart', onTouchStart);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onMouseUp);
-
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
-
-      scene.traverse((obj) => {
-        if (obj instanceof THREE.Mesh) {
-          if (obj.geometry) obj.geometry.dispose();
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach(m => m.dispose());
-          } else if (obj.material) {
-            obj.material.dispose();
-          }
-        }
-      });
-    };
-  }, [config, isDark]);
-
-  return <div ref={mountRef} className="w-full h-full min-h-[400px] absolute inset-0 z-10" />;
+// --- РОЗШИРЕНА СИСТЕМА МАТЕРІАЛІВ 3D ---
+const getMaterialProps = (colorStr: string) => {
+  const isWood = colorStr.includes('Шпон');
+  const isStone = colorStr.includes('Мармур') || colorStr.includes('Камінь');
+  
+  let hex = '#dddddd';
+  
+  if (colorStr.startsWith('#')) {
+    hex = colorStr;
+  } else {
+    if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
+    if (colorStr.includes('Горіх')) hex = '#5E4028';
+    if (colorStr.includes('Чорне дерево')) hex = '#211C18';
+    if (colorStr.includes('Білий Камінь')) hex = '#F9F9F9';
+    if (colorStr.includes('Чорний Мармур')) hex = '#1A1A1A';
+    if (colorStr.includes('ДСП') && colorStr.includes('Світле')) hex = '#E5D3B3';
+    if (colorStr.includes('HPL') && colorStr.includes('Бетон')) hex = '#8c8c8c';
+  }
+
+  return {
+    color: hex,
+    roughness: isWood ? 0.85 : isStone ? 0.2 : 0.15,
+    metalness: isStone ? 0.1 : 0.05,
+    clearcoat: isWood ? 0 : isStone ? 0.5 : 0.2,
+    clearcoatRoughness: 0.15,
+  };
 };
 
-// --- ВАНІЛЬНИЙ СТАБІЛЬНИЙ 3D КОМПОНЕНТ ДЛЯ ТЕЛЕФОНУ ---
-const PhoneThreeCanvas = () => {
-  const mountRef = useRef<HTMLDivElement>(null);
+const createMats = (carcassStr: string, facadeStr: string, facadeIndices: number[]) => {
+  const cMat = new THREE.MeshPhysicalMaterial(getMaterialProps(carcassStr));
+  const fMat = new THREE.MeshPhysicalMaterial(getMaterialProps(facadeStr));
+  const mats = [cMat, cMat, cMat, cMat, cMat, cMat];
+  facadeIndices.forEach(idx => {
+    mats[idx] = fMat;
+  });
+  return mats;
+};
 
-  useEffect(() => {
-    if (!mountRef.current) return;
+// --- ОНОВЛЕНИЙ 3D КОМПОНЕНТ ---
+const ParametricFurniture = ({ config }: { config: any }) => {
+  const { type, layout, leftModule, rightModule, upperTier, colors } = config;
 
-    const scene = new THREE.Scene();
-    scene.background = null;
+  const baseMatsMain = useMemo(() => createMats(colors.carcass, colors.base, [4]), [colors.carcass, colors.base]);
+  const upperMatsMain = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsMain = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
+  
+  const baseMatsLeft = useMemo(() => createMats(colors.carcass, colors.base, [0, 4]), [colors.carcass, colors.base]);
+  const upperMatsLeft = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [0, 4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsLeft = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [0, 4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
+  
+  const baseMatsRight = useMemo(() => createMats(colors.carcass, colors.base, [1, 4]), [colors.carcass, colors.base]);
+  const upperMatsRight = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [1, 4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsRight = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [1, 4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
 
-    const width = mountRef.current.clientWidth || 280;
-    const height = mountRef.current.clientHeight || 450;
+  const carcassOnlyMats = useMemo(() => createMats(colors.carcass, colors.carcass, []), [colors.carcass]);
+  const countertopMat = useMemo(() => new THREE.MeshPhysicalMaterial(getMaterialProps(colors.countertop)), [colors.countertop]);
+  const glassMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#050505', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 }), []);
+  const fridgeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }), []);
 
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(0, 0, 6);
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+    }
+  });
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  if (type === 'Кухня' || type === '') {
+    const hasAntresol = upperTier === 'Двоярусні (з антресолями)';
+    const tallModHeight = hasAntresol ? 2.7 : 2.3;
+    const tallModY = tallModHeight / 2; 
 
-    mountRef.current.appendChild(renderer.domElement);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-    dirLight.position.set(5, 5, 5);
-    scene.add(dirLight);
-
-    const dirLight2 = new THREE.DirectionalLight(0xe0f0ff, 1);
-    dirLight2.position.set(-5, 5, -5);
-    scene.add(dirLight2);
-
-    // Створення корпусу телефону за допомогою Shape
-    const roundedRectShape = new THREE.Shape();
-    const w = 1.8, h = 3.6, r = 0.2;
-    const x = -w/2, y = -h/2;
-
-    roundedRectShape.moveTo(x + r, y);
-    roundedRectShape.lineTo(x + w - r, y);
-    roundedRectShape.quadraticCurveTo(x + w, y, x + w, y + r);
-    roundedRectShape.lineTo(x + w, y + h - r);
-    roundedRectShape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    roundedRectShape.lineTo(x + r, y + h);
-    roundedRectShape.quadraticCurveTo(x, y + h, x, y + h - r);
-    roundedRectShape.lineTo(x, y + r);
-    roundedRectShape.quadraticCurveTo(x, y, x + r, y);
-
-    const extrudeSettings = {
-      depth: 0.15,
-      bevelEnabled: true,
-      bevelSegments: 5,
-      steps: 1,
-      bevelSize: 0.05,
-      bevelThickness: 0.05
+    const TallModule = ({ position, rotation = [0, 0, 0], moduleType }: { position: [number, number, number], rotation?: [number, number, number], moduleType: string }) => {
+      if (moduleType === 'none') return null;
+      const mats = moduleType === 'fridge_open' ? carcassOnlyMats : baseMatsMain;
+      return (
+        <group position={position} rotation={rotation as any}>
+          <mesh material={mats} castShadow receiveShadow>
+            <boxGeometry args={[0.6, tallModHeight, 0.6]} />
+          </mesh>
+          {moduleType === 'oven' && (
+            <mesh position={[0, 0.1, 0.31]} material={glassMat} castShadow>
+              <boxGeometry args={[0.55, 0.8, 0.02]} />
+            </mesh>
+          )}
+          {moduleType === 'fridge_open' && (
+            <mesh position={[0, -0.2, 0.1]} material={fridgeMat} castShadow>
+              <boxGeometry args={[0.55, tallModHeight - 0.5, 0.45]} />
+            </mesh>
+          )}
+        </group>
+      );
     };
 
-    const phoneGeo = new THREE.ExtrudeGeometry(roundedRectShape, extrudeSettings);
-    phoneGeo.center();
+    return (
+      <group ref={groupRef} scale={[0.7, 0.7, 0.7]} position={[0, -0.4, 0]}>
+        <group position={[0, 0, 0]}>
+          <mesh position={[0, 0.45, 0]} material={baseMatsMain} castShadow receiveShadow>
+            <boxGeometry args={[3, 0.9, 0.6]} />
+          </mesh>
+          <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
+            <boxGeometry args={[3.05, 0.04, 0.65]} />
+          </mesh>
+          
+          {hasAntresol ? (
+            <>
+              <mesh position={[0, 1.8, -0.125]} material={upperMatsMain} castShadow receiveShadow>
+                <boxGeometry args={[3, 0.6, 0.35]} />
+              </mesh>
+              <mesh position={[0, 2.4, 0]} material={topTierMatsMain} castShadow receiveShadow>
+                <boxGeometry args={[3, 0.6, 0.6]} />
+              </mesh>
+            </>
+          ) : (
+            <mesh position={[0, 1.9, -0.125]} material={upperMatsMain} castShadow receiveShadow>
+              <boxGeometry args={[3, 0.8, 0.35]} />
+            </mesh>
+          )}
+        </group>
 
-    const phoneMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.2, metalness: 0.9 });
-    const phoneMesh = new THREE.Mesh(phoneGeo, phoneMat);
-    scene.add(phoneMesh);
+        {(() => {
+          const isLeftCorner = layout === 'Кутова (Ліворуч)' || layout === 'П-подібна';
+          return (
+            <group>
+              {isLeftCorner && (
+                <group>
+                  <mesh position={[-1.2, 0.45, 0.9]} material={baseMatsLeft} castShadow receiveShadow>
+                    <boxGeometry args={[0.6, 0.9, 1.2]} />
+                  </mesh>
+                  <mesh position={[-1.2, 0.92, 0.9]} material={countertopMat} castShadow receiveShadow>
+                    <boxGeometry args={[0.65, 0.04, 1.25]} />
+                  </mesh>
 
-    phoneMesh.rotation.set(0, -0.15, 0);
+                  {hasAntresol ? (
+                    <>
+                      <mesh position={[-1.325, 1.8, 0.775]} material={upperMatsLeft} castShadow receiveShadow>
+                        <boxGeometry args={[0.35, 0.6, 1.45]} />
+                      </mesh>
+                      <mesh position={[-1.2, 2.4, 0.9]} material={topTierMatsLeft} castShadow receiveShadow>
+                        <boxGeometry args={[0.6, 0.6, 1.2]} />
+                      </mesh>
+                    </>
+                  ) : (
+                    <mesh position={[-1.325, 1.9, 0.775]} material={upperMatsLeft} castShadow receiveShadow>
+                      <boxGeometry args={[0.35, 0.8, 1.45]} />
+                    </mesh>
+                  )}
+                </group>
+              )}
+              {leftModule !== 'none' && (
+                <TallModule 
+                  position={isLeftCorner ? [-1.2, tallModY, 1.8] : [-1.8, tallModY, 0]} 
+                  rotation={isLeftCorner ? [0, Math.PI / 2, 0] : [0, 0, 0]}
+                  moduleType={leftModule} 
+                />
+              )}
+            </group>
+          );
+        })()}
 
-    let animId: number;
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-      phoneMesh.rotation.y = -0.15 + Math.sin(Date.now() * 0.001) * 0.05;
-      renderer.render(scene, camera);
-    };
-    animate();
+        {(() => {
+          const isRightCorner = layout === 'Кутова (Праворуч)' || layout === 'П-подібна';
+          return (
+            <group>
+              {isRightCorner && (
+                <group>
+                  <mesh position={[1.2, 0.45, 0.9]} material={baseMatsRight} castShadow receiveShadow>
+                    <boxGeometry args={[0.6, 0.9, 1.2]} />
+                  </mesh>
+                  <mesh position={[1.2, 0.92, 0.9]} material={countertopMat} castShadow receiveShadow>
+                    <boxGeometry args={[0.65, 0.04, 1.25]} />
+                  </mesh>
 
-    const handleResize = () => {
-      if (!mountRef.current) return;
-      const w = mountRef.current.clientWidth;
-      const h = mountRef.current.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener('resize', handleResize);
+                  {hasAntresol ? (
+                    <>
+                      <mesh position={[1.325, 1.8, 0.775]} material={upperMatsRight} castShadow receiveShadow>
+                        <boxGeometry args={[0.35, 0.6, 1.45]} />
+                      </mesh>
+                      <mesh position={[1.2, 2.4, 0.9]} material={topTierMatsRight} castShadow receiveShadow>
+                        <boxGeometry args={[0.6, 0.6, 1.2]} />
+                      </mesh>
+                    </>
+                  ) : (
+                    <mesh position={[1.325, 1.9, 0.775]} material={upperMatsRight} castShadow receiveShadow>
+                      <boxGeometry args={[0.35, 0.8, 1.45]} />
+                    </mesh>
+                  )}
+                </group>
+              )}
+              {rightModule !== 'none' && (
+                <TallModule 
+                  position={isRightCorner ? [1.2, tallModY, 1.8] : [1.8, tallModY, 0]} 
+                  rotation={isRightCorner ? [0, -Math.PI / 2, 0] : [0, 0, 0]}
+                  moduleType={rightModule} 
+                />
+              )}
+            </group>
+          );
+        })()}
 
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
-      phoneGeo.dispose();
-      phoneMat.dispose();
-    };
-  }, []);
+        {layout === 'З островом' && (
+          <group position={[0, 0, 1.8]}>
+            <mesh position={[0, 0.45, 0]} material={baseMatsMain} castShadow receiveShadow>
+              <boxGeometry args={[1.8, 0.9, 0.8]} />
+            </mesh>
+            <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
+              <boxGeometry args={[1.85, 0.04, 0.85]} />
+            </mesh>
+          </group>
+        )}
+      </group>
+    );
+  }
 
-  return <div ref={mountRef} className="absolute inset-0 z-0 w-full h-full" />;
+  if (type.includes('Шафа')) {
+    return (
+      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+        <mesh position={[0, 1.25, 0]} material={baseMatsMain} castShadow receiveShadow>
+          <boxGeometry args={[2.5, 2.5, 0.7]} />
+        </mesh>
+        <mesh position={[-0.6, 1.25, 0.36]} castShadow>
+          <boxGeometry args={[0.02, 2.4, 0.02]} />
+          <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+        </mesh>
+        <mesh position={[0.6, 1.25, 0.36]} castShadow>
+          <boxGeometry args={[0.02, 2.4, 0.02]} />
+          <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (type.includes('вітальню')) {
+    return (
+      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+        <mesh position={[0, 0.3, 0]} material={baseMatsMain} castShadow receiveShadow>
+          <boxGeometry args={[3, 0.4, 0.5]} />
+        </mesh>
+        <mesh position={[0, 1.4, -0.2]} material={glassMat} castShadow receiveShadow>
+          <boxGeometry args={[1.6, 0.9, 0.05]} />
+        </mesh>
+        <mesh position={[1.5, 1.5, -0.1]} material={upperMatsMain} castShadow receiveShadow>
+          <boxGeometry args={[0.4, 1.2, 0.3]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  return (
+    <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+      <mesh position={[0, 0.6, 0]} material={baseMatsMain} castShadow receiveShadow>
+        <boxGeometry args={[1.5, 0.6, 0.5]} />
+      </mesh>
+      <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
+        <boxGeometry args={[1.55, 0.04, 0.55]} />
+      </mesh>
+      <mesh position={[0, 1.7, -0.2]} castShadow>
+        <boxGeometry args={[1.2, 0.8, 0.02]} />
+        <meshStandardMaterial color="#fff" metalness={1} roughness={0} />
+      </mesh>
+      <mesh position={[0, 1, 0]}>
+        <cylinderGeometry args={[0.2, 0.15, 0.15, 32]} />
+        <meshStandardMaterial color="#fff" roughness={0.1} />
+      </mesh>
+    </group>
+  );
 };
 
 // БАЗА ВІДГУКІВ
@@ -1902,8 +1612,21 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           <div className="lg:w-1/2 relative bg-[#111111] overflow-hidden flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-white/10 min-h-[400px] cursor-grab active:cursor-grabbing">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
             
-            {/* Стабільний тривимірний рендер меблів без помилки 'S' */}
-            <FurnitureThreeCanvas config={configData} isDark={isDark} />
+            <div className="absolute inset-0 z-10">
+              <Canvas camera={{ position: [5, 4, 6], fov: 45 }}>
+                <ambientLight intensity={0.7} />
+                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1.5} castShadow />
+                <directionalLight position={[-10, 5, -5]} intensity={1} color="#e6f2ff" />
+                <directionalLight position={[0, -5, 0]} intensity={0.5} />
+                <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
+                  <Center>
+                    <ParametricFurniture config={configData} />
+                  </Center>
+                </Float>
+                <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
+                <OrbitControls enableZoom={true} enablePan={false} minPolarAngle={Math.PI / 4} maxPolarAngle={Math.PI / 2} autoRotate autoRotateSpeed={0.5} />
+              </Canvas>
+            </div>
 
             <div className="absolute bottom-8 text-center w-full z-20 pointer-events-none">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/70 text-[10px] font-mono uppercase tracking-widest mb-3">
@@ -2414,8 +2137,19 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               </div>
               
               <div className="relative w-[280px] h-[450px]">
-                {/* Стабільний тривимірний рендер смартфона без R3F */}
-                <PhoneThreeCanvas />
+                <div className="absolute inset-0 z-0">
+                  <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
+                    <ambientLight intensity={0.8} />
+                    <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" />
+                    <directionalLight position={[-5, 5, -5]} intensity={1} color="#e0f0ff" />
+                    <directionalLight position={[0, -5, 0]} intensity={0.5} color="#ffffff" />
+                    <group rotation={[0, -0.15, 0]}>
+                      <RoundedBox args={[1.8, 3.6, 0.2]} radius={0.2} smoothness={4} castShadow>
+                        <meshStandardMaterial color="#1a1a1a" roughness={0.2} metalness={0.9} />
+                      </RoundedBox>
+                    </group>
+                  </Canvas>
+                </div>
 
                 <div 
                   className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
