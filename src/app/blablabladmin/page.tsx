@@ -194,10 +194,9 @@ export default function AdminPanel() {
     if (placeContext) city = placeContext.text;
 
     const publicZone = `м. ${city}, ${streetName}`;
-    setLocationName(publicZone);
+    setLocationName(publicZone); // АВТОЗАПОВНЕННЯ ПУБЛІЧНОЇ ЗОНИ!
 
     // Якщо це точна адреса будинку, ми робимо хитрий хід:
-    // Запитуємо у Mapbox координати ВСІЄЇ ВУЛИЦІ, щоб поставити пін чітко на неї, але не на дім клієнта.
     if (feature.place_type.includes('address')) {
        try {
          const streetUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(publicZone)}.json?access_token=${MAPBOX_TOKEN}&language=uk&types=street,neighborhood`;
@@ -213,7 +212,7 @@ export default function AdminPanel() {
        }
     }
 
-    // Якщо це і так вулиця або район (або запасний варіант)
+    // Якщо це і так вулиця або район
     setSelectedCoordinates(feature.center);
     setStatusMessage(null);
   };
@@ -379,11 +378,12 @@ export default function AdminPanel() {
           </div>
           <div className="flex gap-4">
             {view === 'form' && (
-              <button onClick={resetForm} className="flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg">
+              <button type="button" onClick={resetForm} className="flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg">
                 <ArrowLeft size={14} /> Назад
               </button>
             )}
             <button 
+              type="button"
               onClick={() => setIsAuthenticated(false)}
               className="text-xs text-white/40 hover:text-white transition-colors uppercase tracking-widest px-2 py-2"
             >
@@ -415,6 +415,7 @@ export default function AdminPanel() {
                 <List size={18} /> Ваші об'єкти ({projects.length})
               </h2>
               <button 
+                type="button"
                 onClick={() => setView('form')}
                 className="bg-[#D4B895] text-black px-5 py-2.5 rounded-lg font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-white transition-colors shadow-lg"
               >
@@ -453,10 +454,10 @@ export default function AdminPanel() {
                         </p>
                       </div>
                       <div className="flex gap-2 border-t border-white/10 pt-4 mt-2">
-                        <button onClick={() => handleEdit(project)} className="flex-1 bg-white/10 hover:bg-white/20 text-white text-xs py-2 rounded transition-colors flex justify-center items-center gap-2">
+                        <button type="button" onClick={() => handleEdit(project)} className="flex-1 bg-white/10 hover:bg-white/20 text-white text-xs py-2 rounded transition-colors flex justify-center items-center gap-2">
                           <Edit3 size={14} /> Редагувати
                         </button>
-                        <button onClick={() => handleDelete(project.id)} className="px-3 bg-red-500/10 hover:bg-red-500/30 text-red-400 rounded transition-colors flex justify-center items-center">
+                        <button type="button" onClick={() => handleDelete(project.id)} className="px-3 bg-red-500/10 hover:bg-red-500/30 text-red-400 rounded transition-colors flex justify-center items-center">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -534,7 +535,6 @@ export default function AdminPanel() {
                     
                     <input 
                       type="text" 
-                      required={!editingId} 
                       value={realAddress}
                       onChange={handleAddressInput}
                       onFocus={() => { if (addressSuggestions.length > 0) setShowSuggestions(true); }}
@@ -581,7 +581,7 @@ export default function AdminPanel() {
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors"
                   />
                   <p className="text-[10px] text-white/40 mt-2 font-mono leading-relaxed">
-                    Це поле генерується автоматично (без номеру будинку), але ви можете відредагувати його вручну.
+                    Це поле генерується автоматично, але ви можете відредагувати його вручну.
                   </p>
                 </div>
               </div>
