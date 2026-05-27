@@ -155,6 +155,12 @@ export default function AdminPanel() {
     setRealAddress(val);
     setSelectedCoordinates(null); 
 
+    // Наївне автозаповнення: відрізаємо цифри в кінці і заповнюємо публічну зону
+    const publicVal = val.replace(/(,\s*)?\d+[а-яА-Яa-zA-Z-]*\s*$/, '').trim();
+    if (!editingId || (editingId && val.length > 0)) {
+       setLocationName(publicVal ? `м. Харків, ${publicVal}` : '');
+    }
+
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     if (val.length < 3) {
@@ -166,7 +172,9 @@ export default function AdminPanel() {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const kharkivBbox = "35.90,49.80,36.45,50.15";
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&bbox=${kharkivBbox}&language=uk&country=ua&types=address,poi,neighborhood,street`;
+        const kharkivCenter = "36.2304,50.0058"; // Пріоритет на центр Харкова
+        // Шукаємо тільки в межах Харкова
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&bbox=${kharkivBbox}&proximity=${kharkivCenter}&language=uk&country=ua&types=address,poi,neighborhood,street`;
         
         const res = await fetch(url);
         const data = await res.json();
@@ -255,19 +263,52 @@ export default function AdminPanel() {
       setStatusMessage({ type: 'error', text: 'Додайте хоча б 1 фотографію.' });
       return;
     }
-    // Тепер вимагаємо саме ВЛУЧЕННЯ зі списку (щоб були координати)
-    if (!editingId && !selectedCoordinates) {
-      setStatusMessage({ type: 'error', text: 'Будь ласка, оберіть адресу з випадаючого списку!' });
-      return;
-    }
-    if (editingId && realAddress && !selectedCoordinates) {
-      setStatusMessage({ type: 'error', text: 'Оберіть нову адресу з випадаючого списку або залиште поле пустим.' });
+    if (!editingId && !realAddress) {
+      setStatusMessage({ type: 'error', text: 'Для нового проєкту реальна адреса обов\'язкова.' });
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      let finalCoordinates: string | undefined;
+      
+      // Якщо введена нова адреса
+      if (realAddress) {
+        setStatusMessage({ type: 'info', text: 'Обчислення безпечних координат...' });
+        
+        if (selectedCoordinates) {
+          // Якщо юзер вибрав з випадаючого списку
+          finalCoordinates = `(${selectedCoordinates[0]}, ${selectedCoordinates[1]})`;
+        } else {
+          // FALLBACK: Якщо юзер проігнорував список і просто ввів текст вручну
+          const kharkivBbox = "35.90,49.80,36.45,50.15";
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(realAddress)}.json?access_token=${MAPBOX_TOKEN}&bbox=${kharkivBbox}&language=uk`);
+          const data = await res.json();
+          if (!data.features || data.features.length === 0) {
+            throw new Error("Не вдалося знайти цю адресу на карті Харкова. Спробуйте змінити запит (напр. 'Чайковського 136').");
+          }
+          
+          const feature = data.features[0];
+          // Робимо семантичне розмиття для фолбеку
+          if (feature.place_type.includes('address')) {
+             const streetName = feature.text;
+             const publicZone = `м. Харків, ${streetName}`;
+             const streetUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(publicZone)}.json?access_token=${MAPBOX_TOKEN}&language=uk&types=street,neighborhood`;
+             const sRes = await fetch(streetUrl);
+             const sData = await sRes.json();
+             if (sData.features && sData.features.length > 0) {
+                finalCoordinates = `(${sData.features[0].center[0]}, ${sData.features[0].center[1]})`;
+                if (!locationName || locationName === realAddress) setLocationName(publicZone);
+             } else {
+                finalCoordinates = `(${feature.center[0]}, ${feature.center[1]})`;
+             }
+          } else {
+             finalCoordinates = `(${feature.center[0]}, ${feature.center[1]})`;
+          }
+        }
+      }
+
       setStatusMessage({ type: 'info', text: selectedFiles.length > 0 ? `Завантаження ${selectedFiles.length} нових фотографій...` : 'Оновлення даних...' });
       
       const newlyUploadedMedia = await uploadPhotos();
@@ -284,8 +325,8 @@ export default function AdminPanel() {
         media: finalMediaArray
       };
 
-      if (selectedCoordinates) {
-        projectData.coordinates = `(${selectedCoordinates[0]}, ${selectedCoordinates[1]})`;
+      if (finalCoordinates) {
+        projectData.coordinates = finalCoordinates;
       }
 
       const method = editingId ? 'PATCH' : 'POST';
@@ -535,10 +576,11 @@ export default function AdminPanel() {
                     
                     <input 
                       type="text" 
+                      required={!editingId} 
                       value={realAddress}
                       onChange={handleAddressInput}
                       onFocus={() => { if (addressSuggestions.length > 0) setShowSuggestions(true); }}
-                      placeholder={editingId ? "🔒 Приховано сервером. Введіть текст для зміни..." : "Напр. вул. Чайковського 136"}
+                      placeholder={editingId ? "🔒 Приховано сервером. Введіть текст для зміни..." : "Напр. Чайковського 136 (без 'м. Харків')"}
                       className={`w-full border rounded-lg pl-10 pr-4 py-3 text-sm outline-none transition-colors ${editingId && !realAddress ? 'bg-white/5 border-white/10 text-white/50 focus:border-[#D4B895]' : 'bg-red-500/5 border-red-500/30 focus:border-red-500 text-white'}`}
                     />
                   </div>
