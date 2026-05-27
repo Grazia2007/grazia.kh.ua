@@ -397,6 +397,28 @@ const DEFAULT_MAP_LOCATIONS = [
   }
 ];
 
+// ГРУПУВАННЯ ПРОЄКТІВ ЗА КООРДИНАТАМИ (Variant B - Product First)
+const groupProjectsByCoordinates = (projects: any[]) => {
+  const groups: Record<string, any> = {};
+  projects.forEach((proj) => {
+    const lon = proj.coordinates && proj.coordinates[0] !== undefined ? proj.coordinates[0] : 36.2304;
+    const lat = proj.coordinates && proj.coordinates[1] !== undefined ? proj.coordinates[1] : 50.0058;
+    // Округлення до 4 знаків після коми
+    const key = `${lon.toFixed(4)}_${lat.toFixed(4)}`;
+    if (!groups[key]) {
+      groups[key] = {
+        id: proj.id || key,
+        name: proj.name,
+        coordinates: [lon, lat],
+        type: proj.type || 'city',
+        projects: []
+      };
+    }
+    groups[key].projects.push(proj);
+  });
+  return Object.values(groups);
+};
+
 let cachedWorldData: any = null;
 
 const supabaseUrl = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL) || 'https://gpxbzpqnpbbumtiyfstc.supabase.co';
@@ -445,19 +467,25 @@ const createCustomSupabaseClient = (url: string, key: string) => {
 
 const supabase = createCustomSupabaseClient(supabaseUrl, supabaseAnonKey) as any;
 
-
 export default function GraziaFurnitureSystem() {
   const [isDark, setIsDark] = useState(false);
   const [themeLoaded, setThemeLoaded] = useState(false); 
   
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
-  const [activePin, setActivePin] = useState<any>(DEFAULT_MAP_LOCATIONS[0]);
-  const [isTransitioning, setIsTransitioning] = useState(false);
   
+  // Ініціалізація першої локації як згрупованої
+  const [activePin, setActivePin] = useState<any>(() => {
+    const grouped = groupProjectsByCoordinates(DEFAULT_MAP_LOCATIONS);
+    return grouped[0];
+  });
+  
+  // Додатковий стейт для навігації всередині групи
+  const [activeProjectIndex, setActiveProjectIndex] = useState<number>(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   
-  // --- ОНОВЛЕНИЙ СТЕЙТ ЛАЙТБОКСУ (ЗАВДАННЯ 1) ---
+  // --- ОНОВЛЕНИЙ СТЕЙТ ЛАЙТБОКСУ ---
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const touchStartX = useRef<number>(0);
   const touchEndX = useRef<number>(0);
@@ -491,6 +519,15 @@ export default function GraziaFurnitureSystem() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+
+  // Обчислення проєктів та поточного активного об'єкта в групі
+  const activeGroupProjects = useMemo(() => {
+    return activePin?.projects || [];
+  }, [activePin]);
+
+  const currentActiveProject = useMemo(() => {
+    return activeGroupProjects[activeProjectIndex] || activeGroupProjects[0] || activePin;
+  }, [activeGroupProjects, activeProjectIndex, activePin]);
 
   // Динамічні вкладки кольорів залежно від типу
   const colorTabs = useMemo(() => {
@@ -571,20 +608,26 @@ export default function GraziaFurnitureSystem() {
             type: item.coordinates ? 'city' : 'region',
             description: item.description,
             rating: parseFloat(item.rating) || 5.0,
-            photos: item.media || []
+            photos: item.media || [],
+            youtube_url: item.youtube_url,
+            instagram_url: item.instagram_url
           };
         });
-        setDbProjects(formattedData);
-        setActivePin(formattedData[0]);
+        const grouped = groupProjectsByCoordinates(formattedData);
+        setDbProjects(grouped);
+        setActivePin(grouped[0]);
+        setActiveProjectIndex(0);
       } else {
-        setDbProjects(DEFAULT_MAP_LOCATIONS);
-        setActivePin(DEFAULT_MAP_LOCATIONS[0]);
+        const grouped = groupProjectsByCoordinates(DEFAULT_MAP_LOCATIONS);
+        setDbProjects(grouped);
+        setActivePin(grouped[0]);
+        setActiveProjectIndex(0);
       }
     };
     fetchPortfolio();
   }, []);
 
-  // --- ЛОГІКА НАВІГАЦІЇ ЛАЙТБОКСУ (ЗАВДАННЯ 1) ---
+  // --- ЛОГІКА НАВІГАЦІЇ ЛАЙТБОКСУ ---
   const handlePrevPhoto = useCallback(() => {
     if (selectedProject && lightboxIndex !== null) {
       setLightboxIndex((prev) => (prev! === 0 ? selectedProject.photos.length - 1 : prev! - 1));
@@ -976,21 +1019,29 @@ export default function GraziaFurnitureSystem() {
           );
         });
 
-        const targets = dbProjects.length > 0 ? dbProjects : DEFAULT_MAP_LOCATIONS;
+        const targets = dbProjects.length > 0 ? dbProjects : groupProjectsByCoordinates(DEFAULT_MAP_LOCATIONS);
         targets.forEach((pin) => {
           const el = document.createElement('div');
           el.className = 'custom-mapbox-marker group cursor-pointer relative flex flex-col items-center';
+          
+          // Розрахунок та відображення золотого бейджа для згрупованих проєктів (Variant B)
+          const badgeCount = pin.projects ? pin.projects.length : 1;
+          const badgeHtml = badgeCount > 1 
+            ? `<div class="absolute -top-1.5 -right-1.5 bg-[#D4AF37] text-black text-[9px] font-extrabold w-[18px] h-[18px] rounded-full flex items-center justify-center border border-black shadow-md z-20" style="background-color: #D4AF37; color: #000; width: 18px; height: 18px; line-height: 1;">${badgeCount}</div>` 
+            : '';
+
           el.innerHTML = `
             <div class="absolute rounded-full border-2 transition-all duration-700 scale-100 opacity-20" style="border-color: var(--accent-main); background-color: var(--accent-main); width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
             <div class="w-4 h-4 rounded-full border-2 z-10 hover:scale-125 transition-transform duration-300 shadow-lg" style="border-color: var(--bg-main); background-color: var(--accent-main);"></div>
+            ${badgeHtml}
             <div class="absolute -top-10 text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none" style="background-color: var(--btn-bg); color: var(--btn-text);">
-              ${pin.name}
+              ${pin.name} ${badgeCount > 1 ? `(${badgeCount} проєкти)` : ''}
             </div>
           `;
 
           el.addEventListener('click', () => {
             setActivePin(pin);
-            setSelectedProject(pin);
+            setActiveProjectIndex(0); // Скидання індексу при кліку на новий пін
             map.flyTo({
               center: pin.coordinates,
               zoom: 14.5,
@@ -1188,7 +1239,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
       )}
 
-      {/* --- ОНОВЛЕНИЙ LIGHTBOX ПОВНОЕКРАННИЙ (ЗАВДАННЯ 1) --- */}
+      {/* --- ОНОВЛЕНИЙ LIGHTBOX ПОВНОЕКРАННИЙ --- */}
       {lightboxIndex !== null && selectedProject && (
         <div 
           className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center animate-fadeIn"
@@ -1330,25 +1381,68 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               <div className="absolute top-6 left-6 bg-[var(--modal-bg)] backdrop-blur-md px-4 py-2 rounded-full border border-[var(--border-color)] text-[10px] font-mono uppercase tracking-widest z-30 shadow-sm pointer-events-none text-[var(--text-main)]">
                 Детальна Карта Робіт
               </div>
-              <div className="absolute bottom-6 left-6 right-6 bg-[var(--modal-bg)] backdrop-blur-md p-5 border border-[var(--border-color)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-[var(--bg-card)] transition-all duration-300 z-30" onClick={() => setSelectedProject(activePin)}>
-                <div>
-                  <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-[var(--bg-main)] inline-block mb-2 ${activePin.type === 'city' ? 'bg-[var(--text-main)]' : 'bg-[var(--accent-main)]'}`}>
-                    {activePin.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
-                  </span>
-                  <h3 className="text-lg font-serif font-medium text-[var(--text-main)]">{activePin.project}</h3>
+              
+              {/* ОНОВЛЕНА КАРТКА З ПАГІНАЦІЄЮ ВСЕРЕДИНІ ГРУПИ */}
+              <div 
+                className="absolute bottom-6 left-6 right-6 bg-[var(--modal-bg)] backdrop-blur-md p-5 border border-[var(--border-color)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-[var(--bg-card)] transition-all duration-300 z-30" 
+                onClick={() => setSelectedProject(currentActiveProject)}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center flex-wrap gap-2 mb-2">
+                    <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-[var(--bg-main)] inline-block ${currentActiveProject.type === 'city' ? 'bg-[var(--text-main)]' : 'bg-[var(--accent-main)]'}`}>
+                      {currentActiveProject.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
+                    </span>
+                    
+                    {/* Керування внутрішнім пагінатором для згрупованих проєктів */}
+                    {activeGroupProjects.length > 1 && (
+                      <div 
+                        className="flex items-center gap-2 bg-[var(--btn-bg)]/90 backdrop-blur-sm px-2.5 py-1 rounded-full border border-[var(--border-color)] text-[var(--btn-text)] select-none text-[10px] shadow-sm font-semibold" 
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveProjectIndex((prev) => (prev === 0 ? activeGroupProjects.length - 1 : prev - 1));
+                          }}
+                          className="hover:text-[var(--accent-main)] transition-colors p-0.5"
+                          title="Попередній"
+                        >
+                          <ChevronLeft size={12} />
+                        </button>
+                        <span className="font-mono tracking-tight text-xs font-extrabold text-[var(--accent-main)]">
+                          {activeProjectIndex + 1} з {activeGroupProjects.length}
+                        </span>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveProjectIndex((prev) => (prev + 1) % activeGroupProjects.length);
+                          }}
+                          className="hover:text-[var(--accent-main)] transition-colors p-0.5"
+                          title="Наступний"
+                        >
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <h3 className="text-lg font-serif font-medium text-[var(--text-main)]">{currentActiveProject.project || currentActiveProject.name}</h3>
                   <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5 mt-1 font-mono">
-                    <MapPin size={12} /> Зона робіт: {activePin.name} (Клікніть на пін для польоту)
+                    <MapPin size={12} /> Зона робіт: {currentActiveProject.name} (Клікніть на пін для польоту)
                   </p>
                 </div>
-                <div className="md:text-right border-t md:border-t-0 border-[var(--border-color)] pt-3 md:pt-0 w-full md:w-auto">
+                
+                <div className="md:text-right border-t md:border-t-0 border-[var(--border-color)] pt-3 md:pt-0 w-full md:w-auto flex flex-col items-start md:items-end justify-center">
                   <div className="text-[10px] uppercase tracking-widest text-[var(--text-light)] font-semibold mb-2 font-mono flex items-center md:justify-end gap-1">
                     Рейтинг <Star size={10} className="text-[var(--accent-main)]" fill="currentColor"/> 
+                    <span className="text-[var(--text-main)] font-bold ml-1">{currentActiveProject.rating || 5.0}</span>
                   </div>
                   <button className="text-xs font-semibold text-[var(--accent-main)] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-wider">
                     Відкрити галерею <ArrowRight size={14} />
                   </button>
                 </div>
               </div>
+              
             </div>
           )}
         </div>
@@ -1401,22 +1495,26 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {dbProjects.slice(0, 4).map((project, idx) => (
-            <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
-              {project.photos && project.photos[0] ? (
-                <img src={project.photos[0].url} alt={project.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
-              )}
-              
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              
-              <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
-                <span className="text-[10px] text-white/70 font-mono uppercase tracking-widest block mb-2">{project.name}</span>
-                <h3 className="text-lg font-serif text-white">{project.project}</h3>
+          {dbProjects.slice(0, 4).map((project, idx) => {
+            // Беремо перший підпроект для відображення в сітці
+            const displayProject = project.projects ? project.projects[0] : project;
+            return (
+              <div key={project.id || idx} onClick={() => setSelectedProject(displayProject)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
+                {displayProject.photos && displayProject.photos[0] ? (
+                  <img src={displayProject.photos[0].url} alt={displayProject.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
+                )}
+                
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                
+                <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
+                  <span className="text-[10px] text-white/70 font-mono uppercase tracking-widest block mb-2">{displayProject.name}</span>
+                  <h3 className="text-lg font-serif text-white">{displayProject.project}</h3>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </FadeIn>
 
