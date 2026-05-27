@@ -470,6 +470,10 @@ export default function GraziaFurnitureSystem() {
   const [isDark, setIsDark] = useState(false);
   const [themeLoaded, setThemeLoaded] = useState(false); 
   
+  // --- PRELOADER STATE ---
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isPreloaderVisible, setIsPreloaderVisible] = useState(true);
+
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
   
@@ -518,6 +522,30 @@ export default function GraziaFurnitureSystem() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+
+  // --- PRELOADER EFFECT ---
+  useEffect(() => {
+    let currentProgress = 0;
+    const duration = 1800; // 1.8 seconds duration
+    const interval = 20; // run every 20ms
+    const step = 100 / (duration / interval);
+
+    const timer = setInterval(() => {
+      currentProgress += step;
+      if (currentProgress >= 100) {
+        setLoadingProgress(100);
+        clearInterval(timer);
+        // Додаємо невелику паузу на 100% перед зникненням екрану
+        setTimeout(() => {
+          setIsPreloaderVisible(false);
+        }, 400); 
+      } else {
+        setLoadingProgress(Math.floor(currentProgress));
+      }
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Обчислення проєктів та поточного активного об'єкта в групі
   const activeGroupProjects = useMemo(() => {
@@ -711,20 +739,11 @@ export default function GraziaFurnitureSystem() {
         const d3 = (window as any).d3;
         const topojson = (window as any).topojson;
 
-        const rect = canvas.getBoundingClientRect();
-        const clientWidth = rect.width || canvas.parentElement?.clientWidth || 800;
-        const clientHeight = rect.height || canvas.parentElement?.clientHeight || 600;
-        const dpr = window.devicePixelRatio || 2;
-        
-        const width = clientWidth * dpr;
-        const height = clientHeight * dpr;
-        
-        canvas.width = width;
-        canvas.height = height;
-
+        const width = canvas.width;
+        const height = canvas.height;
         const cx = width / 2;
         const cy = height / 2;
-        const baseRadius = Math.min(width, height) * 0.35;
+        const baseRadius = width * 0.42;
 
         const projection = d3.geoOrthographic()
           .translate([cx, cy])
@@ -734,26 +753,18 @@ export default function GraziaFurnitureSystem() {
         const path = d3.geoPath(projection, ctx);
         
         let worldData;
-        let ukraineFeature;
-        
-        if (cachedWorldData && cachedWorldData.ukraine) {
-          worldData = cachedWorldData.world;
-          ukraineFeature = cachedWorldData.ukraine;
+        if (cachedWorldData) {
+          worldData = cachedWorldData;
         } else {
           worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-50m.json').then(r => r.json());
-          try {
-            // Отримуємо еталонний GeoJSON України з кордонами 1991 року (включно з Кримом)
-            ukraineFeature = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries/UKR.geo.json').then(r => r.json());
-          } catch (e) {
-            // Резервний варіант, якщо репозиторій недоступний
-            const countriesData = topojson.feature(worldData, worldData.objects.countries).features;
-            ukraineFeature = countriesData.find((c: any) => c.properties?.name === 'Ukraine' || c.id === '804');
-          }
-          cachedWorldData = { world: worldData, ukraine: ukraineFeature };
+          cachedWorldData = worldData;
         }
 
+        const countriesData = topojson.feature(worldData, worldData.objects.countries).features;
         const land = topojson.feature(worldData, worldData.objects.land);
         
+        const ukraineFeature = countriesData.find((c: any) => c.properties?.name === 'Ukraine' || c.id === '804');
+
         const kharkivMarker = { lon: 36.23, lat: 50.00 }; 
         
         let rotation = [-20, -40, 0]; 
@@ -844,7 +855,7 @@ export default function GraziaFurnitureSystem() {
             rotation[0] = startRotation[0] + (targetRotation[0] - startRotation[0]) * ease;
             rotation[1] = startRotation[1] + (targetRotation[1] - startRotation[1]) * ease;
 
-            projection.scale(baseRadius + (baseRadius * 3.5) * ease);
+            projection.scale(baseRadius + (baseRadius * 2.5) * ease);
 
             if (zoomProgress > 0.45 && !hasTriggeredMap) {
               hasTriggeredMap = true;
@@ -899,8 +910,8 @@ export default function GraziaFurnitureSystem() {
             ctx.fill();
 
             ctx.shadowColor = 'white';
-            ctx.shadowBlur = 10 * pulseAlpha * dpr;
-            ctx.lineWidth = 1.5 * dpr;
+            ctx.shadowBlur = 10 * pulseAlpha;
+            ctx.lineWidth = 1.5;
             ctx.strokeStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
             ctx.stroke();
             
@@ -920,15 +931,15 @@ export default function GraziaFurnitureSystem() {
             const dist = d3.geoDistance(center, [kharkivMarker.lon, kharkivMarker.lat]);
             if (dist < Math.PI / 2) {
               const [x, y] = projection([kharkivMarker.lon, kharkivMarker.lat]);
-              const pulse = (4 + Math.sin(Date.now() * 0.005) * 3) * dpr;
+              const pulse = 4 + Math.sin(Date.now() * 0.005) * 3;
               
               ctx.beginPath();
-              ctx.arc(x, y, pulse + (7 * dpr), 0, 2 * Math.PI);
+              ctx.arc(x, y, pulse + 7, 0, 2 * Math.PI);
               ctx.fillStyle = pulseOuter; 
               ctx.fill();
 
               ctx.beginPath();
-              ctx.arc(x, y, 3.5 * dpr, 0, 2 * Math.PI);
+              ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
               ctx.fillStyle = pulseInner;
               ctx.fill();
             }
@@ -1175,6 +1186,35 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-[var(--accent-main)] selection:text-white overflow-x-hidden transition-colors duration-500 relative">
       <style dangerouslySetInnerHTML={{__html: `html { scroll-behavior: smooth; }`}} />
+
+      {/* --- PREMIUM PRELOADER --- */}
+      <AnimatePresence>
+        {isPreloaderVisible && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="fixed inset-0 z-[9999] bg-[#050505] text-white flex flex-col items-center justify-center pointer-events-none"
+          >
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/50 mb-6">
+                Ініціалізація 3D-Оточення
+              </span>
+              <div className="text-7xl md:text-9xl font-serif font-light tracking-tighter tabular-nums">
+                {loadingProgress}%
+              </div>
+              <div className="w-48 h-[1px] bg-white/10 mt-8 overflow-hidden">
+                <motion.div 
+                  className="h-full bg-white"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${loadingProgress}%` }}
+                  transition={{ duration: 0.1 }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* --- КІНЕМАТОГРАФІЧНА ГАЛЕРЕЯ (MODAL) --- */}
       {selectedProject && (
@@ -1656,7 +1696,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             <div className="absolute top-6 left-6 flex flex-col gap-2 z-20 pointer-events-none">
               {configData.type && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.type}</span>}
               {configData.layout && configData.type === 'Кухня' && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.layout}</span>}
-              <span className={`backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm ${configData.furnitureClass === 'Преміум' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-black/50'}`}>
+              <span className={`backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm ${configData.furnitureClass === 'Преміamo' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-black/50'}`}>
                 {configData.furnitureClass}
               </span>
             </div>
