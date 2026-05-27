@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, Suspense, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   ArrowRight, 
   MapPin, 
@@ -30,7 +30,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 // 3D Бібліотеки
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Center, Float, Html, RoundedBox } from '@react-three/drei';
+import { OrbitControls, ContactShadows, Center, Float, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 
 // --- КАСТОМНІ ІКОНКИ ДЛЯ СОЦМЕРЕЖ ---
@@ -55,7 +55,6 @@ const TelegramIconSVG = ({ size = 24, color = "currentColor" }) => (
   </svg>
 );
 
-// ВИПРАВЛЕНО: Додано підтримку 'id' для компонента
 const FadeIn = ({ children, delay = 0, className = "", id }: { children: React.ReactNode, delay?: number, className?: string, id?: string }) => (
   <motion.div
     id={id}
@@ -94,11 +93,9 @@ const getMaterialProps = (colorStr: string) => {
   
   let hex = '#dddddd';
   
-  // Якщо це кастомний HEX або колір з палітри
   if (colorStr.startsWith('#')) {
     hex = colorStr;
   } else {
-    // Фолбек для текстур
     if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
     if (colorStr.includes('Горіх')) hex = '#5E4028';
     if (colorStr.includes('Чорне дерево')) hex = '#211C18';
@@ -112,7 +109,7 @@ const getMaterialProps = (colorStr: string) => {
     color: hex,
     roughness: isWood ? 0.85 : isStone ? 0.2 : 0.15,
     metalness: isStone ? 0.1 : 0.05,
-    clearcoat: isWood ? 0 : isStone ? 0.5 : 0.2, // Легкий глянець для фарби
+    clearcoat: isWood ? 0 : isStone ? 0.5 : 0.2,
     clearcoatRoughness: 0.15,
   };
 };
@@ -395,13 +392,13 @@ const DEFAULT_MAP_LOCATIONS = [
     description: 'Еталон інженерної думки та преміального мінімалізму. У цьому проєкті ми реалізували монолітний фасад без видимих ручок, інтегрували німецьку побутову техніку Teka та створили унікальну систему вертикального LED-освітлення скляної вітрини з торцевим підсвічуванням полиць.',
     rating: 5,
     photos: [
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg', caption: 'Монолітний матовий графіт. Фасади оброблені спеціальним захисним нано-покриттям, яке повністю запобігає появі відбитків пальців та дрібних подряпин.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg', caption: 'Геометрія простору. Світлові лінії на стелі ідеально повторюють контур робочої зони кухні, підкреслюючи архітектурну точність проєкту.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-47.jpg', caption: 'Скляна вітрина преміум-класу. LED-стрічка прихованого монтажу інтегрована безпосередньо у вертикальний алюмінієвий профіль, створюючи магічне м\'яке світіння полиць.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-48.jpg', caption: 'Прихована зона сушіння посуду. Ми інтегрували італійську дворівневу сушку з нержавіючої сталі у верхню шафу з плавним підйомним механізмом Aventos від Blum.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-51.jpg', caption: 'Вбудований двокамерний холодильник. Спеціальні посилені петлі витримують вагу важкого меблевого фасаду, забезпечуючи ідеальні зазори.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-50.jpg', caption: 'Організація висувних систем Legrabox. Повний висув та плавний дотяг. Ящики витримують навантаження до 40 кг без просідання напрямних.' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-45.jpg', caption: 'Ергономіка мийної зони. Вбудована посудомийна машина Teka та духова шафа розташовані на зручній для спини висоті, перетворюючи приготування на задоволення.' }
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-47.jpg' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-48.jpg' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-51.jpg' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-50.jpg' },
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-45.jpg' }
     ]
   },
   { 
@@ -414,7 +411,7 @@ const DEFAULT_MAP_LOCATIONS = [
     description: 'Оптимізація простору для великої родини. Створили приховані системи зберігання та інтегрували ТВ-зону в єдиний монолитиний ансамбль у стилі Soft-Minimalism.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200', caption: 'ТВ-зона з прихованою проводкою та підвісними консолями. Ніякого візуального шуму.' }
+      { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200' }
     ]
   },
   { 
@@ -427,7 +424,7 @@ const DEFAULT_MAP_LOCATIONS = [
     description: 'Проєкт масштабної кухні для великого заміського будинку у Харківській області. Тільки вологостійкі преміальні матеріали.',
     rating: 5,
     photos: [
-      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200', caption: 'Простір та світло. Велика обідня зона, поєднана з процесом готування.' }
+      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200' }
     ]
   }
 ];
@@ -491,23 +488,27 @@ export default function GraziaFurnitureSystem() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
-  const [lightboxPhoto, setLightboxPhoto] = useState<{url: string, caption: string} | null>(null);
+  
+  // --- ОНОВЛЕНИЙ СТЕЙТ ЛАЙТБОКСУ (ЗАВДАННЯ 1) ---
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
   
   // --- СТЕЙТ РОЗШИРЕНОЇ ВОРОНКИ ---
   const [configStep, setConfigStep] = useState(1);
   const [activeColorZone, setActiveColorZone] = useState('base'); 
   const [configData, setConfigData] = useState({
     type: 'Кухня', 
-    furnitureClass: 'Стандарт', // Нове: Клас меблів
+    furnitureClass: 'Стандарт',
     layout: 'Пряма',
     leftModule: 'none', 
     rightModule: 'none', 
     upperTier: 'Одноярусні',
     colors: {
-      base: '#2C2C2C', // Тепер зберігаємо HEX або Назву
+      base: '#2C2C2C',
       upper: '#F5F5F7',
       topTier: 'Шпон: Світлий Дуб',
-      countertop: 'Камінь: Білий Камінь', // Матеріал + Колір
+      countertop: 'Камінь: Білий Камінь',
       carcass: '#1A1A1A' 
     },
     dimensions: { length: '', width: '', height: '' },
@@ -545,7 +546,6 @@ export default function GraziaFurnitureSystem() {
   }, [configData.type, configData.upperTier]);
 
   useEffect(() => {
-    // Скидаємо активну зону, якщо тип змінився і такої зони більше немає
     if (!colorTabs.find(t => t.id === activeColorZone)) {
       setActiveColorZone('base');
     }
@@ -615,6 +615,51 @@ export default function GraziaFurnitureSystem() {
     };
     fetchPortfolio();
   }, []);
+
+  // --- ЛОГІКА НАВІГАЦІЇ ЛАЙТБОКСУ (ЗАВДАННЯ 1) ---
+  const handlePrevPhoto = useCallback(() => {
+    if (selectedProject && lightboxIndex !== null) {
+      setLightboxIndex((prev) => (prev! === 0 ? selectedProject.photos.length - 1 : prev! - 1));
+    }
+  }, [selectedProject, lightboxIndex]);
+
+  const handleNextPhoto = useCallback(() => {
+    if (selectedProject && lightboxIndex !== null) {
+      setLightboxIndex((prev) => (prev! + 1) % selectedProject.photos.length);
+    }
+  }, [selectedProject, lightboxIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (lightboxIndex === null) return;
+      if (e.key === 'ArrowRight') handleNextPhoto();
+      if (e.key === 'ArrowLeft') handlePrevPhoto();
+      if (e.key === 'Escape') setLightboxIndex(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, handleNextPhoto, handlePrevPhoto]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const distance = touchStartX.current - touchEndX.current;
+    
+    // Поріг для свайпу (мінімум 50px)
+    if (distance > 50) handleNextPhoto();
+    if (distance < -50) handlePrevPhoto();
+    
+    // Скидання
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
 
   // 1. D3.js 3D-Глобус 
   useEffect(() => {
@@ -924,7 +969,7 @@ export default function GraziaFurnitureSystem() {
         const map = new mapboxgl.Map({
           container: mapContainerRef.current,
           style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11', 
-          center: [36.2261, 50.0060], // Точний центр — Держпром
+          center: [36.2261, 50.0060],
           zoom: 11.5, 
           pitch: 0,   
           bearing: 0, 
@@ -1026,12 +1071,10 @@ export default function GraziaFurnitureSystem() {
     }, 600);
   };
 
-  // ФУНКЦІЯ ВІДПРАВКИ НОВОГО 3D КОНФІГУРАТОРА
   const handleCalcSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setIsSubmitting(true);
     
-    // Формуємо супер-детальний Payload для Telegram
     const detailedMessage = `
 🔥 НОВИЙ ЛІД (3D КОНФІГУРАТОР) 🔥
 ======================
@@ -1065,21 +1108,18 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         customer_name: 'Лід з 3D Конфігуратора',
         total_amount: 0,
         status: 'draft',
-        ttn_number: detailedMessage // Зберігаємо деталі і в базу
+        ttn_number: detailedMessage 
       });
 
-      // Відправка в ТГ (якщо налаштовано)
       await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ...configData, 
-          // Дублюємо поля для зворотної сумісності зі старим бекендом
           length: configData.dimensions.length,
           width: configData.dimensions.width,
           height: configData.dimensions.height,
           color: configData.colors.base,
-          // Передаємо повністю готовий текст повідомлення!
           message: detailedMessage 
         })
       });
@@ -1099,7 +1139,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-[var(--accent-main)] selection:text-white overflow-x-hidden transition-colors duration-500 relative">
-      {/* ПЛАВНИЙ СКРОЛ (Smooth Scroll) */}
       <style dangerouslySetInnerHTML={{__html: `html { scroll-behavior: smooth; }`}} />
 
       {/* --- КІНЕМАТОГРАФІЧНА ГАЛЕРЕЯ (MODAL) --- */}
@@ -1154,29 +1193,22 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               </div>
             </div>
 
+            {/* ОНОВЛЕНА СІТКА ФОТО (Без тексту) */}
             <div className="mb-12">
-              <h3 className="text-2xl font-serif text-[var(--text-main)] mb-8">Детальний фотозвіт конструктора</h3>
+              <h3 className="text-2xl font-serif text-[var(--text-main)] mb-8">Фотозвіт проєкту</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {selectedProject.photos.map((photo: any, idx: number) => (
                   <div 
                     key={idx} 
-                    onClick={() => setLightboxPhoto(photo)}
-                    className="relative aspect-[3/4] bg-[var(--bg-card)] cursor-zoom-in group overflow-hidden rounded-sm border border-[var(--border-color)] shadow-sm"
+                    onClick={() => setLightboxIndex(idx)}
+                    className="relative aspect-[4/3] bg-[var(--bg-card)] cursor-zoom-in group overflow-hidden rounded-sm border border-[var(--border-color)] shadow-sm"
                   >
-                    <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Деталь меблів" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-500"></div>
+                    <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt={`Фото ${idx + 1}`} />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-500"></div>
                     
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="w-12 h-12 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[var(--accent-main)] shadow-xl">
-                        <Eye size={20} />
-                      </div>
-                    </div>
-
-                    <div className="absolute bottom-4 left-4 right-4 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
-                      <div className="bg-[var(--modal-bg)] backdrop-blur p-4 border-l-4 border-[var(--accent-main)] shadow-lg">
-                        <p className="text-[11px] font-medium text-[var(--text-main)] leading-relaxed line-clamp-2">
-                          {photo.caption}
-                        </p>
+                      <div className="w-14 h-14 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[var(--accent-main)] shadow-xl">
+                        <Eye size={24} />
                       </div>
                     </div>
                   </div>
@@ -1188,20 +1220,50 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
       )}
 
-      {/* --- LIGHTBOX ПОВНОЕКРАННИЙ З ПРОДАЮЧИМ ТЕКСТОМ --- */}
-      {lightboxPhoto && (
-        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-fadeIn">
-          <button onClick={() => setLightboxPhoto(null)} className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors">
-            <X size={24} />
-          </button>
-          
-          <img src={lightboxPhoto.url} className="max-w-full max-h-[72vh] object-contain rounded-sm shadow-2xl border border-white/5" alt="Zoomed view" />
-          
-          <div className="mt-8 max-w-2xl text-center px-4">
-            <p className="text-white text-lg md:text-xl font-light leading-relaxed border-t border-white/20 pt-6">
-              {lightboxPhoto.caption}
-            </p>
+      {/* --- ОНОВЛЕНИЙ LIGHTBOX ПОВНОЕКРАННИЙ (ЗАВДАННЯ 1) --- */}
+      {lightboxIndex !== null && selectedProject && (
+        <div 
+          className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center animate-fadeIn"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Top Bar: Counter & Close */}
+          <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-50">
+            <div className="text-white/70 font-mono text-sm tracking-widest bg-black/40 px-5 py-2 rounded-full backdrop-blur-md border border-white/10 shadow-lg select-none">
+              <span className="text-white font-bold">{lightboxIndex + 1}</span> <span className="opacity-50 mx-1">/</span> {selectedProject.photos.length}
+            </div>
+            <button 
+              onClick={() => setLightboxIndex(null)} 
+              className="w-12 h-12 flex items-center justify-center text-white/70 hover:text-white bg-black/40 hover:bg-black/60 rounded-full transition-all border border-white/10 backdrop-blur-md shadow-lg"
+            >
+              <X size={24} />
+            </button>
           </div>
+          
+          {/* Main Image */}
+          <img 
+            src={selectedProject.photos[lightboxIndex].url} 
+            className="max-w-[95vw] max-h-[85vh] object-contain rounded-sm shadow-2xl transition-transform duration-500 select-none pointer-events-none" 
+            alt="Zoomed view" 
+            draggable="false"
+          />
+          
+          {/* Left Arrow */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); handlePrevPhoto(); }}
+            className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center text-white/50 hover:text-white bg-black/20 hover:bg-black/50 rounded-full transition-all border border-transparent hover:border-white/20 z-50 backdrop-blur-md shadow-lg hidden sm:flex"
+          >
+            <ChevronLeft size={36} strokeWidth={1.5} />
+          </button>
+
+          {/* Right Arrow */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleNextPhoto(); }}
+            className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center text-white/50 hover:text-white bg-black/20 hover:bg-black/50 rounded-full transition-all border border-transparent hover:border-white/20 z-50 backdrop-blur-md shadow-lg hidden sm:flex"
+          >
+            <ChevronRight size={36} strokeWidth={1.5} />
+          </button>
         </div>
       )}
 
@@ -1223,7 +1285,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
 
         <div className="flex items-center pointer-events-auto">
-          {/* Анімований перемикач теми */}
           <div 
             onClick={toggleTheme}
             className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
@@ -1278,12 +1339,9 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           </div>
         </div>
 
-        {/* Права інтерактивна зона */}
         <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[var(--bg-card)] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[var(--border-color)]">
-          
           {mapLevel === 'globe' ? (
             <div className={`w-full h-full flex flex-col items-center justify-center p-6 relative transition-all duration-[1500ms] ${isTransitioning ? 'scale-[3] opacity-0 blur-xl' : 'scale-100 opacity-100'}`}>
-              
               <canvas 
                 ref={canvasRef} 
                 width={550} 
@@ -1291,25 +1349,19 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 className="w-full max-w-[500px] aspect-square cursor-grab active:cursor-grabbing hover:scale-105 transition-transform duration-500" 
                 title="Покрутіть глобус або клікніть, щоб відкрити карту об'єктів"
               />
-              
               <div className="absolute top-6 left-6 bg-[var(--modal-bg)] backdrop-blur-sm px-4 py-2 rounded-full border border-[var(--border-color)] text-[10px] font-mono uppercase tracking-widest text-[var(--text-main)] shadow-sm">
                 Локалізація: Україна
               </div>
-
               <div className="absolute bottom-6 bg-[var(--modal-bg)] backdrop-blur-md border border-[var(--border-color)] px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] animate-pulse opacity-80 group-hover:opacity-100 transition-opacity">
                 <MousePointer2 size={12} /> Натисніть на глобус, щоб відкрити карту
               </div>
-              
             </div>
           ) : (
             <div className={`w-full h-full relative transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
-              
               <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ outline: 'none' }} />
-
               <div className="absolute top-6 left-6 bg-[var(--modal-bg)] backdrop-blur-md px-4 py-2 rounded-full border border-[var(--border-color)] text-[10px] font-mono uppercase tracking-widest z-30 shadow-sm pointer-events-none text-[var(--text-main)]">
                 Детальна Карта Робіт
               </div>
-
               <div className="absolute bottom-6 left-6 right-6 bg-[var(--modal-bg)] backdrop-blur-md p-5 border border-[var(--border-color)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl cursor-pointer hover:bg-[var(--bg-card)] transition-all duration-300 z-30" onClick={() => setSelectedProject(activePin)}>
                 <div>
                   <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 text-[var(--bg-main)] inline-block mb-2 ${activePin.type === 'city' ? 'bg-[var(--text-main)]' : 'bg-[var(--accent-main)]'}`}>
@@ -1329,10 +1381,8 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </button>
                 </div>
               </div>
-
             </div>
           )}
-
         </div>
       </FadeIn>
 
@@ -1459,27 +1509,24 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
       </FadeIn>
 
-      {/* --- PREMIUM 3D CONFIGURATOR (ОНОВЛЕНИЙ) --- */}
+      {/* --- PREMIUM 3D CONFIGURATOR --- */}
       <FadeIn delay={0.3} className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto" id="calc">
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
           
-          {/* ЛІВА ЧАСТИНА: СПРАВЖНЯ 3D СЦЕНА */}
           <div className="lg:w-1/2 relative bg-[#111111] overflow-hidden flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-white/10 min-h-[400px] cursor-grab active:cursor-grabbing">
-            {/* Декоративний фон */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
             
             <div className="absolute inset-0 z-10">
               <Canvas camera={{ position: [5, 4, 6], fov: 45 }}>
-                <ambientLight intensity={0.5} />
-                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
-                <Environment preset="city" />
-                <Suspense fallback={null}>
-                  <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
-                    <Center>
-                      <ParametricFurniture config={configData} />
-                    </Center>
-                  </Float>
-                </Suspense>
+                <ambientLight intensity={0.7} />
+                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1.5} castShadow />
+                <directionalLight position={[-10, 5, -5]} intensity={1} color="#e6f2ff" />
+                <directionalLight position={[0, -5, 0]} intensity={0.5} />
+                <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
+                  <Center>
+                    <ParametricFurniture config={configData} />
+                  </Center>
+                </Float>
                 <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
                 <OrbitControls enableZoom={true} enablePan={false} minPolarAngle={Math.PI / 4} maxPolarAngle={Math.PI / 2} autoRotate autoRotateSpeed={0.5} />
               </Canvas>
@@ -1495,7 +1542,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               <p className="text-white/40 text-xs mt-1">Покрутіть модель мишкою</p>
             </div>
             
-            {/* Індикатори параметрів поверх 3D */}
             <div className="absolute top-6 left-6 flex flex-col gap-2 z-20 pointer-events-none">
               {configData.type && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.type}</span>}
               {configData.layout && configData.type === 'Кухня' && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.layout}</span>}
@@ -1505,10 +1551,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             </div>
           </div>
 
-          {/* ПРАВА ЧАСТИНА: ПАНЕЛЬ КЕРУВАННЯ */}
           <div className="lg:w-1/2 p-8 lg:p-14 flex flex-col relative bg-[var(--bg-main)]">
-            
-            {/* Прогрес бар */}
             {!formSubmitted && (
               <div className="mb-10">
                 <div className="flex justify-between text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] mb-3">
@@ -1529,7 +1572,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             <div className="flex-1 relative">
               <AnimatePresence mode="wait">
                 
-                {/* КРОК 1: ТИП ВИРОБУ */}
                 {configStep === 1 && !formSubmitted && (
                   <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Що будемо створювати?</h3>
@@ -1541,7 +1583,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                           key={item}
                           onClick={() => {
                             setConfigData({...configData, type: item});
-                            // Якщо не кухня, скидаємо вкладку кольору на безпечну
                             if (item !== 'Кухня' && !['base', 'carcass'].includes(activeColorZone)) setActiveColorZone('base');
                           }}
                           className={`p-6 border rounded-lg cursor-pointer transition-all duration-300 flex flex-col items-center text-center gap-4 ${configData.type === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
@@ -1556,7 +1597,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </motion.div>
                 )}
 
-                {/* НОВИЙ КРОК 2: КЛАС МЕБЛІВ (БЮДЖЕТ) */}
                 {configStep === 2 && !formSubmitted && (
                   <motion.div key="step1.5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Клас виконання</h3>
@@ -1586,7 +1626,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </motion.div>
                 )}
 
-                {/* КРОК 3 (Колишній 2): ФОРМ-ФАКТОР */}
                 {configStep === 3 && !formSubmitted && (
                   <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Конфігурація</h3>
@@ -1594,7 +1633,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                     
                     {configData.type === 'Кухня' ? (
                       <div className="space-y-6 overflow-y-auto pr-2 pb-4 no-scrollbar">
-                        {/* Планування */}
                         <div>
                           <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Основна геометрія</span>
                           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
@@ -1610,7 +1648,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                           </div>
                         </div>
 
-                        {/* Ярусність */}
                         <div>
                           <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Верхні секції</span>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1629,7 +1666,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                           </div>
                         </div>
                         
-                        {/* Пенали */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Лівий пенал (Колона)</span>
@@ -1673,13 +1709,11 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </motion.div>
                 )}
 
-                {/* КРОК 4 (Колишній 3): РОЗУМНІ КОЛЬОРИ (HEX/RAL/TEXTURES) */}
                 {configStep === 4 && !formSubmitted && (
                   <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Студія Дизайну</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-6">Оберіть зону та налаштуйте колір або матеріал.</p>
                     
-                    {/* ДИНАМІЧНІ ВКЛАДКИ ЗОН */}
                     <div className="flex gap-2 mb-6 border-b border-[var(--border-color)] pb-2 overflow-x-auto no-scrollbar">
                       {colorTabs.map((tab) => (
                         <button 
@@ -1693,16 +1727,13 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                     </div>
 
                     <div className="space-y-6 overflow-y-auto pr-2 pb-4 no-scrollbar">
-                      
-                      {/* ЛОГІКА ДЛЯ СТІЛЬНИЦІ */}
                       {activeColorZone === 'countertop' ? (
                         <>
-                          {/* Тип матеріалу */}
                           <div>
                             <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Вибір матеріалу стільниці</span>
                             <div className="grid grid-cols-2 gap-3 mb-6">
                               {['Вологостійке ДСП (Egger)', 'Штучний Камінь (Акрил)', 'HPL Компакт-плита', 'Натуральний Кварц/Мармур'].map(mat => {
-                                const isSelected = configData.colors.countertop.includes(mat.split(' ')[0]); // Проста перевірка
+                                const isSelected = configData.colors.countertop.includes(mat.split(' ')[0]); 
                                 return (
                                   <div key={mat} 
                                        onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: `${mat.split(' ')[0]}: Базовий`}}))}
@@ -1715,7 +1746,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                             </div>
                           </div>
 
-                          {/* Текстури каменю/ДСП */}
                           <div>
                             <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Популярні текстури (Демо)</span>
                             <div className="flex gap-3">
@@ -1733,10 +1763,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                           </div>
                         </>
                       ) : (
-                        
-                        /* ЛОГІКА ДЛЯ ФАСАДІВ ТА КОРПУСУ */
                         <>
-                          {/* Палітра RAL/HEX */}
                           <div>
                             <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3 flex justify-between items-center">
                               <span>Преміум Емаль / RAL</span>
@@ -1764,7 +1791,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                             </div>
                           </div>
 
-                          {/* Текстури дерева */}
                           <div className="pt-4 border-t border-[var(--border-color)]">
                             <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Натуральний Шпон / ДСП під дерево</span>
                             <div className="flex gap-4">
@@ -1784,7 +1810,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </motion.div>
                 )}
 
-                {/* КРОК 5: РОЗМІРИ */}
                 {configStep === 5 && !formSubmitted && (
                   <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Габарити виробу</h3>
@@ -1839,7 +1864,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </motion.div>
                 )}
 
-                {/* КРОК 6: ПОДАРУНОК */}
                 {configStep === 6 && !formSubmitted && (
                   <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Ваш гарантований подарунок</h3>
@@ -1866,7 +1890,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </motion.div>
                 )}
 
-                {/* КРОК 7: ФІНАЛ (КОНТАКТИ) */}
                 {configStep === 7 && !formSubmitted && (
                   <motion.div key="step6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Проєкт готовий до прорахунку</h3>
@@ -1904,7 +1927,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </motion.div>
                 )}
 
-                {/* УСПІШНЕ ВІДПРАВЛЕННЯ + UPSELL */}
                 {formSubmitted && (
                   <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col items-center justify-center text-center z-10 relative">
                     <div className="w-20 h-20 bg-green-500/10 text-green-600 rounded-full flex items-center justify-center mb-6">
@@ -1915,7 +1937,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                       Ми вже завантажили ваші параметри в базу. Дизайнер-технолог Марина зв'яжеться з вами у вказаний час ({configData.time}). Подарунок ({configData.gift || 'не обрано'}) зафіксовано за вашим номером.
                     </p>
 
-                    {/* UPSELL BLOCK */}
                     <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1E3527] to-[#0D1A13] p-8 text-left w-full border border-white/10 shadow-2xl">
                       <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
                         <Sparkles size={100} className="text-white" />
@@ -1937,7 +1958,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               </AnimatePresence>
             </div>
 
-            {/* Навігація між кроками */}
             {!formSubmitted && (
               <div className="mt-10 pt-6 border-t border-[var(--border-color)] flex justify-between items-center relative z-10">
                 <button 
@@ -1951,7 +1971,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   <button 
                     onClick={() => {
                       if (configStep === 1 && configData.type !== 'Кухня') {
-                        setConfigStep(4); // Стрибаємо одразу на кольори, пропускаючи клас(2) і конфігурацію(3) для не-кухонь
+                        setConfigStep(4); 
                       } else {
                         setConfigStep(configStep + 1);
                       }
@@ -1976,7 +1996,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
       </FadeIn>
 
-      {/* --- СТАТИЧНИЙ БЛОК ПАРТНЕРІВ --- */}
       <FadeIn delay={0.2} className="w-full bg-[var(--bg-card)] border-y border-[var(--border-color)] py-16 mt-24">
         <div className="max-w-[1600px] mx-auto px-6">
           <div className="text-center mb-10">
@@ -1992,7 +2011,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
       </FadeIn>
 
-      {/* Футер з 3D Смартфоном */}
       <footer className="bg-[var(--btn-bg)] text-[var(--btn-text)] pt-24 pb-16 px-6 md:px-12 mt-auto transition-colors duration-500 overflow-hidden">
         <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-16 relative">
           
@@ -2016,7 +2034,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             </div>
           </div>
           
-          {/* 3D Смартфон Віджет */}
           <div className="flex-1 w-full flex justify-center lg:justify-end relative z-10 h-[400px]">
             <div className="relative">
               <div className="absolute top-10 -left-10 text-[10px] font-mono uppercase tracking-widest text-[var(--btn-text)]/40 text-right">
@@ -2024,22 +2041,20 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               </div>
               
               <div className="relative w-[280px] h-[450px]">
-                {/* 3D Модель Телефону */}
                 <div className="absolute inset-0 z-0">
                   <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
-                    <ambientLight intensity={0.6} />
-                    <directionalLight position={[5, 5, 5]} intensity={1.5} />
-                    <Environment preset="city" />
-                    
+                    <ambientLight intensity={0.8} />
+                    <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" />
+                    <directionalLight position={[-5, 5, -5]} intensity={1} color="#e0f0ff" />
+                    <directionalLight position={[0, -5, 0]} intensity={0.5} color="#ffffff" />
                     <group rotation={[0, -0.15, 0]}>
                       <RoundedBox args={[1.8, 3.6, 0.2]} radius={0.2} smoothness={4} castShadow>
-                        <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.8} />
+                        <meshStandardMaterial color="#1a1a1a" roughness={0.2} metalness={0.9} />
                       </RoundedBox>
                     </group>
                   </Canvas>
                 </div>
 
-                {/* HTML Інтерфейс поверх 3D */}
                 <div 
                   className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
                   style={{ transform: 'translate(-50%, -50%) rotateY(-8.6deg)', transformOrigin: 'center center' }}
