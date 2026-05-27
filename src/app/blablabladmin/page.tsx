@@ -281,10 +281,6 @@ export default function AdminPanel() {
       setStatusMessage({ type: 'error', text: 'Заповніть назву та публічну зону.' });
       return;
     }
-    if (existingMedia.length === 0 && selectedFiles.length === 0) {
-      setStatusMessage({ type: 'error', text: 'Додайте хоча б 1 фотографію.' });
-      return;
-    }
 
     setIsSubmitting(true);
 
@@ -496,7 +492,8 @@ export default function AdminPanel() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {projects.map(project => (
                   <div key={project.id} className="bg-[#111] border border-white/5 hover:border-white/20 transition-colors rounded-xl overflow-hidden shadow-lg flex flex-col">
-                    <div className="aspect-video w-full bg-black relative">
+                    {/* ОНОВЛЕНО: Тепер картинка картки є СТРОГО КВАДРАТНОЮ для першокласного UX */}
+                    <div className="aspect-square w-full bg-neutral-900 relative overflow-hidden">
                       {project.media && project.media.length > 0 ? (
                         <img src={project.media[0].url} alt={project.title} className="w-full h-full object-cover opacity-80" />
                       ) : (
