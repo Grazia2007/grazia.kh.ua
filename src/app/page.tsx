@@ -28,6 +28,10 @@ import {
   Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+// 3D Бібліотеки
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, ContactShadows, Center, Float, RoundedBox } from '@react-three/drei';
+import * as THREE from 'three';
 
 // --- КАСТОМНІ ІКОНКИ ДЛЯ СОЦМЕРЕЖ ---
 const InstagramIconSVG = ({ size = 24, color = "currentColor" }) => (
@@ -82,62 +86,272 @@ const WOOD_TEXTURES = [
   { name: 'Шпон: Чорне дерево', bg: 'linear-gradient(135deg, #211C18, #110e0c)' },
 ];
 
-// --- CSS ВІЗУАЛІЗАТОР ЗАМІСТЬ 3D ---
-// Щоб уникнути помилок React Reconciler в середовищі виконання
-const CSSVisualizer = ({ config }: { config: any }) => {
-  const getHex = (colorStr: string) => {
-    if (colorStr.startsWith('#')) return colorStr;
-    if (colorStr.includes('Світлий Дуб')) return '#D4B895';
-    if (colorStr.includes('Горіх')) return '#5E4028';
-    if (colorStr.includes('Чорне дерево')) return '#211C18';
-    if (colorStr.includes('Білий Камінь')) return '#F9F9F9';
-    if (colorStr.includes('Чорний Мармур')) return '#1A1A1A';
-    if (colorStr.includes('ДСП') && colorStr.includes('Світле')) return '#E5D3B3';
-    if (colorStr.includes('HPL') && colorStr.includes('Бетон')) return '#8c8c8c';
-    return '#333333';
-  };
-
-  const baseColor = getHex(config.colors.base);
-  const upperColor = getHex(config.colors.upper || config.colors.base);
-  const countertopColor = getHex(config.colors.countertop);
+// --- РОЗШИРЕНА СИСТЕМА МАТЕРІАЛІВ 3D ---
+const getMaterialProps = (colorStr: string) => {
+  const isWood = colorStr.includes('Шпон');
+  const isStone = colorStr.includes('Мармур') || colorStr.includes('Камінь');
   
-  return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ perspective: '1200px' }}>
-      <div 
-        className="relative w-full h-full flex flex-col items-center justify-center"
-        style={{ transform: 'rotateX(5deg) rotateY(-15deg)', transformStyle: 'preserve-3d' }}
-      >
-        <div className="absolute w-[300px] h-[300px] bg-white/5 blur-[100px] rounded-full"></div>
-        
-        {config.type === 'Кухня' || config.type === '' ? (
-           <div className="flex flex-col items-center w-full max-w-[280px] translate-z-[50px] gap-8">
-             <div className="flex w-full gap-1 h-20 shadow-[0_20px_40px_rgba(0,0,0,0.8)] transition-colors duration-700 rounded-sm overflow-hidden" style={{ backgroundColor: upperColor }}>
-                <div className="flex-1 border-r border-black/10"></div>
-                <div className="flex-1 border-r border-black/10"></div>
-                <div className="flex-1"></div>
-             </div>
-             
-             <div className="w-full flex flex-col items-center">
-               <div className="w-[105%] h-3 shadow-[0_5px_15px_rgba(0,0,0,0.5)] rounded-t-sm transition-colors duration-700 z-10" style={{ backgroundColor: countertopColor }}></div>
-               <div className="flex w-full gap-1 h-28 shadow-[0_20px_40px_rgba(0,0,0,0.8)] transition-colors duration-700 rounded-b-sm overflow-hidden" style={{ backgroundColor: baseColor }}>
-                  <div className="flex-1 border-r border-white/5"></div>
-                  <div className="flex-1 border-r border-white/5"></div>
-                  <div className="flex-1"></div>
-               </div>
-             </div>
-           </div>
-        ) : (
-           <div className="w-48 h-64 shadow-[0_30px_60px_rgba(0,0,0,0.8)] transition-colors duration-700 rounded-sm overflow-hidden translate-z-[50px]" style={{ backgroundColor: baseColor }}>
-              <div className="w-full h-full flex gap-1">
-                 <div className="flex-1 border-r border-white/5"></div>
-                 <div className="flex-1"></div>
-              </div>
-           </div>
+  let hex = '#dddddd';
+  
+  if (colorStr.startsWith('#')) {
+    hex = colorStr;
+  } else {
+    if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
+    if (colorStr.includes('Горіх')) hex = '#5E4028';
+    if (colorStr.includes('Чорне дерево')) hex = '#211C18';
+    if (colorStr.includes('Білий Камінь')) hex = '#F9F9F9';
+    if (colorStr.includes('Чорний Мармур')) hex = '#1A1A1A';
+    if (colorStr.includes('ДСП') && colorStr.includes('Світле')) hex = '#E5D3B3';
+    if (colorStr.includes('HPL') && colorStr.includes('Бетон')) hex = '#8c8c8c';
+  }
+
+  return {
+    color: hex,
+    roughness: isWood ? 0.85 : isStone ? 0.2 : 0.15,
+    metalness: isStone ? 0.1 : 0.05,
+    clearcoat: isWood ? 0 : isStone ? 0.5 : 0.2,
+    clearcoatRoughness: 0.15,
+  };
+};
+
+const createMats = (carcassStr: string, facadeStr: string, facadeIndices: number[]) => {
+  const cMat = new THREE.MeshPhysicalMaterial(getMaterialProps(carcassStr));
+  const fMat = new THREE.MeshPhysicalMaterial(getMaterialProps(facadeStr));
+  const mats = [cMat, cMat, cMat, cMat, cMat, cMat];
+  facadeIndices.forEach(idx => {
+    mats[idx] = fMat;
+  });
+  return mats;
+};
+
+// --- ОНОВЛЕНИЙ 3D КОМПОНЕНТ ---
+const ParametricFurniture = ({ config }: { config: any }) => {
+  const { type, layout, leftModule, rightModule, upperTier, colors } = config;
+
+  const baseMatsMain = useMemo(() => createMats(colors.carcass, colors.base, [4]), [colors.carcass, colors.base]);
+  const upperMatsMain = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsMain = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
+  
+  const baseMatsLeft = useMemo(() => createMats(colors.carcass, colors.base, [0, 4]), [colors.carcass, colors.base]);
+  const upperMatsLeft = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [0, 4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsLeft = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [0, 4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
+  
+  const baseMatsRight = useMemo(() => createMats(colors.carcass, colors.base, [1, 4]), [colors.carcass, colors.base]);
+  const upperMatsRight = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [1, 4]), [colors.carcass, colors.upper, colors.base]);
+  const topTierMatsRight = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [1, 4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
+
+  const carcassOnlyMats = useMemo(() => createMats(colors.carcass, colors.carcass, []), [colors.carcass]);
+  const countertopMat = useMemo(() => new THREE.MeshPhysicalMaterial(getMaterialProps(colors.countertop)), [colors.countertop]);
+  const glassMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#050505', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 }), []);
+  const fridgeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }), []);
+
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+    }
+  });
+
+  if (type === 'Кухня' || type === '') {
+    const hasAntresol = upperTier === 'Двоярусні (з антресолями)';
+    const tallModHeight = hasAntresol ? 2.7 : 2.3;
+    const tallModY = tallModHeight / 2; 
+
+    const TallModule = ({ position, rotation = [0, 0, 0], moduleType }: { position: [number, number, number], rotation?: [number, number, number], moduleType: string }) => {
+      if (moduleType === 'none') return null;
+      const mats = moduleType === 'fridge_open' ? carcassOnlyMats : baseMatsMain;
+      return (
+        <group position={position} rotation={rotation as any}>
+          <mesh material={mats} castShadow receiveShadow>
+            <boxGeometry args={[0.6, tallModHeight, 0.6]} />
+          </mesh>
+          {moduleType === 'oven' && (
+            <mesh position={[0, 0.1, 0.31]} material={glassMat} castShadow>
+              <boxGeometry args={[0.55, 0.8, 0.02]} />
+            </mesh>
+          )}
+          {moduleType === 'fridge_open' && (
+            <mesh position={[0, -0.2, 0.1]} material={fridgeMat} castShadow>
+              <boxGeometry args={[0.55, tallModHeight - 0.5, 0.45]} />
+            </mesh>
+          )}
+        </group>
+      );
+    };
+
+    return (
+      <group ref={groupRef} scale={[0.7, 0.7, 0.7]} position={[0, -0.4, 0]}>
+        <group position={[0, 0, 0]}>
+          <mesh position={[0, 0.45, 0]} material={baseMatsMain} castShadow receiveShadow>
+            <boxGeometry args={[3, 0.9, 0.6]} />
+          </mesh>
+          <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
+            <boxGeometry args={[3.05, 0.04, 0.65]} />
+          </mesh>
+          
+          {hasAntresol ? (
+            <>
+              <mesh position={[0, 1.8, -0.125]} material={upperMatsMain} castShadow receiveShadow>
+                <boxGeometry args={[3, 0.6, 0.35]} />
+              </mesh>
+              <mesh position={[0, 2.4, 0]} material={topTierMatsMain} castShadow receiveShadow>
+                <boxGeometry args={[3, 0.6, 0.6]} />
+              </mesh>
+            </>
+          ) : (
+            <mesh position={[0, 1.9, -0.125]} material={upperMatsMain} castShadow receiveShadow>
+              <boxGeometry args={[3, 0.8, 0.35]} />
+            </mesh>
+          )}
+        </group>
+
+        {(() => {
+          const isLeftCorner = layout === 'Кутова (Ліворуч)' || layout === 'П-подібна';
+          return (
+            <group>
+              {isLeftCorner && (
+                <group>
+                  <mesh position={[-1.2, 0.45, 0.9]} material={baseMatsLeft} castShadow receiveShadow>
+                    <boxGeometry args={[0.6, 0.9, 1.2]} />
+                  </mesh>
+                  <mesh position={[-1.2, 0.92, 0.9]} material={countertopMat} castShadow receiveShadow>
+                    <boxGeometry args={[0.65, 0.04, 1.25]} />
+                  </mesh>
+
+                  {hasAntresol ? (
+                    <>
+                      <mesh position={[-1.325, 1.8, 0.775]} material={upperMatsLeft} castShadow receiveShadow>
+                        <boxGeometry args={[0.35, 0.6, 1.45]} />
+                      </mesh>
+                      <mesh position={[-1.2, 2.4, 0.9]} material={topTierMatsLeft} castShadow receiveShadow>
+                        <boxGeometry args={[0.6, 0.6, 1.2]} />
+                      </mesh>
+                    </>
+                  ) : (
+                    <mesh position={[-1.325, 1.9, 0.775]} material={upperMatsLeft} castShadow receiveShadow>
+                      <boxGeometry args={[0.35, 0.8, 1.45]} />
+                    </mesh>
+                  )}
+                </group>
+              )}
+              {leftModule !== 'none' && (
+                <TallModule 
+                  position={isLeftCorner ? [-1.2, tallModY, 1.8] : [-1.8, tallModY, 0]} 
+                  rotation={isLeftCorner ? [0, Math.PI / 2, 0] : [0, 0, 0]}
+                  moduleType={leftModule} 
+                />
+              )}
+            </group>
+          );
+        })()}
+
+        {(() => {
+          const isRightCorner = layout === 'Кутова (Праворуч)' || layout === 'П-подібна';
+          return (
+            <group>
+              {isRightCorner && (
+                <group>
+                  <mesh position={[1.2, 0.45, 0.9]} material={baseMatsRight} castShadow receiveShadow>
+                    <boxGeometry args={[0.6, 0.9, 1.2]} />
+                  </mesh>
+                  <mesh position={[1.2, 0.92, 0.9]} material={countertopMat} castShadow receiveShadow>
+                    <boxGeometry args={[0.65, 0.04, 1.25]} />
+                  </mesh>
+
+                  {hasAntresol ? (
+                    <>
+                      <mesh position={[1.325, 1.8, 0.775]} material={upperMatsRight} castShadow receiveShadow>
+                        <boxGeometry args={[0.35, 0.6, 1.45]} />
+                      </mesh>
+                      <mesh position={[1.2, 2.4, 0.9]} material={topTierMatsRight} castShadow receiveShadow>
+                        <boxGeometry args={[0.6, 0.6, 1.2]} />
+                      </mesh>
+                    </>
+                  ) : (
+                    <mesh position={[1.325, 1.9, 0.775]} material={upperMatsRight} castShadow receiveShadow>
+                      <boxGeometry args={[0.35, 0.8, 1.45]} />
+                    </mesh>
+                  )}
+                </group>
+              )}
+              {rightModule !== 'none' && (
+                <TallModule 
+                  position={isRightCorner ? [1.2, tallModY, 1.8] : [1.8, tallModY, 0]} 
+                  rotation={isRightCorner ? [0, -Math.PI / 2, 0] : [0, 0, 0]}
+                  moduleType={rightModule} 
+                />
+              )}
+            </group>
+          );
+        })()}
+
+        {layout === 'З островом' && (
+          <group position={[0, 0, 1.8]}>
+            <mesh position={[0, 0.45, 0]} material={baseMatsMain} castShadow receiveShadow>
+              <boxGeometry args={[1.8, 0.9, 0.8]} />
+            </mesh>
+            <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
+              <boxGeometry args={[1.85, 0.04, 0.85]} />
+            </mesh>
+          </group>
         )}
-      </div>
-    </div>
+      </group>
+    );
+  }
+
+  if (type.includes('Шафа')) {
+    return (
+      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+        <mesh position={[0, 1.25, 0]} material={baseMatsMain} castShadow receiveShadow>
+          <boxGeometry args={[2.5, 2.5, 0.7]} />
+        </mesh>
+        <mesh position={[-0.6, 1.25, 0.36]} castShadow>
+          <boxGeometry args={[0.02, 2.4, 0.02]} />
+          <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+        </mesh>
+        <mesh position={[0.6, 1.25, 0.36]} castShadow>
+          <boxGeometry args={[0.02, 2.4, 0.02]} />
+          <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (type.includes('вітальню')) {
+    return (
+      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+        <mesh position={[0, 0.3, 0]} material={baseMatsMain} castShadow receiveShadow>
+          <boxGeometry args={[3, 0.4, 0.5]} />
+        </mesh>
+        <mesh position={[0, 1.4, -0.2]} material={glassMat} castShadow receiveShadow>
+          <boxGeometry args={[1.6, 0.9, 0.05]} />
+        </mesh>
+        <mesh position={[1.5, 1.5, -0.1]} material={upperMatsMain} castShadow receiveShadow>
+          <boxGeometry args={[0.4, 1.2, 0.3]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  return (
+    <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
+      <mesh position={[0, 0.6, 0]} material={baseMatsMain} castShadow receiveShadow>
+        <boxGeometry args={[1.5, 0.6, 0.5]} />
+      </mesh>
+      <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
+        <boxGeometry args={[1.55, 0.04, 0.55]} />
+      </mesh>
+      <mesh position={[0, 1.7, -0.2]} castShadow>
+        <boxGeometry args={[1.2, 0.8, 0.02]} />
+        <meshStandardMaterial color="#fff" metalness={1} roughness={0} />
+      </mesh>
+      <mesh position={[0, 1, 0]}>
+        <cylinderGeometry args={[0.2, 0.15, 0.15, 32]} />
+        <meshStandardMaterial color="#fff" roughness={0.1} />
+      </mesh>
+    </group>
   );
-}
+};
 
 // БАЗА ВІДГУКІВ
 const REVIEWS_DATA = [
@@ -275,10 +489,12 @@ export default function GraziaFurnitureSystem() {
   
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   
+  // --- ОНОВЛЕНИЙ СТЕЙТ ЛАЙТБОКСУ (ЗАВДАННЯ 1) ---
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const touchStartX = useRef<number>(0);
   const touchEndX = useRef<number>(0);
   
+  // --- СТЕЙТ РОЗШИРЕНОЇ ВОРОНКИ ---
   const [configStep, setConfigStep] = useState(1);
   const [activeColorZone, setActiveColorZone] = useState('base'); 
   const [configData, setConfigData] = useState({
@@ -298,7 +514,7 @@ export default function GraziaFurnitureSystem() {
     dimensions: { length: '', width: '', height: '' },
     gift: '',
     phone: '',
-    time: 'Найбли   жчим часом'
+    time: 'Найближчим часом'
   });
 
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -308,6 +524,7 @@ export default function GraziaFurnitureSystem() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
+  // Динамічні вкладки кольорів залежно від типу
   const colorTabs = useMemo(() => {
     if (configData.type === 'Кухня') {
       const tabs = [
@@ -399,6 +616,7 @@ export default function GraziaFurnitureSystem() {
     fetchPortfolio();
   }, []);
 
+  // --- ЛОГІКА НАВІГАЦІЇ ЛАЙТБОКСУ (ЗАВДАННЯ 1) ---
   const handlePrevPhoto = useCallback(() => {
     if (selectedProject && lightboxIndex !== null) {
       setLightboxIndex((prev) => (prev! === 0 ? selectedProject.photos.length - 1 : prev! - 1));
@@ -434,13 +652,16 @@ export default function GraziaFurnitureSystem() {
     if (!touchStartX.current || !touchEndX.current) return;
     const distance = touchStartX.current - touchEndX.current;
     
+    // Поріг для свайпу (мінімум 50px)
     if (distance > 50) handleNextPhoto();
     if (distance < -50) handlePrevPhoto();
     
+    // Скидання
     touchStartX.current = 0;
     touchEndX.current = 0;
   };
 
+  // 1. D3.js 3D-Глобус 
   useEffect(() => {
     if (mapLevel !== 'globe' || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -1292,16 +1513,33 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
       <FadeIn delay={0.3} className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto" id="calc">
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
           
-          <div className="lg:w-1/2 relative bg-[#111111] overflow-hidden flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-white/10 min-h-[400px]">
-            <CSSVisualizer config={configData} />
+          <div className="lg:w-1/2 relative bg-[#111111] overflow-hidden flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-white/10 min-h-[400px] cursor-grab active:cursor-grabbing">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
+            
+            <div className="absolute inset-0 z-10">
+              <Canvas camera={{ position: [5, 4, 6], fov: 45 }}>
+                <ambientLight intensity={0.7} />
+                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1.5} castShadow />
+                <directionalLight position={[-10, 5, -5]} intensity={1} color="#e6f2ff" />
+                <directionalLight position={[0, -5, 0]} intensity={0.5} />
+                <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
+                  <Center>
+                    <ParametricFurniture config={configData} />
+                  </Center>
+                </Float>
+                <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
+                <OrbitControls enableZoom={true} enablePan={false} minPolarAngle={Math.PI / 4} maxPolarAngle={Math.PI / 2} autoRotate autoRotateSpeed={0.5} />
+              </Canvas>
+            </div>
 
             <div className="absolute bottom-8 text-center w-full z-20 pointer-events-none">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/70 text-[10px] font-mono uppercase tracking-widest mb-3">
-                <Sparkles size={12} className="text-yellow-400" /> GRAZIA ENGINE
+                <Sparkles size={12} className="text-yellow-400" /> GRAZIA 3D ENGINE
               </div>
               <h3 className="text-white font-serif text-xl tracking-wide opacity-80">
-                Жива візуалізація
+                Інтерактивна візуалізація
               </h3>
+              <p className="text-white/40 text-xs mt-1">Покрутіть модель мишкою</p>
             </div>
             
             <div className="absolute top-6 left-6 flex flex-col gap-2 z-20 pointer-events-none">
@@ -1337,7 +1575,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 {configStep === 1 && !formSubmitted && (
                   <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
                     <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Що будемо створювати?</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть базову конфігурацію для моделювання.</p>
+                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть базову конфігурацію для 3D моделювання.</p>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {['Кухня', 'Шафа-купе / Гардеробна', 'Меблі у вітальню', 'Меблі для ванної'].map((item) => (
@@ -1802,33 +2040,60 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 Живі об'єкти<br/>та бекстейдж<br/>тут 👉
               </div>
               
-              <div className="relative w-[280px] h-[450px]" style={{ perspective: '1200px' }}>
+              <div className="relative w-[280px] h-[450px]">
+                <div className="absolute inset-0 z-0">
+                  <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
+                    <ambientLight intensity={0.8} />
+                    <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" />
+                    <directionalLight position={[-5, 5, -5]} intensity={1} color="#e0f0ff" />
+                    <directionalLight position={[0, -5, 0]} intensity={0.5} color="#ffffff" />
+                    <group rotation={[0, -0.15, 0]}>
+                      <RoundedBox args={[1.8, 3.6, 0.2]} radius={0.2} smoothness={4} castShadow>
+                        <meshStandardMaterial color="#1a1a1a" roughness={0.2} metalness={0.9} />
+                      </RoundedBox>
+                    </group>
+                  </Canvas>
+                </div>
+
                 <div 
-                  className="absolute inset-0 bg-[#0a0a0a] rounded-[32px] p-2 shadow-[20px_20px_60px_rgba(0,0,0,0.8),-5px_-5px_20px_rgba(255,255,255,0.05)] border-[4px] border-[#1a1a1a]"
-                  style={{ transform: 'rotateY(-15deg) rotateX(10deg)', transformStyle: 'preserve-3d' }}
+                  className="absolute top-1/2 left-1/2 w-[165px] h-[345px] flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[24px] p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-[4px] border-[#050505] overflow-hidden z-10 pointer-events-auto"
+                  style={{ transform: 'translate(-50%, -50%) rotateY(-8.6deg)', transformOrigin: 'center center' }}
                 >
-                  <div className="w-full h-full bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[22px] flex flex-col items-center justify-center gap-4 relative overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-4 bg-[#0a0a0a] rounded-full z-10"></div>
-                    
-                    <div className="text-white text-center mt-4">
-                      <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-                      <span className="block text-lg font-serif">Socials</span>
-                    </div>
-                    
-                    <a href="https://www.instagram.com/grazia.kh.ua/" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300">
-                      <InstagramIconSVG size={28} color="white" />
-                    </a>
-                    
-                    <a href="https://www.youtube.com/@graziakhua/videos" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300">
-                      <YoutubeIconSVG size={28} color="white" />
-                    </a>
-
-                    <a href="https://t.me/MarinaGrazia" target="_blank" rel="noopener noreferrer" className="w-14 h-14 bg-[#2AABEE] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(42,171,238,0.4)] hover:scale-110 transition-transform duration-300">
-                      <TelegramIconSVG size={28} color="white" />
-                    </a>
-
-                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full"></div>
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-4 bg-[#050505] rounded-full z-10 pointer-events-none"></div>
+                  
+                  <div className="text-white text-center mt-4 pointer-events-none">
+                    <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
+                    <span className="block text-lg font-serif">Socials</span>
                   </div>
+                  
+                  <a 
+                    href="https://www.instagram.com/grazia.kh.ua/" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
+                  >
+                    <InstagramIconSVG size={28} color="white" />
+                  </a>
+                  
+                  <a 
+                    href="https://www.youtube.com/@graziakhua/videos" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
+                  >
+                    <YoutubeIconSVG size={28} color="white" />
+                  </a>
+
+                  <a 
+                    href="https://t.me/MarinaGrazia" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="w-14 h-14 bg-[#2AABEE] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(42,171,238,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
+                  >
+                    <TelegramIconSVG size={28} color="white" />
+                  </a>
+
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
                 </div>
               </div>
 
