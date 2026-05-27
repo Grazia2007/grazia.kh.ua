@@ -15,7 +15,8 @@ import {
   ArrowLeft,
   List,
   Image as ImageIcon,
-  Star
+  Star,
+  Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -55,6 +56,12 @@ export default function AdminPanel() {
   const [description, setDescription] = useState('');
   const [rating, setRating] = useState('5.0');
   
+  // Стани Автокомпліту Адреси
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Стани медіа
   const [existingMedia, setExistingMedia] = useState<{url: string, caption: string}[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -112,14 +119,20 @@ export default function AdminPanel() {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=representation' // Повертає результат
         }
       });
       
-      if (!res.ok) throw new Error('Помилка при видаленні з БД');
+      const deletedData = await res.json();
+      
+      // Якщо RLS блокує DELETE, масив буде пустим
+      if (!res.ok || deletedData.length === 0) {
+        throw new Error('Помилка: запис не видалено. Перевірте RLS (політику DELETE) в Supabase!');
+      }
       
       setStatusMessage({ type: 'success', text: 'Проєкт видалено!' });
-      fetchProjects(); // Оновлюємо список
+      fetchProjects(); 
       setTimeout(() => setStatusMessage(null), 3000);
     } catch (err: any) {
       setStatusMessage({ type: 'error', text: err.message });
@@ -131,12 +144,14 @@ export default function AdminPanel() {
     setEditingId(project.id);
     setTitle(project.title);
     setLocationName(project.location_name);
-    setRealAddress(''); // Скидаємо, бо реальна адреса не зберігалася
+    setRealAddress(''); 
+    setSelectedCoordinates(null);
     setDescription(project.description || '');
     setRating(project.rating?.toString() || '5.0');
     setExistingMedia(project.media || []);
     setSelectedFiles([]);
     setView('form');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetForm = () => {
@@ -144,6 +159,7 @@ export default function AdminPanel() {
     setTitle('');
     setLocationName('');
     setRealAddress('');
+    setSelectedCoordinates(null);
     setDescription('');
     setRating('5.0');
     setExistingMedia([]);
@@ -151,12 +167,51 @@ export default function AdminPanel() {
     setView('list');
   };
 
-  // --- ОБРОБКА АДРЕСИ ---
-  const handleRealAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- ОБРОБКА АДРЕСИ З AUTOCOMPLETE (MAPBOX) ---
+  const handleAddressInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setRealAddress(val);
-    const publicVal = val.replace(/(,\s*)?\d+[а-яА-Яa-zA-Z-]*\s*$/, '').trim();
-    setLocationName(publicVal);
+    setSelectedCoordinates(null); // Скидаємо вибрані координати, якщо юзер почав правити текст
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (val.length < 3) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    // Шукаємо з затримкою, щоб не спамити API
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        // Строгий Bounding Box Харкова та найближчого передмістя
+        const kharkivBbox = "35.90,49.80,36.45,50.15";
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&bbox=${kharkivBbox}&language=uk&country=ua&types=address,poi`;
+        
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data.features) {
+          setAddressSuggestions(data.features);
+          setShowSuggestions(true);
+        }
+      } catch (err) {
+        console.error("Mapbox search error:", err);
+      }
+    }, 400);
+  };
+
+  const handleSuggestionClick = (feature: any) => {
+    setRealAddress(feature.place_name); 
+    setSelectedCoordinates(feature.center); // Зберігаємо точні [lon, lat] з підказки
+    setShowSuggestions(false);
+
+    // Автоматично формуємо публічну зону (напр. "вулиця Чайковського" з "вулиця Чайковського 136, Харків")
+    // feature.text зазвичай містить саму назву вулиці без номеру будинку
+    let publicVal = feature.text;
+    
+    // Якщо хочемо додати місто для солідності
+    setLocationName(`м. Харків, ${publicVal}`);
   };
 
   // --- ОБРОБКА ФАЙЛІВ ---
@@ -174,23 +229,8 @@ export default function AdminPanel() {
     setExistingMedia(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  // --- МАГІЯ ЗМІЩЕННЯ КООРДИНАТ (З ФІКСОМ ДЛЯ ХАРКОВА) ---
-  const geocodeAndFuzz = async (address: string) => {
-    // Жорстке обмеження (Bounding Box) для Харкова та області + пріоритет центру Харкова
-    const kharkivBbox = "35.0,48.5,38.0,50.5";
-    const kharkivCenter = "36.2304,50.0058";
-    
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&bbox=${kharkivBbox}&proximity=${kharkivCenter}&language=uk`;
-    
-    const res = await fetch(url);
-    const data = await res.json();
-    
-    if (!data.features || data.features.length === 0) {
-      throw new Error("Не вдалося знайти координати за цією адресою в Харківському регіоні. Спробуйте уточнити.");
-    }
-
-    const [realLon, realLat] = data.features[0].center;
-
+  // --- МАГІЯ ЗМІЩЕННЯ КООРДИНАТ (FUZZING) ---
+  const applyFuzzing = (lon: number, lat: number) => {
     // Зміщення на 100-300 метрів
     const getOffset = () => {
       const minOffset = 0.0009;
@@ -200,8 +240,8 @@ export default function AdminPanel() {
       return offset * sign;
     };
 
-    const fuzzedLon = realLon + getOffset();
-    const fuzzedLat = realLat + getOffset();
+    const fuzzedLon = lon + getOffset();
+    const fuzzedLat = lat + getOffset();
 
     return `(${fuzzedLon}, ${fuzzedLat})`; 
   };
@@ -245,13 +285,11 @@ export default function AdminPanel() {
       return;
     }
     
-    // Перевірка на наявність хоча б 1 фото
     if (existingMedia.length === 0 && selectedFiles.length === 0) {
       setStatusMessage({ type: 'error', text: 'Додайте хоча б 1 фотографію.' });
       return;
     }
     
-    // Перевірка адреси (обов'язкова тільки для нових)
     if (!editingId && !realAddress) {
       setStatusMessage({ type: 'error', text: 'Для нового проєкту реальна адреса обов\'язкова.' });
       return;
@@ -262,15 +300,28 @@ export default function AdminPanel() {
     try {
       let finalCoordinates: string | undefined;
       
+      // Якщо введена нова адреса
       if (realAddress) {
-        setStatusMessage({ type: 'info', text: 'Геокодування (з обмеженням по Харкову) та Fuzzing...' });
-        finalCoordinates = await geocodeAndFuzz(realAddress);
+        setStatusMessage({ type: 'info', text: 'Генерація безпечних координат (Fuzzing)...' });
+        
+        if (selectedCoordinates) {
+          // Якщо юзер вибрав з випадаючого списку (найкращий варіант)
+          finalCoordinates = applyFuzzing(selectedCoordinates[0], selectedCoordinates[1]);
+        } else {
+          // Fallback: якщо він просто ввів текст і не вибрав зі списку
+          const kharkivBbox = "35.90,49.80,36.45,50.15";
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(realAddress)}.json?access_token=${MAPBOX_TOKEN}&bbox=${kharkivBbox}&language=uk`);
+          const data = await res.json();
+          if (!data.features || data.features.length === 0) {
+            throw new Error("Не вдалося знайти цю адресу. Спробуйте вибрати її з випадаючого списку.");
+          }
+          finalCoordinates = applyFuzzing(data.features[0].center[0], data.features[0].center[1]);
+        }
       }
 
       setStatusMessage({ type: 'info', text: selectedFiles.length > 0 ? `Завантаження ${selectedFiles.length} нових фотографій...` : 'Оновлення даних...' });
       
       const newlyUploadedMedia = await uploadPhotos();
-      // Об'єднуємо старі фото (які не видалили) та нові
       const finalMediaArray = [...existingMedia, ...newlyUploadedMedia];
 
       setStatusMessage({ type: 'info', text: editingId ? 'Оновлення проєкту в БД...' : 'Збереження проєкту в БД...' });
@@ -288,7 +339,6 @@ export default function AdminPanel() {
         projectData.coordinates = finalCoordinates;
       }
 
-      // Визначаємо метод: POST (новий) або PATCH (оновлення)
       const method = editingId ? 'PATCH' : 'POST';
       const endpoint = editingId 
         ? `${SUPABASE_URL}/rest/v1/portfolio_projects?id=eq.${editingId}`
@@ -300,12 +350,17 @@ export default function AdminPanel() {
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'apikey': SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
+          'Prefer': 'return=representation' // Дуже важливо для перевірки RLS
         },
         body: JSON.stringify(projectData)
       });
 
-      if (!dbRes.ok) throw new Error("Помилка при збереженні проєкту в БД (Перевірте RLS політики).");
+      const resultData = await dbRes.json();
+
+      // Якщо RLS блокує UPDATE, Supabase повертає 204, але пустий масив
+      if (!dbRes.ok || resultData.length === 0) {
+        throw new Error("Помилка БД! Переконайтеся, що ви увімкнули політику UPDATE в Supabase.");
+      }
 
       setStatusMessage({ type: 'success', text: editingId ? 'Проєкт успішно оновлено!' : 'Проєкт успішно опубліковано!' });
       
@@ -367,7 +422,7 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans p-6 md:p-12 pb-24">
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans p-6 md:p-12 pb-24" onClick={() => setShowSuggestions(false)}>
       <div className="max-w-5xl mx-auto">
         
         {/* ХЕДЕР АДМІНКИ */}
@@ -523,22 +578,49 @@ export default function AdminPanel() {
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="relative">
+                
+                {/* РЕАЛЬНА АДРЕСА З AUTOCOMPLETE */}
+                <div className="relative" onClick={(e) => e.stopPropagation()}>
                   <label className="block text-xs uppercase tracking-widest text-red-400 mb-2 flex items-center gap-1">
                     Реальна адреса (НЕ ЗБЕРІГАЄТЬСЯ) {editingId ? '' : '*'}
                   </label>
-                  <input 
-                    type="text" 
-                    required={!editingId} // Не обов'язково при редагуванні
-                    value={realAddress}
-                    onChange={handleRealAddressChange}
-                    placeholder={editingId ? "Введіть нову адресу для зміни координат..." : "Напр. м. Харків, вул. Чайковського 136"}
-                    className="w-full bg-red-500/5 border border-red-500/30 rounded-lg px-4 py-3 text-sm focus:border-red-500 outline-none transition-colors"
-                  />
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3.5 text-white/30" size={16} />
+                    <input 
+                      type="text" 
+                      required={!editingId} 
+                      value={realAddress}
+                      onChange={handleAddressInput}
+                      onFocus={() => { if (addressSuggestions.length > 0) setShowSuggestions(true); }}
+                      placeholder={editingId ? "Введіть для зміни..." : "Напр. вул. Чайковського 136"}
+                      className="w-full bg-red-500/5 border border-red-500/30 rounded-lg pl-10 pr-4 py-3 text-sm focus:border-red-500 outline-none transition-colors"
+                    />
+                  </div>
+                  
+                  <AnimatePresence>
+                    {showSuggestions && addressSuggestions.length > 0 && (
+                      <motion.ul 
+                        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                        className="absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl max-h-60 overflow-y-auto"
+                      >
+                        {addressSuggestions.map(suggestion => (
+                          <li 
+                            key={suggestion.id} 
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="p-3 hover:bg-[#D4B895]/20 cursor-pointer border-b border-white/5 last:border-0 transition-colors"
+                          >
+                            <span className="text-white text-sm block">{suggestion.text}</span>
+                            <span className="text-white/40 text-xs block truncate mt-0.5">{suggestion.place_name}</span>
+                          </li>
+                        ))}
+                      </motion.ul>
+                    )}
+                  </AnimatePresence>
+
                   <p className="text-[10px] text-white/40 mt-2 font-mono leading-relaxed">
                     {editingId 
                       ? "Якщо залишити пустим, об'єкт залишиться на старому місці на карті." 
-                      : "Система знайде ці координати в межах Харкова і випадково змістить їх на 100-300 метрів."}
+                      : "Оберіть адресу зі списку, і система автоматично розмиє її координати."}
                   </p>
                 </div>
 
