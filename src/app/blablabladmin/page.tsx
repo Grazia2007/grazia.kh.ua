@@ -58,7 +58,7 @@ export default function AdminPanel() {
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<any>(null);
 
   const [existingMedia, setExistingMedia] = useState<{url: string, caption: string}[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -183,7 +183,8 @@ export default function AdminPanel() {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const kharkivCenter = "36.2304,50.0058"; // Пріоритет на центр Харкова, але шукає ВСЮДИ
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&proximity=${kharkivCenter}&language=uk&country=ua&types=address,street,place,locality`;
+        // ВИПРАВЛЕНО: Видалено неіснуючий тип "street" з параметрів API Mapbox
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&proximity=${kharkivCenter}&language=uk&country=ua&types=address,poi,neighborhood,place,locality`;
         
         const res = await fetch(url);
         const data = await res.json();
@@ -227,7 +228,8 @@ export default function AdminPanel() {
     // Якщо це точна адреса будинку, ми робимо хитрий хід (Зміщення):
     if (feature.place_type.includes('address')) {
        try {
-         const streetUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(publicZone)}.json?access_token=${MAPBOX_TOKEN}&language=uk&types=street,neighborhood`;
+         // ВИПРАВЛЕНО: Видалено неіснуючий тип "street"
+         const streetUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(publicZone)}.json?access_token=${MAPBOX_TOKEN}&language=uk&types=address,neighborhood`;
          const res = await fetch(streetUrl);
          const data = await res.json();
          if (data.features && data.features.length > 0) {
@@ -310,7 +312,8 @@ export default function AdminPanel() {
           if (feature.place_type.includes('address')) {
              const streetName = feature.text;
              const publicZone = `${streetName}`;
-             const streetUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(publicZone)}.json?access_token=${MAPBOX_TOKEN}&language=uk&types=street,neighborhood`;
+             // ВИПРАВЛЕНО: Видалено неіснуючий тип "street"
+             const streetUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(publicZone)}.json?access_token=${MAPBOX_TOKEN}&language=uk&types=address,neighborhood`;
              const sRes = await fetch(streetUrl);
              const sData = await sRes.json();
              if (sData.features && sData.features.length > 0) {
