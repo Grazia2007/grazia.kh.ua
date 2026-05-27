@@ -734,18 +734,26 @@ export default function GraziaFurnitureSystem() {
         const path = d3.geoPath(projection, ctx);
         
         let worldData;
-        if (cachedWorldData) {
-          worldData = cachedWorldData;
+        let ukraineFeature;
+        
+        if (cachedWorldData && cachedWorldData.ukraine) {
+          worldData = cachedWorldData.world;
+          ukraineFeature = cachedWorldData.ukraine;
         } else {
           worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-50m.json').then(r => r.json());
-          cachedWorldData = worldData;
+          try {
+            // Отримуємо еталонний GeoJSON України з кордонами 1991 року (включно з Кримом)
+            ukraineFeature = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries/UKR.geo.json').then(r => r.json());
+          } catch (e) {
+            // Резервний варіант, якщо репозиторій недоступний
+            const countriesData = topojson.feature(worldData, worldData.objects.countries).features;
+            ukraineFeature = countriesData.find((c: any) => c.properties?.name === 'Ukraine' || c.id === '804');
+          }
+          cachedWorldData = { world: worldData, ukraine: ukraineFeature };
         }
 
-        const countriesData = topojson.feature(worldData, worldData.objects.countries).features;
         const land = topojson.feature(worldData, worldData.objects.land);
         
-        const ukraineFeature = countriesData.find((c: any) => c.properties?.name === 'Ukraine' || c.id === '804');
-
         const kharkivMarker = { lon: 36.23, lat: 50.00 }; 
         
         let rotation = [-20, -40, 0]; 
