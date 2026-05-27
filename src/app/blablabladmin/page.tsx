@@ -171,10 +171,7 @@ export default function AdminPanel() {
 
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const kharkivBbox = "35.90,49.80,36.45,50.15";
-        const kharkivCenter = "36.2304,50.0058"; // Пріоритет на центр Харкова
-        // Шукаємо тільки в межах Харкова
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&bbox=${kharkivBbox}&proximity=${kharkivCenter}&language=uk&country=ua&types=address,poi,neighborhood,street`;
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&language=uk&country=ua&types=address,poi,neighborhood,street,place,district,locality`;
         
         const res = await fetch(url);
         const data = await res.json();
@@ -197,11 +194,18 @@ export default function AdminPanel() {
 
     // Витягуємо чисту назву вулиці (без номера)
     const streetName = feature.text; 
-    let city = "Харків";
-    const placeContext = feature.context?.find((c: any) => c.id.startsWith('place'));
-    if (placeContext) city = placeContext.text;
+    let city = "";
+    
+    // Шукаємо місто або населений пункт в контексті Mapbox
+    const placeContext = feature.context?.find((c: any) => c.id.startsWith('place') || c.id.startsWith('locality') || c.id.startsWith('district'));
+    
+    if (placeContext) {
+      city = placeContext.text;
+    } else if (feature.place_type.includes('place') || feature.place_type.includes('locality') || feature.place_type.includes('district')) {
+      city = feature.text; // Якщо сам результат і є містом
+    }
 
-    const publicZone = `м. ${city}, ${streetName}`;
+    const publicZone = city ? `м. ${city}, ${streetName}` : streetName;
     setLocationName(publicZone); // АВТОЗАПОВНЕННЯ ПУБЛІЧНОЇ ЗОНИ!
 
     // Якщо це точна адреса будинку, ми робимо хитрий хід:
@@ -263,10 +267,6 @@ export default function AdminPanel() {
       setStatusMessage({ type: 'error', text: 'Додайте хоча б 1 фотографію.' });
       return;
     }
-    if (!editingId && !realAddress) {
-      setStatusMessage({ type: 'error', text: 'Для нового проєкту реальна адреса обов\'язкова.' });
-      return;
-    }
 
     setIsSubmitting(true);
 
@@ -282,18 +282,17 @@ export default function AdminPanel() {
           finalCoordinates = `(${selectedCoordinates[0]}, ${selectedCoordinates[1]})`;
         } else {
           // FALLBACK: Якщо юзер проігнорував список і просто ввів текст вручну
-          const kharkivBbox = "35.90,49.80,36.45,50.15";
-          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(realAddress)}.json?access_token=${MAPBOX_TOKEN}&bbox=${kharkivBbox}&language=uk`);
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(realAddress)}.json?access_token=${MAPBOX_TOKEN}&language=uk`);
           const data = await res.json();
           if (!data.features || data.features.length === 0) {
-            throw new Error("Не вдалося знайти цю адресу на карті Харкова. Спробуйте змінити запит (напр. 'Чайковського 136').");
+            throw new Error("Не вдалося знайти цю адресу на карті. Спробуйте змінити запит.");
           }
           
           const feature = data.features[0];
           // Робимо семантичне розмиття для фолбеку
           if (feature.place_type.includes('address')) {
              const streetName = feature.text;
-             const publicZone = `м. Харків, ${streetName}`;
+             const publicZone = `${streetName}`;
              const streetUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(publicZone)}.json?access_token=${MAPBOX_TOKEN}&language=uk&types=street,neighborhood`;
              const sRes = await fetch(streetUrl);
              const sData = await sRes.json();
@@ -576,7 +575,6 @@ export default function AdminPanel() {
                     
                     <input 
                       type="text" 
-                      required={!editingId} 
                       value={realAddress}
                       onChange={handleAddressInput}
                       onFocus={() => { if (addressSuggestions.length > 0) setShowSuggestions(true); }}
@@ -616,7 +614,6 @@ export default function AdminPanel() {
                   <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Публічна зона (Видима всім) *</label>
                   <input 
                     type="text" 
-                    required
                     value={locationName}
                     onChange={e => setLocationName(e.target.value)}
                     placeholder="Напр. м. Харків, вул. Чайковського" 
