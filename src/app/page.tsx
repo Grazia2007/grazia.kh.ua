@@ -383,48 +383,16 @@ const REVIEWS_DATA = [
 
 const DEFAULT_MAP_LOCATIONS = [
   { 
-    id: 'naukova', 
-    name: 'м. Наукова (Харків, Центр)', 
-    coordinates: [36.2263, 50.0152],
-    project: 'Флагманська матова графітова кухня з інтегрованою LED-вітриною', 
-    radius: 'Безпечний радіус: 300м', 
+    id: 'grazia-main', 
+    name: 'м. Харків (Центр)', 
+    coordinates: [36.2304, 50.0058],
+    project: 'Ексклюзивні меблі GRAZIA', 
+    radius: 'Локація виробництва', 
     type: 'city',
-    description: 'Еталон інженерної думки та преміального мінімалізму. У цьому проєкті ми реалізували монолітний фасад без видимих ручок, інтегрували німецьку побутову техніку Teka та створили унікальну систему вертикального LED-освітлення скляної вітрини з торцевим підсвічуванням полиць.',
+    description: 'Ми створюємо преміальні корпусні меблі за індивідуальними проєктами з 2007 року. Кожен виріб — це поєднання бездоганного стилю, передових технологій та європейської якості.',
     rating: 5,
     photos: [
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-40.jpg' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-47.jpg' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-48.jpg' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-51.jpg' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-50.jpg' },
-      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-45.jpg' }
-    ]
-  },
-  { 
-    id: 'saltovka', 
-    name: 'Салтівка (522 м/р)', 
-    coordinates: [36.3253, 50.0242],
-    project: 'Модульна вітальня та гардероб', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'city',
-    description: 'Оптимізація простору для великої родини. Створили приховані системи зберігання та інтегрували ТВ-зону в єдиний монолитиний ансамбль у стилі Soft-Minimalism.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200' }
-    ]
-  },
-  { 
-    id: 'bezludovka', 
-    name: 'Безлюдівка (Харківська область)', 
-    coordinates: [36.2735, 49.8711],
-    project: 'Заміська кухня-їдальня', 
-    radius: 'Безпечний радіус: 300м', 
-    type: 'region',
-    description: 'Проєкт масштабної кухні для великого заміського будинку у Харківській області. Тільки вологостійкі преміальні матеріали.',
-    rating: 5,
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=1200' }
+      { url: 'https://gpxbzpqnpbbumtiyfstc.supabase.co/storage/v1/object/public/grazia-media/photo_2026-05-25_02-26-43.jpg' }
     ]
   }
 ];
@@ -1169,7 +1137,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                     <span className="text-sm font-bold ml-2 text-[var(--text-main)]">{selectedProject.rating} / 5.0</span>
                   </div>
                   <div className="text-xs text-[var(--text-light)] font-mono flex items-center gap-2">
-                    <MapPin size={14} className="text-[var(--accent-main)]" /> {selectedProject.radius} (Захист приватності клієнта)
+                    <MapPin size={14} className="text-[var(--accent-main)]" /> {selectedProject.name} <span className="opacity-65">(задля безпеки та конфіденційності замовників точна адреса не вказується)</span>
                   </div>
                 </div>
 
