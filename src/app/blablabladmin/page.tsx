@@ -149,16 +149,27 @@ export default function AdminPanel() {
     setView('list');
   };
 
-  // --- ОБРОБКА АДРЕСИ З AUTOCOMPLETE ---
+  // --- ОБРОБКА АДРЕСИ З AUTOCOMPLETE (З КРАСИВИМ ФОРМАТУВАННЯМ) ---
   const handleAddressInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setRealAddress(val);
     setSelectedCoordinates(null); 
 
-    // Наївне автозаповнення: відрізаємо цифри в кінці і заповнюємо публічну зону
-    const publicVal = val.replace(/(,\s*)?\d+[а-яА-Яa-zA-Z-]*\s*$/, '').trim();
+    // Наївне автозаповнення з красивим форматуванням
+    let publicVal = val.replace(/(,\s*)?\d+[а-яА-Яa-zA-Z-]*\s*$/, '').trim();
     if (!editingId || (editingId && val.length > 0)) {
-       setLocationName(publicVal ? `м. Харків, ${publicVal}` : '');
+       if (publicVal) {
+         // Капіталізуємо кожне слово
+         publicVal = publicVal.split(' ').map(w => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : '').join(' ');
+         
+         // Якщо юзер не написав тип вулиці, додаємо "вул."
+         if (!/(вул|пр|пл|пров|ш\.|бульвар|проспект|площа|провулок)/i.test(publicVal)) {
+           publicVal = 'вул. ' + publicVal;
+         }
+         setLocationName(`м. Харків, ${publicVal}`);
+       } else {
+         setLocationName('');
+       }
     }
 
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -171,7 +182,8 @@ export default function AdminPanel() {
 
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&language=uk&country=ua&types=address,poi,neighborhood,street,place,district,locality`;
+        const kharkivCenter = "36.2304,50.0058"; // Пріоритет на центр Харкова, але шукає ВСЮДИ
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(val)}.json?access_token=${MAPBOX_TOKEN}&proximity=${kharkivCenter}&language=uk&country=ua&types=address,street,place,locality`;
         
         const res = await fetch(url);
         const data = await res.json();
@@ -193,7 +205,11 @@ export default function AdminPanel() {
     setStatusMessage({ type: 'info', text: 'Обчислення центру вулиці...' });
 
     // Витягуємо чисту назву вулиці (без номера)
-    const streetName = feature.text; 
+    let streetName = feature.text; 
+    
+    // Капіталізуємо офіційну назву вулиці на всяк випадок
+    streetName = streetName.split(' ').map((w: string) => w ? w.charAt(0).toUpperCase() + w.slice(1) : '').join(' ');
+
     let city = "";
     
     // Шукаємо місто або населений пункт в контексті Mapbox
@@ -206,9 +222,9 @@ export default function AdminPanel() {
     }
 
     const publicZone = city ? `м. ${city}, ${streetName}` : streetName;
-    setLocationName(publicZone); // АВТОЗАПОВНЕННЯ ПУБЛІЧНОЇ ЗОНИ!
+    setLocationName(publicZone); // АВТОЗАПОВНЕННЯ ПУБЛІЧНОЇ ЗОНИ (ІДЕАЛЬНЕ ФОРМАТУВАННЯ)
 
-    // Якщо це точна адреса будинку, ми робимо хитрий хід:
+    // Якщо це точна адреса будинку, ми робимо хитрий хід (Зміщення):
     if (feature.place_type.includes('address')) {
        try {
          const streetUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(publicZone)}.json?access_token=${MAPBOX_TOKEN}&language=uk&types=street,neighborhood`;
@@ -224,7 +240,7 @@ export default function AdminPanel() {
        }
     }
 
-    // Якщо це і так вулиця або район
+    // Якщо це і так вулиця або місто
     setSelectedCoordinates(feature.center);
     setStatusMessage(null);
   };
@@ -282,7 +298,8 @@ export default function AdminPanel() {
           finalCoordinates = `(${selectedCoordinates[0]}, ${selectedCoordinates[1]})`;
         } else {
           // FALLBACK: Якщо юзер проігнорував список і просто ввів текст вручну
-          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(realAddress)}.json?access_token=${MAPBOX_TOKEN}&language=uk`);
+          const kharkivCenter = "36.2304,50.0058";
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(realAddress)}.json?access_token=${MAPBOX_TOKEN}&proximity=${kharkivCenter}&language=uk`);
           const data = await res.json();
           if (!data.features || data.features.length === 0) {
             throw new Error("Не вдалося знайти цю адресу на карті. Спробуйте змінити запит.");
@@ -614,6 +631,7 @@ export default function AdminPanel() {
                   <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Публічна зона (Видима всім) *</label>
                   <input 
                     type="text" 
+                    required
                     value={locationName}
                     onChange={e => setLocationName(e.target.value)}
                     placeholder="Напр. м. Харків, вул. Чайковського" 
