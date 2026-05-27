@@ -1591,7 +1591,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           </p>
         </div>
         
-        <div className="relative w-full overflow-hidden flex">
+        <div className="relative w-full overflow-hidden flex cursor-drag">
           <div className="absolute left-0 top-0 bottom-0 w-16 md:w-48 bg-gradient-to-r from-[var(--bg-main)] to-transparent z-10 pointer-events-none"></div>
           <div className="absolute right-0 top-0 bottom-0 w-16 md:w-48 bg-gradient-to-l from-[var(--bg-main)] to-transparent z-10 pointer-events-none"></div>
           
