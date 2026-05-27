@@ -14,7 +14,8 @@ import {
   Edit3,
   ArrowLeft,
   List,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
