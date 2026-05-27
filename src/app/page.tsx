@@ -521,6 +521,7 @@ const FurnitureThreeCanvas = ({ config, isDark }: { config: any, isDark: boolean
       window.removeEventListener('mouseup', onMouseUp);
       domEl.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', onMouseUp);
 
       if (mountRef.current && renderer.domElement) {
@@ -1716,14 +1717,14 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                           {currentActiveProject.type === 'city' ? 'Місто Харків' : 'Область / Україна'}
                         </span>
                         
-                        <span className="text-[10px] uppercase tracking-widest text-[var(--text-light)] font-bold font-mono flex items-center gap-1 bg-[var(--btn-bg)] px-2 py-0.5 rounded-sm shadow-inner">
-                          <Star size={10} className="text-[var(--accent-main)]" fill="currentColor"/> 
+                        <span className="text-[10px] text-yellow-500 font-bold font-mono flex items-center gap-1 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-sm">
+                          <Star size={11} className="fill-yellow-500 text-yellow-500" /> 
                           {currentActiveProject.rating || 5.0}
                         </span>
 
                         {activeGroupProjects.length > 1 && (
-                          <span className="text-[9px] uppercase tracking-widest font-mono font-extrabold bg-[var(--accent-main)]/10 text-[var(--accent-main)] px-2 py-0.5 rounded-sm">
-                            Проєкт {activeProjectIndex + 1} з {activeGroupProjects.length}
+                          <span className="text-[10px] font-mono font-extrabold bg-[var(--accent-main)]/10 text-[var(--accent-main)] px-2.5 py-0.5 rounded-sm border border-[var(--accent-main)]/20">
+                            {activeProjectIndex + 1} / {activeGroupProjects.length}
                           </span>
                         )}
                       </div>
@@ -1739,9 +1740,9 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
                     {/* Посилання на відкриття галереї */}
                     <div className="hidden sm:flex flex-col items-end shrink-0 pl-2">
-                      <button className="text-xs font-bold text-[var(--accent-main)] flex items-center gap-1 hover:gap-2 transition-all uppercase tracking-wider">
-                        Галерея <ArrowRight size={14} />
-                      </button>
+                      <span className="text-xs font-bold text-[var(--accent-main)] uppercase tracking-wider bg-[var(--accent-main)]/5 border border-[var(--accent-main)]/20 px-3 py-1.5 rounded-md">
+                        Детальніше
+                      </span>
                     </div>
                   </div>
 
