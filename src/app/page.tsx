@@ -1511,7 +1511,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
       {/* --- БЕКСТЕЙДЖ / ПРОЦЕС СТВОРЕННЯ --- */}
       <FadeIn delay={0.2} className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto">
-        <div className="flex flex-col lg:flex-row gap-16 items-center">
+        <div ref={backstageRef} className="flex flex-col lg:flex-row gap-16 items-center">
           <div className="flex-1 lg:pr-12">
             <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent-main)] block mb-4">Бекстейдж виробництва</span>
             <h2 className="text-4xl md:text-5xl font-serif mb-8 text-[var(--text-main)] leading-tight">Безкомпромісна якість у кожній деталі</h2>
@@ -1533,11 +1533,21 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             </div>
           </div>
           <div className="flex-1 w-full grid grid-cols-2 gap-4 relative">
-            <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl">
-              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" alt="Преміальні матеріали" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"/>
+            <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl relative">
+              <motion.img 
+                style={{ y: y1 }}
+                src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" 
+                alt="Преміальні матеріали" 
+                className="absolute inset-0 w-full h-full object-cover scale-[1.25] origin-center hover:scale-[1.3] transition-transform duration-700"
+              />
             </div>
-            <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl translate-y-12">
-              <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" alt="Фурнітура та текстури" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"/>
+            <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl translate-y-12 relative">
+              <motion.img 
+                style={{ y: y2 }}
+                src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" 
+                alt="Фурнітура та текстури" 
+                className="absolute inset-0 w-full h-full object-cover scale-[1.25] origin-center hover:scale-[1.3] transition-transform duration-700"
+              />
             </div>
           </div>
         </div>
