@@ -147,9 +147,10 @@ const ParametricFurniture = ({ config }: { config: any }) => {
   const fridgeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }), []);
 
   const groupRef = useRef<THREE.Group>(null);
+  const targetScale = useMemo(() => new THREE.Vector3(1, 1, 1), []);
   useFrame(() => {
     if (groupRef.current) {
-      groupRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+      groupRef.current.scale.lerp(targetScale, 0.1);
     }
   });
 
@@ -472,20 +473,30 @@ export default function GraziaFurnitureSystem() {
   const [isDark, setIsDark] = useState(false);
   const [themeLoaded, setThemeLoaded] = useState(false); 
   
-// --- UI SOUND ENGINE (WEB AUDIO API) ---
+  // --- UI SOUND ENGINE (WEB AUDIO API) ---
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const isSoundEnabledRef = useRef(isSoundEnabled);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const getAudioContext = useCallback(() => {
+    if (!audioCtxRef.current) {
+      const AC = window.AudioContext || (window as any).webkitAudioContext;
+      if (AC) audioCtxRef.current = new AC();
+    }
+    if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
+    return audioCtxRef.current;
+  }, []);
 
   useEffect(() => {
     isSoundEnabledRef.current = isSoundEnabled;
+    return () => { audioCtxRef.current?.close().catch(() => {}); audioCtxRef.current = null; };
   }, [isSoundEnabled]);
 
   const playClick = useCallback(() => {
     if (!isSoundEnabledRef.current) return;
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
+      const ctx = getAudioContext();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       
@@ -510,7 +521,7 @@ export default function GraziaFurnitureSystem() {
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContext) return;
-      const ctx = new AudioContext();
+      const ctx = getAudioContext();
       const bufferSize = ctx.sampleRate * 0.6;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
@@ -919,7 +930,6 @@ export default function GraziaFurnitureSystem() {
         window.addEventListener('mouseup', handlePointerUp);
         canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
         window.addEventListener('touchmove', handlePointerMove, { passive: false });
-        window.addEventListener('touchmove', handlePointerMove);
         window.addEventListener('touchend', handlePointerUp);
 
         const render = () => {
@@ -1035,7 +1045,6 @@ export default function GraziaFurnitureSystem() {
           window.removeEventListener('mouseup', handlePointerUp);
           canvas.removeEventListener('touchstart', handlePointerDown);
           window.removeEventListener('touchmove', handlePointerMove);
-          window.removeEventListener('touchmove', handlePointerMove);
           window.removeEventListener('touchend', handlePointerUp);
           delete (window as any).startCinematicZoom;
         };
@@ -1140,10 +1149,12 @@ export default function GraziaFurnitureSystem() {
             <div class="absolute rounded-full border-2 transition-all duration-700 scale-100 opacity-20" style="border-color: var(--accent-main); background-color: var(--accent-main); width: 90px; height: 90px; top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
             <div class="w-4 h-4 rounded-full border-2 z-10 hover:scale-125 transition-transform duration-300 shadow-lg" style="border-color: var(--bg-main); background-color: var(--accent-main);"></div>
             ${badgeHtml}
-            <div class="absolute -top-10 text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none" style="background-color: var(--btn-bg); color: var(--btn-text);">
-              ${pin.name} ${badgeCount > 1 ? `(${badgeCount} проєкти)` : ''}
-            </div>
+            <div class="map-tooltip absolute -top-10 text-[10px] font-mono px-3 py-1.5 rounded-sm shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none" style="background-color: var(--btn-bg); color: var(--btn-text);"></div>
           `;
+          const tooltipEl = el.querySelector('.map-tooltip');
+          if (tooltipEl) {
+            tooltipEl.textContent = `${pin.name} ${badgeCount > 1 ? `(${badgeCount} проєкти)` : ''}`;
+          }
 
           el.addEventListener('click', () => {
             playWhoosh(); // Вушш при польоті камери
@@ -1199,7 +1210,20 @@ export default function GraziaFurnitureSystem() {
 
   const handleCalcSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    
+    const cleanPhone = configData.phone.replace(/\D/g, '');
+    if (cleanPhone.length < 9) {
+       alert("Будь ласка, введіть коректний номер телефону.");
+       return;
+    }
+
+    if (isSubmitting || (localStorage.getItem('last_sub') && Date.now() - parseInt(localStorage.getItem('last_sub')!) < 15000)) {
+        setFormSubmitted(true);
+        return;
+    }
+    
     setIsSubmitting(true);
+    localStorage.setItem('last_sub', Date.now().toString());
     
     const detailedMessage = `
 🔥 НОВИЙ ЛІД (3D КОНФІГУРАТОР) 🔥
@@ -1316,10 +1340,10 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 </div>
 
                 <div className="flex gap-4">
-                  <a href={selectedProject.youtube_url || '#'} target="_blank" className="bg-[var(--btn-bg)] text-[var(--btn-text)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:opacity-80 transition-opacity duration-300 rounded-sm">
+                  <a href={selectedProject.youtube_url || '#'} target="_blank" rel="noopener noreferrer" className="bg-[var(--btn-bg)] text-[var(--btn-text)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:opacity-80 transition-opacity duration-300 rounded-sm">
                     <PlayCircle size={16} /> Відеоогляд об'єкта
                   </a>
-                  <a href={selectedProject.instagram_url || '#'} target="_blank" className="border border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors duration-300 rounded-sm">
+                  <a href={selectedProject.instagram_url || '#'} target="_blank" rel="noopener noreferrer" className="border border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors duration-300 rounded-sm">
                     <InstagramIconSVG size={16} color="currentColor" /> Перейти in Instagram
                   </a>
                 </div>
@@ -1671,7 +1695,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             return (
               <div key={project.id || idx} onClick={() => setSelectedProject(displayProject)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
                 {displayProject.photos && displayProject.photos[0] ? (
-                  <img src={displayProject.photos[0].url} alt={displayProject.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                  <img src={displayProject.photos[0].url} alt={displayProject.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
                 )}
@@ -1709,11 +1733,11 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             transition={{ repeat: Infinity, ease: "linear", duration: 60 }}
             className="flex gap-6 px-6 w-max"
           >
-             {[...REVIEWS_DATA, ...REVIEWS_DATA, ...REVIEWS_DATA].map((review, idx) => (
+              {[...REVIEWS_DATA, ...REVIEWS_DATA, ...REVIEWS_DATA].map((review, idx) => (
                <div key={idx} className="w-[350px] md:w-[420px] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-8 flex flex-col justify-between shrink-0 shadow-sm hover:shadow-xl transition-shadow duration-500 cursor-default group">
                  <div className="flex gap-4 items-center mb-6 pb-6 border-b border-[var(--border-color)]">
                    <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0">
-                     <img src={review.projectThumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Preview"/>
+                     <img src={review.projectThumbnail} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Preview"/>
                    </div>
                    <div>
                      <span className="text-[9px] uppercase tracking-widest text-[var(--text-light)] font-mono block mb-1">Реалізований проєкт</span>
