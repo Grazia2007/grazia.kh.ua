@@ -617,8 +617,9 @@ const playWhoosh = useCallback(() => {
     target: backstageRef,
     offset: ["start end", "end start"]
   });
-  const y1 = useTransform(scrollYProgress, [0, 1], [0, -80]);
-  const y2 = useTransform(scrollYProgress, [0, 1], [0, 80]);
+  // Симетричний зсув: зберігаємо амплітуду, але розподіляємо буфер масштабу рівномірно (верх/низ), щоб не вилазили краї
+  const y1 = useTransform(scrollYProgress, [0, 1], [45, -45]);
+  const y2 = useTransform(scrollYProgress, [0, 1], [-45, 45]);
 
   // Обчислення проєктів та поточного активного об'єкта в групі
   const activeGroupProjects = useMemo(() => {
