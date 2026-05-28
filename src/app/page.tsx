@@ -29,7 +29,7 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, ContactShadows, Center, Float, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
@@ -594,6 +594,15 @@ export default function GraziaFurnitureSystem() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+
+  // --- ПАРАЛАКС ДЛЯ БЕКСТЕЙДЖУ ---
+  const backstageRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: backstageRef,
+    offset: ["start end", "end start"]
+  });
+  const y1 = useTransform(scrollYProgress, [0, 1], [0, -80]);
+  const y2 = useTransform(scrollYProgress, [0, 1], [0, 80]);
 
   // Обчислення проєктів та поточного активного об'єкта в групі
   const activeGroupProjects = useMemo(() => {
