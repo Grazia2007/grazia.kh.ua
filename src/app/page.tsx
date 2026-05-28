@@ -472,8 +472,8 @@ export default function GraziaFurnitureSystem() {
   const [isDark, setIsDark] = useState(false);
   const [themeLoaded, setThemeLoaded] = useState(false); 
   
-  // --- UI SOUND ENGINE (WEB AUDIO API) ---
-  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+// --- UI SOUND ENGINE (WEB AUDIO API) ---
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const isSoundEnabledRef = useRef(isSoundEnabled);
 
   useEffect(() => {
