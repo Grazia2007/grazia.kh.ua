@@ -516,12 +516,12 @@ export default function GraziaFurnitureSystem() {
     } catch(e) {}
   }, []);
 
-  const playWhoosh = useCallback(() => {
+const playWhoosh = useCallback(() => {
     if (!isSoundEnabledRef.current) return;
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
       const ctx = getAudioContext();
+      if (!ctx) return; // <-- TypeScript тепер знає, що ctx точно не null
+      
       const bufferSize = ctx.sampleRate * 0.6;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
