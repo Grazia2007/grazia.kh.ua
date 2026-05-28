@@ -2277,28 +2277,33 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               </div>
               
               <div className="relative w-[280px] h-[450px]">
-                <div className="absolute inset-0 z-0">
+                <div className="absolute inset-0 z-0 pointer-events-none">
                   <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
-                    <ambientLight intensity={0.8} />
+                    <ambientLight intensity={0.7} />
                     <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" />
-                    <directionalLight position={[-5, 5, -5]} intensity={1} color="#e0f0ff" />
-                    <directionalLight position={[0, -5, 0]} intensity={0.5} color="#ffffff" />
+                    <directionalLight position={[-5, 0, 5]} intensity={1.5} color="#e0f0ff" />
                     <group rotation={[0, -0.15, 0]}>
-                      {/* Робимо 3D-корпус тонким (0.06 замість 0.2) та кольору преміального титану */}
-                      <RoundedBox args={[1.8, 3.6, 0.06]} radius={0.2} smoothness={4} castShadow>
-                        <meshStandardMaterial color="#2a2a2b" roughness={0.25} metalness={0.85} />
+                      {/* Ультратонкий корпус (0.05) та правильні габарити під безрамковий екран */}
+                      <RoundedBox args={[1.88, 3.82, 0.05]} radius={0.16} smoothness={8} castShadow>
+                        <meshStandardMaterial color="#4a4a4c" roughness={0.15} metalness={0.95} />
                       </RoundedBox>
                     </group>
                   </Canvas>
                 </div>
 
-                {/* Робимо екран ширшим (менші рамки) та додаємо Dynamic Island */}
+                {/* Максимально розширений екран, який ідеально перекриває 3D-корпус */}
                 <div 
-                  className="absolute top-1/2 left-1/2 w-[172px] h-[352px] flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[28px] p-4 shadow-[inset_0_0_15px_rgba(0,0,0,0.9)] border-[5px] border-black overflow-hidden z-10 pointer-events-auto"
+                  className="absolute top-1/2 left-1/2 w-[188px] h-[386px] flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[30px] p-4 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] border-[3px] border-[#0a0a0a] overflow-hidden z-10 pointer-events-auto"
                   style={{ transform: 'translate(-50%, -50%) rotateY(-8.6deg)', transformOrigin: 'center center' }}
                 >
                   {/* Ефект глянцевого відблиску скла */}
-                  <div className="absolute top-0 left-0 w-full h-[40%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+                  <div className="absolute top-0 left-0 w-full h-[45%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+
+                  {/* Сучасний Dynamic Island */}
+                  <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-[55px] h-[16px] bg-black rounded-full z-20 pointer-events-none flex items-center justify-end px-1.5 shadow-md">
+                    {/* Імітація фронтальної лінзи */}
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#151515] shadow-[inset_0_0_2px_rgba(255,255,255,0.4)]"></div>
+                  </div>
 
                   {/* Сучасний Dynamic Island (як в iPhone Pro) */}
                   <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[55px] h-[16px] bg-black rounded-full z-20 pointer-events-none flex items-center justify-end px-1.5 shadow-[0_0_2px_rgba(255,255,255,0.05)]">
