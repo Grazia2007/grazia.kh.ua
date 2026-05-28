@@ -2271,12 +2271,12 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           </div>
           
           <div className="flex-1 w-full flex justify-center lg:justify-end relative z-10 h-[400px]">
-            <div className="relative">
-              <div className="absolute top-10 -left-10 text-[10px] font-mono uppercase tracking-widest text-[var(--btn-text)]/40 text-right">
-                Живі об'єкти<br/>та бекстейдж<br/>тут 👉
-              </div>
-              
-<div className="relative flex justify-center items-center w-[280px] h-[450px]" style={{ perspective: '1200px' }}>
+                      <div className="relative">
+                        <div className="absolute top-4 -left-20 text-[10px] font-mono uppercase tracking-widest text-[var(--btn-text)]/40 text-right">
+                          Живі об'єкти<br/>та бекстейдж<br/>тут 👉
+                        </div>
+                        
+          <div className="relative flex justify-center items-center w-[280px] h-[450px]" style={{ perspective: '1200px' }}>
                 
                 {/* CSS Айфон безрамковий стиль (повністю статичний, але з 3D-поворотом) */}
                 <div 
