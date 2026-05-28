@@ -2276,69 +2276,68 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 Живі об'єкти<br/>та бекстейдж<br/>тут 👉
               </div>
               
-              <div className="relative w-[280px] h-[450px]">
-                {/* 3D Корпус телефону */}
-                <div className="absolute inset-0 z-0 pointer-events-none">
-                  <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
-                    <ambientLight intensity={0.7} />
-                    <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" />
-                    <directionalLight position={[-5, 0, 5]} intensity={1.5} color="#e0f0ff" />
-                    {/* Залишаємо поворот, щоб було видно ліву грань металу */}
-                    <group rotation={[0, -0.15, 0]}>
-                      <RoundedBox args={[1.8, 3.75, 0.1]} radius={0.16} smoothness={8} castShadow>
-                        <meshStandardMaterial color="#4a4a4c" roughness={0.15} metalness={0.95} />
-                      </RoundedBox>
-                    </group>
-                  </Canvas>
-                </div>
-
-                {/* HTML Екран. Зменшуємо ширину до 165px, щоб оголити металевий бортик 3D-моделі зліва */}
+<div className="relative flex justify-center items-center w-[280px] h-[450px]" style={{ perspective: '1200px' }}>
+                
+                {/* CSS Айфон безрамковий стиль (повністю статичний, але з 3D-поворотом) */}
                 <div 
-                  className="absolute top-1/2 left-[51%] w-[165px] h-[358px] flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-[#1E3527] to-[#0a0a0a] rounded-[28px] p-4 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] border-[3px] border-[#0a0a0a] overflow-hidden z-10 pointer-events-auto"
-                  style={{ transform: 'translate(-50%, -50%) rotateY(-8.6deg)', transformOrigin: 'center center' }}
+                  className="relative w-[220px] h-[440px] bg-black rounded-[44px] p-2 shadow-[-20px_20px_40px_rgba(0,0,0,0.8),inset_0_0_0_1px_#4a4a4c] border-[3px] border-[#1c1c1e] z-10 pointer-events-auto flex flex-col"
+                  style={{ transform: 'rotateY(-14deg) rotateX(4deg) rotateZ(-1deg)', transformStyle: 'preserve-3d' }}
                 >
-                  {/* Ефект глянцевого відблиску скла */}
-                  <div className="absolute top-0 left-0 w-full h-[45%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+                  {/* Фізичні кнопки (тіні та об'єм збоку) */}
+                  <div className="absolute -left-[5px] top-[90px] w-[3px] h-[22px] bg-[#3a3a3c] rounded-l-md shadow-[-1px_0_2px_rgba(0,0,0,0.5)]"></div>
+                  <div className="absolute -left-[5px] top-[130px] w-[3px] h-[40px] bg-[#3a3a3c] rounded-l-md shadow-[-1px_0_2px_rgba(0,0,0,0.5)]"></div>
+                  <div className="absolute -left-[5px] top-[180px] w-[3px] h-[40px] bg-[#3a3a3c] rounded-l-md shadow-[-1px_0_2px_rgba(0,0,0,0.5)]"></div>
+                  <div className="absolute -right-[5px] top-[140px] w-[3px] h-[60px] bg-[#3a3a3c] rounded-r-md shadow-[1px_0_2px_rgba(0,0,0,0.5)]"></div>
 
-                  {/* Єдиний сучасний Dynamic Island */}
-                  <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-[55px] h-[16px] bg-black rounded-full z-20 pointer-events-none flex items-center justify-end px-1.5 shadow-md border border-white/5">
-                    {/* Імітація фронтальної лінзи */}
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#151515] shadow-[inset_0_0_2px_rgba(255,255,255,0.4)]"></div>
+                  {/* Внутрішній екран */}
+                  <div className="relative w-full h-full bg-gradient-to-b from-[#1E3527] to-[#050505] rounded-[36px] overflow-hidden flex flex-col items-center justify-center gap-5 border border-white/5">
+                    
+                    {/* Ефект відблиску скла (косий) */}
+                    <div className="absolute top-0 left-0 w-full h-[60%] bg-gradient-to-b from-white/10 to-transparent pointer-events-none z-30 transform -skew-y-12 origin-top-left opacity-60"></div>
+
+                    {/* Dynamic Island */}
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[70px] h-[22px] bg-black rounded-full z-40 flex items-center justify-between px-2 shadow-sm border border-white/10">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#111] shadow-[inset_0_0_2px_rgba(255,255,255,0.2)]"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#0a0a0a] shadow-[inset_0_0_3px_rgba(255,255,255,0.4)] relative">
+                        <div className="absolute inset-0 m-auto w-1 h-1 rounded-full bg-blue-900/40"></div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-white text-center mt-6 pointer-events-none z-20">
+                      <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
+                      <span className="block text-xl font-serif">Socials</span>
+                    </div>
+                    
+                    <a 
+                      href="https://www.instagram.com/grazia.kh.ua/" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-16 h-16 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer pointer-events-auto z-20"
+                    >
+                      <InstagramIconSVG size={32} color="white" />
+                    </a>
+                    
+                    <a 
+                      href="https://www.youtube.com/@graziakhua/videos" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-16 h-16 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer pointer-events-auto z-20"
+                    >
+                      <YoutubeIconSVG size={32} color="white" />
+                    </a>
+
+                    <a 
+                      href="https://t.me/MarinaGrazia" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-16 h-16 bg-[#2AABEE] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(42,171,238,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer pointer-events-auto z-20"
+                    >
+                      <TelegramIconSVG size={32} color="white" />
+                    </a>
+
+                    {/* Смужка Home Swipe */}
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[80px] h-1 bg-white/40 rounded-full pointer-events-none z-30"></div>
                   </div>
-                  
-                  <div className="text-white text-center mt-4 pointer-events-none">
-                    <span className="block text-[10px] font-mono text-white/50 uppercase tracking-widest mb-1">Grazia</span>
-                    <span className="block text-lg font-serif">Socials</span>
-                  </div>
-                  
-                  <a 
-                    href="https://www.instagram.com/grazia.kh.ua/" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
-                  >
-                    <InstagramIconSVG size={28} color="white" />
-                  </a>
-                  
-                  <a 
-                    href="https://www.youtube.com/@graziakhua/videos" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="w-14 h-14 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
-                  >
-                    <YoutubeIconSVG size={28} color="white" />
-                  </a>
-
-                  <a 
-                    href="https://t.me/MarinaGrazia" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="w-14 h-14 bg-[#2AABEE] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(42,171,238,0.4)] hover:scale-110 transition-transform duration-300 cursor-pointer pointer-events-auto shrink-0"
-                  >
-                    <TelegramIconSVG size={28} color="white" />
-                  </a>
-
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/30 rounded-full pointer-events-none"></div>
                 </div>
               </div>
 
