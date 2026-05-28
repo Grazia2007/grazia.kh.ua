@@ -25,7 +25,9 @@ import {
   Check,
   Quote,
   Palette,
-  Layers
+  Layers,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
@@ -470,6 +472,80 @@ export default function GraziaFurnitureSystem() {
   const [isDark, setIsDark] = useState(false);
   const [themeLoaded, setThemeLoaded] = useState(false); 
   
+  // --- UI SOUND ENGINE (WEB AUDIO API) ---
+  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  const isSoundEnabledRef = useRef(isSoundEnabled);
+
+  useEffect(() => {
+    isSoundEnabledRef.current = isSoundEnabled;
+  }, [isSoundEnabled]);
+
+  const playClick = useCallback(() => {
+    if (!isSoundEnabledRef.current) return;
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.05);
+    } catch(e) {}
+  }, []);
+
+  const playWhoosh = useCallback(() => {
+    if (!isSoundEnabledRef.current) return;
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const bufferSize = ctx.sampleRate * 0.6;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.Q.value = 1;
+      filter.frequency.setValueAtTime(300, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 0.3);
+      filter.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.6);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.3);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start();
+    } catch(e) {}
+  }, []);
+
+  // Глобальний слухач для м'яких кліків
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isClickable = target.closest('button, .cursor-pointer, select, a');
+      const isMapMarker = target.closest('.custom-mapbox-marker');
+      
+      // Ігноруємо кліки по пінах карти, там буде свій звук "вушш"
+      if (isClickable && !isMapMarker) {
+         playClick();
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, [playClick]);
+  // --- КІНЕЦЬ SOUND ENGINE ---
+
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [mapLevel, setMapLevel] = useState<'globe' | 'kharkiv'>('globe');
   
@@ -1056,6 +1132,7 @@ export default function GraziaFurnitureSystem() {
           `;
 
           el.addEventListener('click', () => {
+            playWhoosh(); // Вушш при польоті камери
             setActivePin(pin);
             setActiveProjectIndex(0); // Скидання індексу при кліку на новий пін
             map.flyTo({
@@ -1335,7 +1412,15 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           <a href="#calc" className="hover:text-[var(--accent-main)] transition-colors border-b border-transparent hover:border-[var(--accent-main)] pb-1">Розрахунок</a>
         </div>
 
-        <div className="flex items-center pointer-events-auto">
+        <div className="flex items-center pointer-events-auto gap-3 md:gap-5">
+          <button 
+            onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+            className="w-10 h-10 rounded-full border border-[var(--border-color)] bg-[var(--modal-bg)] backdrop-blur-md flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--accent-main)] hover:text-white hover:border-[var(--accent-main)] transition-all shadow-sm cursor-pointer"
+            title={isSoundEnabled ? "Вимкнути звуки UI" : "Увімкнути звуки UI"}
+          >
+            {isSoundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          </button>
+
           <div 
             onClick={toggleTheme}
             className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
