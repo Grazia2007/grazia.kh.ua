@@ -488,15 +488,20 @@ export default function GraziaFurnitureSystem() {
       const ctx = new AudioContext();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      
+      // Елегантний, м'який звук (чистий тон без "лазерного" перепаду)
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+      osc.frequency.setValueAtTime(1000, ctx.currentTime);
+      
+      // Дуже тихий і короткий звук з м'якою атакою
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.03, ctx.currentTime + 0.002); // М'який старт
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03); // Швидке згасання
+      
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.05);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.04);
     } catch(e) {}
   }, []);
 
