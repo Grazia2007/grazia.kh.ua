@@ -618,8 +618,8 @@ const playWhoosh = useCallback(() => {
     offset: ["start end", "end start"]
   });
   // Симетричний зсув: зберігаємо амплітуду, але розподіляємо буфер масштабу рівномірно (верх/низ), щоб не вилазили краї
-  const y1 = useTransform(scrollYProgress, [0, 1], [45, -45]);
-  const y2 = useTransform(scrollYProgress, [0, 1], [-45, 45]);
+  const y1 = useTransform(scrollYProgress, [0, 1], ["15%", "-15%"]);
+  const y2 = useTransform(scrollYProgress, [0, 1], ["-15%", "15%"]);
 
   // Обчислення проєктів та поточного активного об'єкта в групі
   const activeGroupProjects = useMemo(() => {
@@ -1662,7 +1662,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 style={{ y: y1 }}
                 src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" 
                 alt="Преміальні матеріали" 
-                className="absolute inset-0 w-full h-full object-cover scale-[1.4] md:scale-[1.25] origin-center hover:scale-[1.45] md:hover:scale-[1.3] transition-transform duration-700"
+                className="absolute inset-0 w-full h-full object-cover scale-[1.3] origin-center hover:scale-[1.35] transition-transform duration-700"
               />
             </div>
             <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl translate-y-12 relative">
@@ -1670,7 +1670,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 style={{ y: y2 }}
                 src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" 
                 alt="Фурнітура та текстури" 
-                className="absolute inset-0 w-full h-full object-cover scale-[1.4] md:scale-[1.25] origin-center hover:scale-[1.45] md:hover:scale-[1.3] transition-transform duration-700"
+                className="absolute inset-0 w-full h-full object-cover scale-[1.3] origin-center hover:scale-[1.35] transition-transform duration-700"
               />
             </div>
           </div>
