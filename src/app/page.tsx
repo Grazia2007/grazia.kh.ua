@@ -1514,7 +1514,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           </div>
         </div>
 
-        <div id="interactive-zone" className="flex-1 w-full h-[600px] relative bg-[var(--bg-card)] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[var(--border-color)]">
+        <div id="interactive-zone" className="flex-1 w-full min-h-[450px] md:min-h-[600px] shrink-0 relative bg-[var(--bg-card)] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[var(--border-color)]">
           {mapLevel === 'globe' ? (
             <div className={`absolute inset-0 w-full h-full transition-all duration-[1500ms] ${isTransitioning ? 'scale-[3] opacity-0 blur-xl' : 'scale-100 opacity-100'}`}>
               <canvas 
@@ -1658,20 +1658,22 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           </div>
           <div className="flex-1 w-full grid grid-cols-2 gap-4 relative">
             <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl relative">
-              <motion.img 
-                style={{ y: y1 }}
-                src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" 
-                alt="Преміальні матеріали" 
-                className="absolute inset-0 w-full h-full object-cover scale-[1.25] origin-center hover:scale-[1.3] transition-transform duration-700"
-              />
-            </div>
-            <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl translate-y-12 relative">
-              <motion.img 
-                style={{ y: y2 }}
-                src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" 
-                alt="Фурнітура та текстури" 
-                className="absolute inset-0 w-full h-full object-cover scale-[1.25] origin-center hover:scale-[1.3] transition-transform duration-700"
-              />
+              {/* Перша картинка */}
+                <motion.img 
+                  style={{ y: y1 }}
+                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" 
+                  alt="Преміальні матеріали" 
+                  className="absolute inset-0 w-full h-full object-cover scale-[1.4] md:scale-[1.25] origin-center hover:scale-[1.45] md:hover:scale-[1.3] transition-transform duration-700"
+                />
+
+                {/* ... друга картинка ... */}
+
+                <motion.img 
+                  style={{ y: y2 }}
+                  src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" 
+                  alt="Фурнітура та текстури" 
+                  className="absolute inset-0 w-full h-full object-cover scale-[1.4] md:scale-[1.25] origin-center hover:scale-[1.45] md:hover:scale-[1.3] transition-transform duration-700"
+                />
             </div>
           </div>
         </div>
