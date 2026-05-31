@@ -1656,24 +1656,22 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                </div>
             </div>
           </div>
-          <div className="flex-1 w-full grid grid-cols-2 gap-4 relative">
+        <div className="flex-1 w-full grid grid-cols-2 gap-4 relative">
             <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl relative">
-              {/* Перша картинка */}
-                <motion.img 
-                  style={{ y: y1 }}
-                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" 
-                  alt="Преміальні матеріали" 
-                  className="absolute inset-0 w-full h-full object-cover scale-[1.4] md:scale-[1.25] origin-center hover:scale-[1.45] md:hover:scale-[1.3] transition-transform duration-700"
-                />
-
-                {/* ... друга картинка ... */}
-
-                <motion.img 
-                  style={{ y: y2 }}
-                  src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" 
-                  alt="Фурнітура та текстури" 
-                  className="absolute inset-0 w-full h-full object-cover scale-[1.4] md:scale-[1.25] origin-center hover:scale-[1.45] md:hover:scale-[1.3] transition-transform duration-700"
-                />
+              <motion.img 
+                style={{ y: y1 }}
+                src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" 
+                alt="Преміальні матеріали" 
+                className="absolute inset-0 w-full h-full object-cover scale-[1.4] md:scale-[1.25] origin-center hover:scale-[1.45] md:hover:scale-[1.3] transition-transform duration-700"
+              />
+            </div>
+            <div className="aspect-[4/5] rounded-xl overflow-hidden bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl translate-y-12 relative">
+              <motion.img 
+                style={{ y: y2 }}
+                src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=800" 
+                alt="Фурнітура та текстури" 
+                className="absolute inset-0 w-full h-full object-cover scale-[1.4] md:scale-[1.25] origin-center hover:scale-[1.45] md:hover:scale-[1.3] transition-transform duration-700"
+              />
             </div>
           </div>
         </div>
