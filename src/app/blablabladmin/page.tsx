@@ -98,6 +98,10 @@ export default function AdminPanel() {
   const [existingMedia, setExistingMedia] = useState<{url: string, caption: string}[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // --- НОВІ СТАНІ ДЛЯ DRAG & DROP ТА ГОЛОВНОГО ФОТО ---
+  const [isDragging, setIsDragging] = useState(false);
+  const [coverType, setCoverType] = useState<'existing' | 'new' | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{type: 'success' | 'error' | 'info', text: string} | null>(null);
@@ -291,6 +295,45 @@ export default function AdminPanel() {
   const removeNewFile = (indexToRemove: number) => setSelectedFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
   const removeExistingFile = (indexToRemove: number) => setExistingMedia(prev => prev.filter((_, idx) => idx !== indexToRemove));
 
+  // --- ЛОГІКА DRAG & DROP ---
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      setSelectedFiles(prev => [...prev, ...files]);
+    }
+  };
+
+  // --- ЛОГІКА "ЗРОБИТИ ГОЛОВНОЮ" ---
+  const makeMainExisting = (idx: number) => {
+    setCoverType('existing');
+    setExistingMedia(prev => {
+      const arr = [...prev];
+      const [item] = arr.splice(idx, 1);
+      arr.unshift(item); // Переміщуємо на початок
+      return arr;
+    });
+  };
+
+  const makeMainNew = (idx: number) => {
+    setCoverType('new');
+    setSelectedFiles(prev => {
+      const arr = [...prev];
+      const [item] = arr.splice(idx, 1);
+      arr.unshift(item); // Переміщуємо на початок
+      return arr;
+    });
+  };
+
 const uploadPhotos = async () => {
     const newUploadedUrls: { url: string, caption: string }[] = [];
     for (const file of selectedFiles) {
@@ -380,7 +423,12 @@ const uploadPhotos = async () => {
       setStatusMessage({ type: 'info', text: selectedFiles.length > 0 ? `Завантаження ${selectedFiles.length} нових фотографій...` : 'Оновлення даних...' });
       
       const newlyUploadedMedia = await uploadPhotos();
-      const finalMediaArray = [...existingMedia, ...newlyUploadedMedia];
+      let finalMediaArray = [...existingMedia, ...newlyUploadedMedia];
+      
+      // Якщо користувач обрав НОВЕ фото як абсолютно головне
+      if (coverType === 'new' && newlyUploadedMedia.length > 0) {
+        finalMediaArray = [newlyUploadedMedia[0], ...existingMedia, ...newlyUploadedMedia.slice(1)];
+      }
 
       setStatusMessage({ type: 'info', text: editingId ? 'Оновлення проєкту в БД...' : 'Збереження проєкту в БД...' });
 
@@ -702,12 +750,19 @@ const uploadPhotos = async () => {
               
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-white/10 hover:border-[#D4B895] rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-white/5 group"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`w-full border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${
+                  isDragging ? 'border-[#D4B895] bg-[#D4B895]/10 scale-[1.02]' : 'border-white/10 hover:border-[#D4B895] bg-white/5'
+                }`}
               >
-                <UploadCloud size={32} className="text-white/40 group-hover:text-[#D4B895] mb-3 transition-colors" />
-                <p className="text-sm text-white/70 mb-1">Натисніть, щоб додати нові файли</p>
-                <p className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Можна виділяти декілька фото (JPG, PNG)</p>
-                <input 
+                <UploadCloud size={36} className={`${isDragging ? 'text-[#D4B895]' : 'text-white/40 group-hover:text-[#D4B895]'} mb-4 transition-colors`} />
+                <p className={`text-base mb-2 font-medium ${isDragging ? 'text-[#D4B895]' : 'text-white/70'}`}>
+                  {isDragging ? 'Відпустіть фотографії тут...' : 'Натисніть або перетягніть файли сюди'}
+                </p>
+                <p className="text-[10px] text-white/40 font-mono uppercase tracking-widest">JPG, PNG, WEBP (можна декілька)</p>
+                <input
                   type="file" 
                   multiple 
                   accept="image/*"
@@ -723,20 +778,57 @@ const uploadPhotos = async () => {
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                     
                     <AnimatePresence>
-                      {existingMedia.map((media, idx) => (
+{existingMedia.map((media, idx) => {
+                        const isMain = idx === 0 && coverType !== 'new';
+                        return (
                         <motion.div 
                           key={`existing-${idx}`}
                           initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                          className="relative aspect-square rounded-lg overflow-hidden border border-[#D4B895]/30 group"
+                          className={`relative aspect-square rounded-lg overflow-hidden border group ${isMain ? 'border-[#D4B895] shadow-[0_0_15px_rgba(212,184,149,0.4)]' : 'border-[#D4B895]/30'}`}
                         >
                           <div className="absolute top-1 left-1 bg-black/70 px-2 py-0.5 rounded text-[9px] text-[#D4B895] z-10">Вже в базі</div>
+                          {isMain && <div className="absolute top-1 right-1 bg-[#D4B895] text-black px-2 py-0.5 rounded text-[9px] font-bold z-10 flex items-center gap-1"><Star size={10} fill="currentColor"/> ГОЛОВНА</div>}
+                          
                           <img src={media.url} alt="saved" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-                            <button type="button" onClick={() => removeExistingFile(idx)} className="bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-transform shadow-lg">
+                          
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-20">
+                            {!isMain && (
+                              <button type="button" onClick={() => makeMainExisting(idx)} className="bg-[#D4B895] text-black p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Зробити головною">
+                                <Star size={16} fill="currentColor" />
+                              </button>
+                            )}
+                            <button type="button" onClick={() => removeExistingFile(idx)} className="bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Видалити">
                               <Trash2 size={16} />
                             </button>
                           </div>
                         </motion.div>
+                      )})}
+
+                      {selectedFiles.map((file, idx) => {
+                        const isMain = idx === 0 && coverType === 'new';
+                        return (
+                        <motion.div 
+                          key={`new-${file.name}-${idx}`}
+                          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                          className={`relative aspect-square rounded-lg overflow-hidden border group ${isMain ? 'border-[#D4B895] opacity-100 shadow-[0_0_15px_rgba(212,184,149,0.4)]' : 'border-white/20 opacity-80'}`}
+                        >
+                          <div className="absolute top-1 left-1 bg-blue-500/70 px-2 py-0.5 rounded text-[9px] text-white z-10">Нове</div>
+                          {isMain && <div className="absolute top-1 right-1 bg-[#D4B895] text-black px-2 py-0.5 rounded text-[9px] font-bold z-10 flex items-center gap-1"><Star size={10} fill="currentColor"/> ГОЛОВНА</div>}
+                          
+                          <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                          
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-20">
+                            {!isMain && (
+                              <button type="button" onClick={() => makeMainNew(idx)} className="bg-[#D4B895] text-black p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Зробити головною">
+                                <Star size={16} fill="currentColor" />
+                              </button>
+                            )}
+                            <button type="button" onClick={() => removeNewFile(idx)} className="bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Видалити">
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </motion.div>
+                      )})}
                       ))}
 
                       {selectedFiles.map((file, idx) => (
