@@ -27,6 +27,41 @@ const SUPABASE_URL = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC
 const SUPABASE_ANON_KEY = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'sb_publishable_2VUpjTZW1Bf1Bg0Fs0vh6Q_6tIr5eP0';
 const BUCKET_NAME = "grazia-media";
 
+// --- ФУНКЦІЯ ОПТИМІЗАЦІЇ ФОТО В WEBP ---
+const convertToWebP = (file: File, quality = 0.8): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Обмежуємо максимальний розмір фото (наприклад, 1920px по ширині) для ще більшої оптимізації
+        const MAX_WIDTH = 1920;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Помилка конвертації'));
+        }, 'image/webp', quality);
+      };
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 interface Project {
   id: string;
   title: string;
@@ -256,17 +291,35 @@ export default function AdminPanel() {
   const removeNewFile = (indexToRemove: number) => setSelectedFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
   const removeExistingFile = (indexToRemove: number) => setExistingMedia(prev => prev.filter((_, idx) => idx !== indexToRemove));
 
-  const uploadPhotos = async () => {
+const uploadPhotos = async () => {
     const newUploadedUrls: { url: string, caption: string }[] = [];
     for (const file of selectedFiles) {
-      const fileExt = file.name.split('.').pop();
+      
+      let fileToUpload: File | Blob = file;
+      let fileExt = file.name.split('.').pop();
+      let mimeType = file.type;
+
+      // Якщо це зображення (не відео чи щось інше), конвертуємо у WebP
+      if (file.type.startsWith('image/')) {
+        try {
+          setStatusMessage({ type: 'info', text: `Оптимізація ${file.name}...` });
+          fileToUpload = await convertToWebP(file, 0.8); // 80% якості - ідеальний баланс
+          fileExt = 'webp';
+          mimeType = 'image/webp';
+        } catch (e) {
+          console.warn("Не вдалося конвертувати, завантажуємо оригінал", e);
+        }
+      }
+
       const fileName = `portfolio_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/${fileName}`;
 
+      setStatusMessage({ type: 'info', text: `Завантаження оптимізованого фото...` });
+
       const res = await fetch(uploadUrl, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY, 'Content-Type': file.type },
-        body: file
+        headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY, 'Content-Type': mimeType },
+        body: fileToUpload
       });
       if (!res.ok) throw new Error(`Помилка завантаження файлу ${file.name}`);
       const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
