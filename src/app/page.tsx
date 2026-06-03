@@ -574,7 +574,7 @@ const playWhoosh = useCallback(() => {
   // Додатковий стейт для навігації всередині групи
   const [activeProjectIndex, setActiveProjectIndex] = useState<number>(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<any | null>(null);
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   
   // --- ОНОВЛЕНИЙ СТЕЙТ ЛАЙТБОКСУ ---
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -1105,6 +1105,12 @@ const playWhoosh = useCallback(() => {
 
         mapInstanceRef.current = map;
 
+        // ФІКС: Примусово оновлюємо розмір полотна після рендеру та анімацій
+        map.on('load', () => {
+          map.resize();
+        });
+        setTimeout(() => { if (map) map.resize(); }, 600);
+
         if (mapContainerRef.current) {
           resizeObserver = new ResizeObserver(() => {
             if (mapInstanceRef.current) mapInstanceRef.current.resize();
@@ -1288,6 +1294,8 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
   const TOTAL_STEPS = 7;
 
+  const activePinIndex = dbProjects.findIndex(p => p.id === activePin?.id);
+
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-[var(--accent-main)] selection:text-white overflow-x-hidden transition-colors duration-500 relative">
       <style dangerouslySetInnerHTML={{__html: `
@@ -1434,6 +1442,39 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
       )}
 
+      {/* --- ГЛОБАЛЬНА ГАЛЕРЕЯ ВСІХ РОБІТ --- */}
+      {isGalleryModalOpen && (
+        <div className="fixed inset-0 z-[105] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
+          <div className="sticky top-0 bg-[var(--modal-bg)] backdrop-blur-md px-6 py-5 border-b border-[var(--border-color)] flex justify-between items-center z-50">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent-main)] block font-bold">18 РОКІВ ДОСВІДУ</span>
+              <h2 className="text-xl font-serif text-[var(--text-main)]">Усі реалізовані проєкти</h2>
+            </div>
+            <button onClick={() => setIsGalleryModalOpen(false)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] hover:scale-105 transition-transform duration-300 shadow-sm border border-[var(--border-color)]">
+              <X size={20} />
+            </button>
+          </div>
+          <div className="max-w-[1600px] mx-auto px-6 py-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {dbProjects.flatMap(group => group.projects || [group]).map((project, idx) => (
+                <div key={project.id || idx} onClick={() => { setIsGalleryModalOpen(false); setSelectedProject(project); }} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[4/3] shadow-sm rounded-lg border border-[var(--border-color)]">
+                  {project.photos && project.photos[0] ? (
+                    <img src={project.photos[0].url} alt={project.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="absolute bottom-0 left-0 w-full p-5 transform transition-transform duration-500 z-10">
+                    <span className="text-[9px] text-white/70 font-mono uppercase tracking-widest block mb-1 truncate"><MapPin size={10} className="inline mr-1"/>{project.name}</span>
+                    <h3 className="text-base font-serif text-white leading-tight line-clamp-2">{project.project}</h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Навігація */}
       <nav className="absolute top-0 w-full z-50 px-6 py-8 md:px-12 flex justify-between items-center bg-transparent pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
@@ -1540,19 +1581,25 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               <div className="absolute bottom-6 left-6 right-6 z-30 pointer-events-none">
                 <div className="max-w-2xl mx-auto relative flex items-center">
                   
-                  {/* Кнопка "Назад" - ліворуч поза межами */}
-                  {activeGroupProjects.length > 1 && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
+                  {/* Кнопка "Назад" - працює для всіх точок */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (activeGroupProjects.length > 1) {
                         setActiveProjectIndex((prev) => (prev === 0 ? activeGroupProjects.length - 1 : prev - 1));
-                      }}
-                      className="absolute -left-3 sm:-left-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--modal-bg)] border border-[var(--border-color)] shadow-xl flex items-center justify-center text-[var(--text-main)] hover:scale-110 active:scale-95 transition-all z-40 pointer-events-auto cursor-pointer"
-                      title="Попередній проєкт"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                  )}
+                      } else {
+                        const nextIdx = activePinIndex === 0 ? dbProjects.length - 1 : activePinIndex - 1;
+                        const nextPin = dbProjects[nextIdx];
+                        setActivePin(nextPin);
+                        setActiveProjectIndex(0);
+                        mapInstanceRef.current?.flyTo({ center: nextPin.coordinates, zoom: 14.5, essential: true });
+                      }
+                    }}
+                    className="absolute -left-3 sm:-left-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--modal-bg)] border border-[var(--border-color)] shadow-xl flex items-center justify-center text-[var(--text-main)] hover:scale-110 active:scale-95 transition-all z-40 pointer-events-auto cursor-pointer"
+                    title="Попередній проєкт / локація"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
 
                   {/* Основне тіло картки */}
                   <div 
@@ -1611,19 +1658,25 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                     </div>
                   </div>
 
-                  {/* Кнопка "Вперед" - праворуч поза межами */}
-                  {activeGroupProjects.length > 1 && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
+                  {/* Кнопка "Вперед" - працює для всіх точок */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (activeGroupProjects.length > 1) {
                         setActiveProjectIndex((prev) => (prev + 1) % activeGroupProjects.length);
-                      }}
-                      className="absolute -right-3 sm:-right-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--modal-bg)] border border-[var(--border-color)] shadow-xl flex items-center justify-center text-[var(--text-main)] hover:scale-110 active:scale-95 transition-all z-40 pointer-events-auto cursor-pointer"
-                      title="Наступний проєкт"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  )}
+                      } else {
+                        const nextIdx = (activePinIndex + 1) % dbProjects.length;
+                        const nextPin = dbProjects[nextIdx];
+                        setActivePin(nextPin);
+                        setActiveProjectIndex(0);
+                        mapInstanceRef.current?.flyTo({ center: nextPin.coordinates, zoom: 14.5, essential: true });
+                      }
+                    }}
+                    className="absolute -right-3 sm:-right-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[var(--modal-bg)] border border-[var(--border-color)] shadow-xl flex items-center justify-center text-[var(--text-main)] hover:scale-110 active:scale-95 transition-all z-40 pointer-events-auto cursor-pointer"
+                    title="Наступний проєкт / локація"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
 
                 </div>
               </div>
@@ -1684,9 +1737,9 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             <span className="text-[10px] font-mono text-[var(--accent-main)] uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
             <h2 className="text-3xl md:text-4xl font-serif text-[var(--text-main)]">ОСТАННІ ШЕДЕВРИ</h2>
           </div>
-          <a href="#" className="text-xs font-semibold tracking-widest uppercase border-b border-[var(--text-main)] pb-1 flex items-center gap-2 text-[var(--text-main)] hover:text-[var(--accent-main)] hover:border-[var(--accent-main)] transition-colors">
+          <button onClick={() => setIsGalleryModalOpen(true)} className="text-xs font-semibold tracking-widest uppercase border-b border-[var(--text-main)] pb-1 flex items-center gap-2 text-[var(--text-main)] hover:text-[var(--accent-main)] hover:border-[var(--accent-main)] transition-colors">
             Дивитись всі 120+ робіт <ArrowRight size={14} />
-          </a>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
