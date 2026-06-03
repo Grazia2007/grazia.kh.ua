@@ -571,10 +571,10 @@ const playWhoosh = useCallback(() => {
     return grouped[0];
   });
   
-  // Додатковий стейт для навігації всередині групи
   const [activeProjectIndex, setActiveProjectIndex] = useState<number>(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<any>(null); // ✅ ДОДАЛИ ЦЕЙ РЯДОК
   
   // --- ОНОВЛЕНИЙ СТЕЙТ ЛАЙТБОКСУ ---
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
