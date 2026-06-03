@@ -1072,25 +1072,30 @@ const playWhoosh = useCallback(() => {
     let resizeObserver: ResizeObserver | null = null; 
 
     const initMapbox = async () => {
-      if (!document.getElementById('mapbox-css')) {
-        const link = document.createElement('link');
-        link.id = 'mapbox-css';
-        link.href = 'https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.css';
-        link.rel = 'stylesheet';
-        document.head.appendChild(link);
-      }
-
-      if (!(window as any).mapboxgl) {
-        await new Promise((resolve) => {
+      // Чекаємо повного завантаження і JS, і CSS для Mapbox
+      await Promise.all([
+        new Promise((resolve) => {
+          if (document.getElementById('mapbox-css')) return resolve(true);
+          const link = document.createElement('link');
+          link.id = 'mapbox-css';
+          link.href = 'https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.css';
+          link.rel = 'stylesheet';
+          link.onload = resolve;
+          document.head.appendChild(link);
+        }),
+        new Promise((resolve) => {
+          if ((window as any).mapboxgl) return resolve(true);
           const script = document.createElement('script');
           script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js';
           script.onload = resolve;
           document.head.appendChild(script);
-        });
-      }
+        })
+      ]);
 
       const mapboxgl = (window as any).mapboxgl;
-      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw'; 
+      if (!mapboxgl) return;
+      
+      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw';
 
       try {
         const map = new mapboxgl.Map({
@@ -1105,11 +1110,16 @@ const playWhoosh = useCallback(() => {
 
         mapInstanceRef.current = map;
 
-        // ФІКС: Примусово оновлюємо розмір полотна після рендеру та анімацій
+        // ФІКС: Примусово оновлюємо розмір полотна під час та після анімацій
         map.on('load', () => {
           map.resize();
         });
-        setTimeout(() => { if (map) map.resize(); }, 600);
+        
+        // Постійний ресайз протягом перших 1.5 секунд появи
+        const resizeInterval = setInterval(() => { 
+          if (mapInstanceRef.current) mapInstanceRef.current.resize(); 
+        }, 100);
+        setTimeout(() => clearInterval(resizeInterval), 1500);
 
         if (mapContainerRef.current) {
           resizeObserver = new ResizeObserver(() => {
@@ -1571,7 +1581,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               </div>
             </div>
           ) : (
-            <div className={`w-full h-full relative transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
+            <div className={`absolute inset-0 w-full h-full transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
               <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ outline: 'none' }} />
               <div className="absolute top-6 left-6 bg-[var(--modal-bg)] backdrop-blur-md px-4 py-2 rounded-full border border-[var(--border-color)] text-[10px] font-mono uppercase tracking-widest z-30 shadow-sm pointer-events-none text-[var(--text-main)]">
                 Детальна Карта Робіт
