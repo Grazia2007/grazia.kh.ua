@@ -778,74 +778,59 @@ const uploadPhotos = async () => {
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                     
                     <AnimatePresence>
-{existingMedia.map((media, idx) => {
+                      {existingMedia.map((media, idx) => {
                         const isMain = idx === 0 && coverType !== 'new';
                         return (
-                        <motion.div 
-                          key={`existing-${idx}`}
-                          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                          className={`relative aspect-square rounded-lg overflow-hidden border group ${isMain ? 'border-[#D4B895] shadow-[0_0_15px_rgba(212,184,149,0.4)]' : 'border-[#D4B895]/30'}`}
-                        >
-                          <div className="absolute top-1 left-1 bg-black/70 px-2 py-0.5 rounded text-[9px] text-[#D4B895] z-10">Вже в базі</div>
-                          {isMain && <div className="absolute top-1 right-1 bg-[#D4B895] text-black px-2 py-0.5 rounded text-[9px] font-bold z-10 flex items-center gap-1"><Star size={10} fill="currentColor"/> ГОЛОВНА</div>}
-                          
-                          <img src={media.url} alt="saved" className="w-full h-full object-cover" />
-                          
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-20">
-                            {!isMain && (
-                              <button type="button" onClick={() => makeMainExisting(idx)} className="bg-[#D4B895] text-black p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Зробити головною">
-                                <Star size={16} fill="currentColor" />
+                          <motion.div 
+                            key={`existing-${idx}`}
+                            initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                            className={`relative aspect-square rounded-lg overflow-hidden border group ${isMain ? 'border-[#D4B895] shadow-[0_0_15px_rgba(212,184,149,0.4)]' : 'border-[#D4B895]/30'}`}
+                          >
+                            <div className="absolute top-1 left-1 bg-black/70 px-2 py-0.5 rounded text-[9px] text-[#D4B895] z-10">Вже в базі</div>
+                            {isMain && <div className="absolute top-1 right-1 bg-[#D4B895] text-black px-2 py-0.5 rounded text-[9px] font-bold z-10 flex items-center gap-1"><Star size={10} fill="currentColor"/> ГОЛОВНА</div>}
+                            
+                            <img src={media.url} alt="saved" className="w-full h-full object-cover" />
+                            
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-20">
+                              {!isMain && (
+                                <button type="button" onClick={() => makeMainExisting(idx)} className="bg-[#D4B895] text-black p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Зробити головною">
+                                  <Star size={16} fill="currentColor" />
+                                </button>
+                              )}
+                              <button type="button" onClick={() => removeExistingFile(idx)} className="bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Видалити">
+                                <Trash2 size={16} />
                               </button>
-                            )}
-                            <button type="button" onClick={() => removeExistingFile(idx)} className="bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Видалити">
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </motion.div>
-                      )})}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
 
                       {selectedFiles.map((file, idx) => {
                         const isMain = idx === 0 && coverType === 'new';
                         return (
-                        <motion.div 
-                          key={`new-${file.name}-${idx}`}
-                          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                          className={`relative aspect-square rounded-lg overflow-hidden border group ${isMain ? 'border-[#D4B895] opacity-100 shadow-[0_0_15px_rgba(212,184,149,0.4)]' : 'border-white/20 opacity-80'}`}
-                        >
-                          <div className="absolute top-1 left-1 bg-blue-500/70 px-2 py-0.5 rounded text-[9px] text-white z-10">Нове</div>
-                          {isMain && <div className="absolute top-1 right-1 bg-[#D4B895] text-black px-2 py-0.5 rounded text-[9px] font-bold z-10 flex items-center gap-1"><Star size={10} fill="currentColor"/> ГОЛОВНА</div>}
-                          
-                          <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                          
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-20">
-                            {!isMain && (
-                              <button type="button" onClick={() => makeMainNew(idx)} className="bg-[#D4B895] text-black p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Зробити головною">
-                                <Star size={16} fill="currentColor" />
+                          <motion.div 
+                            key={`new-${file.name}-${idx}`}
+                            initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                            className={`relative aspect-square rounded-lg overflow-hidden border group ${isMain ? 'border-[#D4B895] opacity-100 shadow-[0_0_15px_rgba(212,184,149,0.4)]' : 'border-white/20 opacity-80'}`}
+                          >
+                            <div className="absolute top-1 left-1 bg-blue-500/70 px-2 py-0.5 rounded text-[9px] text-white z-10">Нове</div>
+                            {isMain && <div className="absolute top-1 right-1 bg-[#D4B895] text-black px-2 py-0.5 rounded text-[9px] font-bold z-10 flex items-center gap-1"><Star size={10} fill="currentColor"/> ГОЛОВНА</div>}
+                            
+                            <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                            
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-20">
+                              {!isMain && (
+                                <button type="button" onClick={() => makeMainNew(idx)} className="bg-[#D4B895] text-black p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Зробити головною">
+                                  <Star size={16} fill="currentColor" />
+                                </button>
+                              )}
+                              <button type="button" onClick={() => removeNewFile(idx)} className="bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Видалити">
+                                <X size={16} />
                               </button>
-                            )}
-                            <button type="button" onClick={() => removeNewFile(idx)} className="bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-transform shadow-lg" title="Видалити">
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </motion.div>
-                      )})}
-                      ))}
-
-                      {selectedFiles.map((file, idx) => (
-                        <motion.div 
-                          key={`new-${file.name}-${idx}`}
-                          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                          className="relative aspect-square rounded-lg overflow-hidden border border-white/20 group opacity-80"
-                        >
-                          <div className="absolute top-1 left-1 bg-blue-500/70 px-2 py-0.5 rounded text-[9px] text-white z-10">Нове</div>
-                          <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-                            <button type="button" onClick={() => removeNewFile(idx)} className="bg-red-500 text-white p-2 rounded-full hover:scale-110 transition-transform shadow-lg">
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </motion.div>
-                      ))}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </AnimatePresence>
 
                   </div>
