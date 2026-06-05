@@ -144,7 +144,7 @@ export default function AdminPanel() {
     if (!window.confirm('Ви впевнені, що хочете назавжди видалити цей проєкт?')) return;
     try {
       setStatusMessage({ type: 'info', text: 'Видалення...' });
-      const res = await fetch(`/api/admin/projects?id=${id}`, {
+      const res = await fetch(`/api/blablabladmin/projects?id=${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${passwordInput}` } // Передаємо пароль для перевірки!
       });
@@ -450,8 +450,8 @@ const uploadPhotos = async () => {
 
     const method = editingId ? 'PATCH' : 'POST';
       const endpoint = editingId 
-        ? `/api/admin/projects?id=${editingId}`
-        : `/api/admin/projects`;
+        ? `/api/blablabladmin/projects?id=${editingId}`
+        : `/api/blablabladmin/projects`;
 
       const dbRes = await fetch(endpoint, {
         method: method,
