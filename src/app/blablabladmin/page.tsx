@@ -21,7 +21,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- НАЛАШТУВАННЯ БЕЗПЕКИ ---
-const ADMIN_PASSWORD = "Gr@z1a_Pr0_2026_!$#"; 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw";
 const SUPABASE_URL = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL) || 'https://gpxbzpqnpbbumtiyfstc.supabase.co';
 const SUPABASE_ANON_KEY = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 'sb_publishable_2VUpjTZW1Bf1Bg0Fs0vh6Q_6tIr5eP0';
@@ -108,12 +107,13 @@ export default function AdminPanel() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-    } else {
-      setStatusMessage({ type: 'error', text: 'Невірний ключ доступу' });
+    if (passwordInput.trim() === '') {
+      setStatusMessage({ type: 'error', text: 'Будь ласка, введіть ключ доступу' });
       setTimeout(() => setStatusMessage(null), 3000);
+      return;
     }
+    // Візуально пускаємо в інтерфейс. Справжню перевірку зробить сервер при першій же мутації!
+    setIsAuthenticated(true);
   };
 
   const fetchProjects = async () => {
@@ -144,15 +144,18 @@ export default function AdminPanel() {
     if (!window.confirm('Ви впевнені, що хочете назавжди видалити цей проєкт?')) return;
     try {
       setStatusMessage({ type: 'info', text: 'Видалення...' });
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/portfolio_projects?id=eq.${id}`, {
+      const res = await fetch(`/api/admin/projects?id=${id}`, {
         method: 'DELETE',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Prefer': 'return=representation'
-        }
+        headers: { 'Authorization': `Bearer ${passwordInput}` } // Передаємо пароль для перевірки!
       });
-      if (!res.ok) throw new Error('Помилка при видаленні з БД');
+      if (!res.ok) {
+        if (res.status === 401) {
+          setIsAuthenticated(false); // Викидаємо на екран логіну
+          throw new Error('Невірний або застарілий ключ доступу!');
+        }
+        const errData = await res.json();
+        throw new Error(errData.error || 'Помилка при видаленні з БД');
+      }
       setStatusMessage({ type: 'success', text: 'Проєкт видалено!' });
       fetchProjects(); 
       setTimeout(() => setStatusMessage(null), 3000);
@@ -445,24 +448,27 @@ const uploadPhotos = async () => {
         projectData.coordinates = finalCoordinates;
       }
 
-      const method = editingId ? 'PATCH' : 'POST';
+    const method = editingId ? 'PATCH' : 'POST';
       const endpoint = editingId 
-        ? `${SUPABASE_URL}/rest/v1/portfolio_projects?id=eq.${editingId}`
-        : `${SUPABASE_URL}/rest/v1/portfolio_projects`;
+        ? `/api/admin/projects?id=${editingId}`
+        : `/api/admin/projects`;
 
       const dbRes = await fetch(endpoint, {
         method: method,
         headers: {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
+          'Authorization': `Bearer ${passwordInput}`, // Пароль замість публічного ключа
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(projectData)
       });
 
       const resultData = await dbRes.json();
-      if (!dbRes.ok || resultData.length === 0) throw new Error("Помилка БД! Переконайтеся, що ви увімкнули політику UPDATE в Supabase.");
+      if (!dbRes.ok) {
+        if (dbRes.status === 401) {
+          setIsAuthenticated(false); // Викидаємо на екран логіну
+        }
+        throw new Error(resultData.error || "Сталася помилка на сервері.");
+      }
 
       setStatusMessage({ type: 'success', text: editingId ? 'Проєкт успішно оновлено!' : 'Проєкт успішно опубліковано!' });
       
