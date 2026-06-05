@@ -1270,15 +1270,10 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
     `.trim();
 
     try {
-      await supabase.from('orders').insert({
-        store_id: 'furniture',
-        customer_name: 'Лід з 3D Конфігуратора',
-        total_amount: 0,
-        status: 'draft',
-        ttn_number: detailedMessage 
-      });
-
-      await fetch('/api/telegram', {
+      // ✅ КЛІЄНТ БІЛЬШЕ НЕ ПИШЕ В БАЗУ НАПРЯМУ!
+      // Ми просто відправляємо дані на наш сервер /api/telegram, 
+      // а він уже сам і в Телеграм сповіщення скине, і в базу запише.
+      const res = await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -1290,6 +1285,8 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           message: detailedMessage 
         })
       });
+
+      if (!res.ok) throw new Error("Помилка відправки даних на сервер.");
 
       setFormSubmitted(true);
     } catch (err) {
