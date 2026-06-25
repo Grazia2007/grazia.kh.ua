@@ -2332,6 +2332,29 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         </div>
       </FadeIn>
 
+      {/* SEO Section */}
+      <FadeIn delay={0.2} className="w-full py-16 px-6 border-t border-[var(--border-color)]">
+        <div className="max-w-[1600px] mx-auto">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)]">
+            Меблі на замовлення у Харкові
+          </span>
+          <h2 className="text-2xl md:text-3xl font-serif text-[var(--text-main)] mt-4 mb-8">
+            GRAZIA — корпусні меблі у Харкові з 2007 року
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8 text-sm text-[var(--text-light)] leading-relaxed">
+            <p>
+              Виготовляємо корпусні меблі на замовлення у Харкові: кухні, шафи-купе, гардеробні, дитячі кімнати, меблі у вітальню та ванну. Виїжджаємо на об'єкт, знімаємо розміри, виконуємо монтаж під ключ по всьому Харкову.
+            </p>
+            <p>
+              За 18 років виробництва меблів у Харкові реалізовано понад 500 проєктів. Матеріали: австрійське ДСП Egger, фурнітура Blum та Hettich, італійські емалі. Кожне замовлення — під розмір і дизайн конкретного приміщення.
+            </p>
+            <p>
+              Замовити меблі у Харкові просто: залишіть заявку або зателефонуйте — безкоштовно приїдемо та прорахуємо проєкт. Також обслуговуємо Харківську область.
+            </p>
+          </div>
+        </div>
+      </FadeIn>
+
       <footer className="bg-[var(--btn-bg)] text-[var(--btn-text)] pt-24 pb-16 px-6 md:px-12 mt-auto transition-colors duration-500 overflow-hidden">
         <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-16 relative">
           
