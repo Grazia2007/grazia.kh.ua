@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import Image from 'next/image';
 import { 
   ArrowRight, 
   MapPin, 
@@ -1366,7 +1367,11 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               </div>
               
               <div className="flex-1 relative w-full aspect-[4/3] bg-[var(--bg-card)] rounded-sm overflow-hidden shadow-2xl border border-[var(--border-color)]">
-                <img src={selectedProject.photos[0]?.url} alt="Cover" className="w-full h-full object-cover" />
+                {selectedProject.photos && selectedProject.photos[0] ? (
+                  <Image src={selectedProject.photos[0].url} alt="Cover" fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 <div className="absolute bottom-6 left-6 text-white z-10 flex items-center gap-2">
                   <Sparkles size={16} className="text-yellow-400" />
@@ -1385,7 +1390,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                     onClick={() => setLightboxIndex(idx)}
                     className="relative aspect-[4/3] bg-[var(--bg-card)] cursor-zoom-in group overflow-hidden rounded-sm border border-[var(--border-color)] shadow-sm"
                   >
-                    <img src={photo.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt={`Фото ${idx + 1}`} />
+                    <Image src={photo.url} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" alt={`Фото ${idx + 1}`} />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-500"></div>
                     
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -1466,7 +1471,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               {dbProjects.flatMap(group => group.projects || [group]).map((project, idx) => (
                 <div key={project.id || idx} onClick={() => { setIsGalleryModalOpen(false); setSelectedProject(project); }} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[4/3] shadow-sm rounded-lg border border-[var(--border-color)]">
                   {project.photos && project.photos[0] ? (
-                    <img src={project.photos[0].url} alt={project.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                    <Image src={project.photos[0].url} alt={project.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
                   )}
@@ -1616,10 +1621,12 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                     {/* Квадратний превью-бокс для фотознімка */}
                     {currentActiveProject.photos && currentActiveProject.photos[0] ? (
                       <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden shrink-0 border border-[var(--border-color)] bg-[var(--bg-main)] relative shadow-sm">
-                        <img 
+                        <Image 
                           src={currentActiveProject.photos[0].url} 
                           alt={currentActiveProject.project} 
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="80px"
+                          className="object-cover"
                         />
                         <div className="absolute inset-0 bg-black/5"></div>
                       </div>
@@ -1756,7 +1763,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             return (
               <div key={project.id || idx} onClick={() => setSelectedProject(displayProject)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
                 {displayProject.photos && displayProject.photos[0] ? (
-                  <img src={displayProject.photos[0].url} alt={displayProject.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                  <Image src={displayProject.photos[0].url} alt={displayProject.name} fill sizes="(max-width: 768px) 100vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
                 )}
@@ -1797,8 +1804,8 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               {[...REVIEWS_DATA, ...REVIEWS_DATA, ...REVIEWS_DATA].map((review, idx) => (
                <div key={idx} className="w-[350px] md:w-[420px] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-8 flex flex-col justify-between shrink-0 shadow-sm hover:shadow-xl transition-shadow duration-500 cursor-default group">
                  <div className="flex gap-4 items-center mb-6 pb-6 border-b border-[var(--border-color)]">
-                   <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0">
-                     <img src={review.projectThumbnail} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Preview"/>
+                   <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
+                     <Image src={review.projectThumbnail} fill sizes="64px" className="object-cover group-hover:scale-110 transition-transform duration-700" alt="Preview"/>
                    </div>
                    <div>
                      <span className="text-[9px] uppercase tracking-widest text-[var(--text-light)] font-mono block mb-1">Реалізований проєкт</span>
