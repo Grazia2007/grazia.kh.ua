@@ -105,15 +105,46 @@ export default function AdminPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{type: 'success' | 'error' | 'info', text: string} | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput.trim() === '') {
       setStatusMessage({ type: 'error', text: 'Будь ласка, введіть ключ доступу' });
       setTimeout(() => setStatusMessage(null), 3000);
       return;
     }
-    // Візуально пускаємо в інтерфейс. Справжню перевірку зробить сервер при першій же мутації!
-    setIsAuthenticated(true);
+    try {
+      setStatusMessage({ type: 'info', text: 'Перевірка...' });
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setStatusMessage({ type: 'error', text: data.error || 'Невірний ключ доступу' });
+        setTimeout(() => setStatusMessage(null), 4000);
+        return;
+      }
+      // пароль більше не тримаємо - далі працює httponly-cookie
+      setPasswordInput('');
+      setStatusMessage(null);
+      setIsAuthenticated(true);
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Сервер недоступний' });
+      setTimeout(() => setStatusMessage(null), 4000);
+    }
+  };
+
+  // відновлення сесії після перезавантаження сторінки
+  useEffect(() => {
+    fetch('/api/admin/login')
+      .then((r) => { if (r.ok) setIsAuthenticated(true); })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
+    setIsAuthenticated(false);
   };
 
   const fetchProjects = async () => {
@@ -145,8 +176,7 @@ export default function AdminPanel() {
     try {
       setStatusMessage({ type: 'info', text: 'Видалення...' });
       const res = await fetch(`/api/projects?id=${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${passwordInput}` } // Передаємо пароль для перевірки!
+        method: 'DELETE'
       });
       if (!res.ok) {
         if (res.status === 401) {
@@ -455,10 +485,7 @@ const uploadPhotos = async () => {
 
       const dbRes = await fetch(endpoint, {
         method: method,
-        headers: {
-          'Authorization': `Bearer ${passwordInput}`, // Пароль замість публічного ключа
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData)
       });
 
@@ -547,7 +574,7 @@ const uploadPhotos = async () => {
             )}
             <button 
               type="button"
-              onClick={() => setIsAuthenticated(false)}
+              onClick={handleLogout}
               className="text-xs text-white/40 hover:text-white transition-colors uppercase tracking-widest px-2 py-2"
             >
               Вийти

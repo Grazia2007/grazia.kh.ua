@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
+import { cookies } from 'next/headers';
+import { verifySession, SESSION_COOKIE } from '@/app/lib/auth';
 
 // Створюємо клієнт Supabase для СЕРВЕРА (він має права обходити RLS)
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!;
-
-// Допоміжна функція для перевірки пароля
-const checkAuth = (req: Request) => {
-  const authHeader = req.headers.get('authorization');
-  return authHeader === `Bearer ${ADMIN_PASSWORD}`;
+// перевірка підписаної httponly-cookie замість пароля в заголовку
+const checkAuth = async () => {
+  const store = await cookies();
+  return verifySession(store.get(SESSION_COOKIE)?.value);
 };
 
 // Запит до Supabase через REST API за допомогою Service Key
@@ -33,7 +33,7 @@ const fetchSupabase = async (endpoint: string, method: string, body?: any) => {
 };
 
 export async function POST(req: Request) {
-  if (!checkAuth(req)) return NextResponse.json({ error: 'Немає доступу' }, { status: 401 });
+  if (!(await checkAuth())) return NextResponse.json({ error: 'Немає доступу' }, { status: 401 });
   try {
     const body = await req.json();
     const data = await fetchSupabase('portfolio_projects', 'POST', body);
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  if (!checkAuth(req)) return NextResponse.json({ error: 'Немає доступу' }, { status: 401 });
+  if (!(await checkAuth())) return NextResponse.json({ error: 'Немає доступу' }, { status: 401 });
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -60,7 +60,7 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  if (!checkAuth(req)) return NextResponse.json({ error: 'Немає доступу' }, { status: 401 });
+  if (!(await checkAuth())) return NextResponse.json({ error: 'Немає доступу' }, { status: 401 });
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
