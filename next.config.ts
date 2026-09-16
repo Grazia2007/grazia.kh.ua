@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
         hostname: "gpxbzpqnpbbumtiyfstc.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      // unsplash - стокові мініатюри у блоці відгуків
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
   },
 };
