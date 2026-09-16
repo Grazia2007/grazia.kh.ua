@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 
 // Створюємо клієнт Supabase для СЕРВЕРА (він має права обходити RLS)
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -36,6 +37,8 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const data = await fetchSupabase('portfolio_projects', 'POST', body);
+    // скидаємо кеш головної - новий проєкт видно одразу
+    revalidateTag('portfolio');
     return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -49,6 +52,7 @@ export async function PATCH(req: Request) {
     const id = searchParams.get('id');
     const body = await req.json();
     const data = await fetchSupabase(`portfolio_projects?id=eq.${id}`, 'PATCH', body);
+    revalidateTag('portfolio');
     return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -61,6 +65,7 @@ export async function DELETE(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     await fetchSupabase(`portfolio_projects?id=eq.${id}`, 'DELETE');
+    revalidateTag('portfolio');
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

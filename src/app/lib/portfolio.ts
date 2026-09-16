@@ -79,7 +79,7 @@ export async function getGroupedPortfolio() {
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json'
       },
-      next: { revalidate: 300 }
+      next: { revalidate: 300, tags: ['portfolio'] }
     });
     if (!res.ok) return groupProjectsByCoordinates(DEFAULT_MAP_LOCATIONS);
     const data = await res.json();
