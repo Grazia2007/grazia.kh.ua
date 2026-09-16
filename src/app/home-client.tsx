@@ -357,6 +357,8 @@ const ParametricFurniture = ({ config }: { config: any }) => {
   );
 };
 
+let cachedWorldData: any = null;
+
 // БАЗА ВІДГУКІВ
 const REVIEWS_DATA = [
   {
