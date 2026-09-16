@@ -659,14 +659,8 @@ const playWhoosh = useCallback(() => {
   }, [colorTabs, activeColorZone]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('grazia-theme');
-    if (savedTheme === 'dark') {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDark(false);
-      document.documentElement.classList.remove('dark');
-    }
+    // клас .dark уже виставив інлайн-скрипт у layout - тут лише синхронізуємо стан
+    setIsDark(document.documentElement.classList.contains('dark'));
     setThemeLoaded(true);
   }, []);
 
@@ -1298,8 +1292,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
     }
   };
 
-  if (!themeLoaded) return <div className="min-h-screen bg-[#F5F4F1] dark:bg-[#0a0a0a]" />;
-
   const TOTAL_STEPS = 7;
 
   const activePinIndex = dbProjects.findIndex(p => p.id === activePin?.id);
@@ -1515,6 +1507,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
           <div 
             onClick={toggleTheme}
+            suppressHydrationWarning
             className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
             title={isDark ? "Увімкнути світлу тему" : "Увімкнути темну тему"}
           >
