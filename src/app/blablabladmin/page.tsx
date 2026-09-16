@@ -16,7 +16,9 @@ import {
   List,
   Image as ImageIcon,
   Star,
-  Search
+  Search,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -76,6 +78,7 @@ interface Project {
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   const [view, setView] = useState<'list' | 'form'>('list');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -527,15 +530,24 @@ const uploadPhotos = async () => {
           <p className="text-white/40 text-center text-sm mb-8">Закрита зона управління портфоліо</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
+            <div className="relative">
               <input 
-                type="password" 
+                type={showPassword ? 'text' : 'password'}
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="Введіть ключ доступу..."
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#D4B895] transition-colors"
+                className="w-full bg-white/5 border border-white/10 rounded-lg pl-4 pr-12 py-3 text-white focus:outline-none focus:border-[#D4B895] transition-colors"
                 autoFocus
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Приховати ключ' : 'Показати ключ'}
+                title={showPassword ? 'Приховати ключ' : 'Показати ключ'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-md text-white/40 hover:text-[#D4B895] hover:bg-white/5 transition-colors"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
             <button 
               type="submit"
@@ -546,8 +558,15 @@ const uploadPhotos = async () => {
           </form>
 
           {statusMessage && (
-            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
-              <AlertCircle size={16} /> {statusMessage.text}
+            <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 text-sm ${
+              statusMessage.type === 'error'
+                ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+                : 'bg-white/5 border border-white/10 text-white/60'
+            }`}>
+              {statusMessage.type === 'error'
+                ? <AlertCircle size={16} />
+                : <Loader2 size={16} className="animate-spin" />}
+              {statusMessage.text}
             </div>
           )}
         </div>
