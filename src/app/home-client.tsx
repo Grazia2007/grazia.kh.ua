@@ -91,6 +91,8 @@ const useSocialsTilt = () => {
       phone.style.setProperty('--ry', `${tx}deg`);
     };
     const onMove = (e: PointerEvent) => {
+      // над іконкою кут фіксується - ціль не тікає з-під курсора
+      if ((e.target as Element).closest?.('a')) return;
       const r = stage.getBoundingClientRect();
       tx = ((e.clientX - r.left) / r.width - 0.5) * 16;
       ty = -((e.clientY - r.top) / r.height - 0.5) * 12;
@@ -2310,12 +2312,11 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                         
           <div ref={socialsStageRef} className="relative flex justify-center items-center w-[280px] h-[450px]" style={{ perspective: '1200px' }}>
                 {/* шар плавання: тільки translateY (CSS), не перетинається з tilt */}
-                <div className="socials-float" style={{ transformStyle: 'preserve-3d' }}>
+                <div className="socials-float">
                 {/* CSS Айфон: transform належить .socials-phone, JS змінює лише --rx/--ry */}
                 <div 
                   ref={socialsPhoneRef}
                   className="socials-phone relative w-[220px] h-[440px] bg-black rounded-[44px] p-2 shadow-[-20px_20px_40px_rgba(0,0,0,0.8),inset_0_0_0_1px_#4a4a4c] border-[3px] border-[#1c1c1e] z-10 pointer-events-auto flex flex-col"
-                  style={{ transformStyle: 'preserve-3d' }}
                 >
                   {/* Фізичні кнопки (тіні та об'єм збоку) */}
                   <div className="absolute -left-[5px] top-[90px] w-[3px] h-[22px] bg-[#3a3a3c] rounded-l-md shadow-[-1px_0_2px_rgba(0,0,0,0.5)]"></div>
