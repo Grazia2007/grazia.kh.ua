@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 const YEARS = new Date().getFullYear() - 2007;
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+// GA4 ID публічний (видно в HTML будь-якого сайту), тому дефолт у коді; env лише для перевизначення
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-YCELQCBD0P";
 
 // schema.org: service-area business (виїзд на адресу, без офісу)
 const jsonLd = {
