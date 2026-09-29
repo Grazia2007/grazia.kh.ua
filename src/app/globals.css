@@ -212,3 +212,27 @@ body {
   opacity: 0;
   transform: translateY(15px);
 }
+
+/* Socials телефон: єдиний власник transform. JS пише лише --rx/--ry */
+.socials-phone {
+  --rx: 0deg;
+  --ry: 0deg;
+  transform: rotateY(calc(-14deg + var(--ry))) rotateX(calc(4deg + var(--rx))) rotateZ(-1deg);
+  transition: transform 0.25s ease-out;
+  will-change: transform;
+}
+
+/* окремий шар плавання по Y */
+.socials-float {
+  animation: socials-float 6s ease-in-out infinite;
+}
+
+@keyframes socials-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .socials-float { animation: none; }
+  .socials-phone { transition: none; }
+}

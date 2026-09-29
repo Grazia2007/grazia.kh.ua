@@ -36,6 +36,9 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, ContactShadows, Center, Float, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 
+// роки досвіду рахуються від заснування (грудень 2007) - цифра оновлюється сама
+const YEARS = new Date().getFullYear() - 2007;
+
 // --- КАСТОМНІ ІКОНКИ ДЛЯ СОЦМЕРЕЖ ---
 const InstagramIconSVG = ({ size = 24, color = "currentColor" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -57,6 +60,53 @@ const TelegramIconSVG = ({ size = 24, color = "currentColor" }) => (
     <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.233-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
   </svg>
 );
+
+const ViberIconSVG = ({ size = 24, color = "currentColor" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M11.4 0C9.47.03 5.33.34 3.02 2.46 1.3 4.17.7 6.7.63 9.83c-.06 3.13-.14 9 5.5 10.59v2.43s-.04.98.61 1.18c.8.25 1.26-.5 2.02-1.32.42-.45 1-1.11 1.43-1.62 3.9.33 6.9-.42 7.24-.53.79-.26 5.26-.83 5.99-6.77.75-6.13-.37-10-2.38-11.74C20.43 1.47 17.98.1 12.6.01 12.6.01 12.2 0 11.4 0zm.07 1.72c.68-.01 1.03 0 1.03 0 4.55.02 6.72 1.39 7.23 1.85 1.68 1.44 2.54 4.88 1.91 9.94-.6 4.9-4.19 5.21-4.85 5.42-.28.09-2.9.74-6.2.52 0 0-2.46 2.96-3.22 3.73-.12.12-.26.17-.35.14-.13-.03-.17-.19-.16-.41l.02-4.05c-4.77-1.32-4.49-6.3-4.44-8.9.06-2.6.55-4.74 2-6.17 1.96-1.78 5.48-2.05 7.03-2.07zm.64 2.63a.29.29 0 0 0 0 .57c1.58.01 2.88.52 3.93 1.54 1.04 1.01 1.57 2.39 1.59 4.17 0 .16.12.29.28.29.16 0 .29-.13.29-.29-.02-1.9-.6-3.44-1.76-4.58-1.16-1.13-2.61-1.7-4.33-1.7zm-3.84.67a1.1 1.1 0 0 0-.66.22h-.01c-.33.23-.63.52-.9.86-.22.28-.34.56-.37.83-.03.16-.01.32.03.48l.01.01c.24.72.57 1.41.95 2.05.5.9 1.11 1.73 1.83 2.47l.02.03.03.02.02.03.03.02c.74.72 1.58 1.34 2.48 1.84.99.54 1.6.8 1.97.9v.01c.1.03.2.05.31.05.35-.03.68-.17.95-.39.34-.27.62-.58.85-.94.3-.52.13-1.02-.26-1.34-.47-.39-.96-.74-1.47-1.06-.34-.19-.7-.07-.85.12l-.31.39c-.16.2-.46.18-.46.18-2.15-.55-2.73-2.73-2.73-2.73s-.02-.29.18-.45l.39-.31c.19-.15.32-.5.12-.85a11 11 0 0 0-1.06-1.47.9.9 0 0 0-.52-.3zm4.2.8a.29.29 0 0 0 0 .58c1.8.13 2.82 1.06 2.91 2.9a.29.29 0 0 0 .58-.03c-.1-2.1-1.37-3.3-3.45-3.45h-.04zm.35 1.24a.29.29 0 0 0-.03.58c.83.05 1.21.43 1.25 1.26a.29.29 0 0 0 .58-.03c-.06-1.1-.66-1.76-1.8-1.81z"/>
+  </svg>
+);
+
+const WhatsappIconSVG = ({ size = 24, color = "currentColor" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35zM12.05 21.8h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88zm8.41-18.3A11.81 11.81 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.16-3.48-8.41z"/>
+  </svg>
+);
+
+// tilt телефону Socials: JS лише пише --rx/--ry у rAF, transform належить тільки CSS-правилу .socials-phone
+const useSocialsTilt = () => {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const phoneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const stage = stageRef.current;
+    const phone = phoneRef.current;
+    if (!stage || !phone) return;
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
+    if (!mq.matches) return;
+    let raf = 0;
+    let tx = 0, ty = 0;
+    const flush = () => {
+      raf = 0;
+      phone.style.setProperty('--rx', `${ty}deg`);
+      phone.style.setProperty('--ry', `${tx}deg`);
+    };
+    const onMove = (e: PointerEvent) => {
+      const r = stage.getBoundingClientRect();
+      tx = ((e.clientX - r.left) / r.width - 0.5) * 16;
+      ty = -((e.clientY - r.top) / r.height - 0.5) * 12;
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+    const onLeave = () => { tx = 0; ty = 0; if (!raf) raf = requestAnimationFrame(flush); };
+    stage.addEventListener('pointermove', onMove);
+    stage.addEventListener('pointerleave', onLeave);
+    return () => {
+      stage.removeEventListener('pointermove', onMove);
+      stage.removeEventListener('pointerleave', onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+  return { stageRef, phoneRef };
+};
 
 const FadeIn = ({ children, delay = 0, className = "", id }: { children: React.ReactNode, delay?: number, className?: string, id?: string }) => (
   <motion.div
@@ -388,6 +438,7 @@ const REVIEWS_DATA = [
 ];
 
 export default function GraziaFurnitureSystem({ initialProjects }: { initialProjects: any[] }) {
+  const { stageRef: socialsStageRef, phoneRef: socialsPhoneRef } = useSocialsTilt();
   const [isDark, setIsDark] = useState(false);
   const [themeLoaded, setThemeLoaded] = useState(false); 
   
@@ -1155,6 +1206,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
       if (!res.ok) throw new Error("Помилка відправки даних на сервер.");
 
+      (window as any).gtag?.('event', 'generate_lead', { form: 'configurator', furniture_type: configData.type });
       setFormSubmitted(true);
     } catch (err) {
       console.error("Помилка відправки:", err);
@@ -1207,7 +1259,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               
               <div className="flex-1">
                 <span className="text-xs font-mono uppercase tracking-widest text-[var(--accent-main)] font-semibold block mb-4">Деталі виконання</span>
-                <h1 className="text-4xl md:text-5xl font-serif mb-6 leading-tight text-[var(--text-main)]">{selectedProject.project}</h1>
+                <h2 className="text-4xl md:text-5xl font-serif mb-6 leading-tight text-[var(--text-main)]">{selectedProject.project}</h2>
                 <p className="text-[var(--text-muted)] leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
                 
                 <div className="flex flex-wrap items-center gap-6 mb-8 py-6 border-y border-[var(--border-color)]">
@@ -1323,7 +1375,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         <div className="fixed inset-0 z-[105] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
           <div className="sticky top-0 bg-[var(--modal-bg)] backdrop-blur-md px-6 py-5 border-b border-[var(--border-color)] flex justify-between items-center z-50">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent-main)] block font-bold">18 РОКІВ ДОСВІДУ</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent-main)] block font-bold">{YEARS} РОКІВ ДОСВІДУ</span>
               <h2 className="text-xl font-serif text-[var(--text-main)]">Усі реалізовані проєкти</h2>
             </div>
             <button onClick={() => setIsGalleryModalOpen(false)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] hover:scale-105 transition-transform duration-300 shadow-sm border border-[var(--border-color)]">
@@ -1364,7 +1416,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         
         <div className="hidden md:flex gap-10 text-[11px] font-semibold tracking-widest uppercase pointer-events-auto bg-[var(--nav-bg)] backdrop-blur px-6 py-3 rounded-full border border-[var(--border-color)] shadow-sm">
           <a href="#" className="hover:text-[var(--accent-main)] transition-colors border-b border-transparent hover:border-[var(--accent-main)] pb-1">Колекції</a>
-          <a href="#interactive-zone" className="hover:text-[var(--accent-main)] transition-colors border-b border-transparent hover:border-[var(--accent-main)] pb-1">Карта 18 років досвіду</a>
+          <a href="#interactive-zone" className="hover:text-[var(--accent-main)] transition-colors border-b border-transparent hover:border-[var(--accent-main)] pb-1">Карта {YEARS} років досвіду</a>
           <a href="#calc" className="hover:text-[var(--accent-main)] transition-colors border-b border-transparent hover:border-[var(--accent-main)] pb-1">Розрахунок</a>
         </div>
 
@@ -1403,14 +1455,14 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             <span>Меблеве портфоліо: Харків та Харківська область</span>
           </div>
           
-          <h1 className="text-5xl md:text-[5.2rem] font-serif font-normal leading-[1.05] tracking-tight mb-8 text-[var(--text-main)]">
-            ГЕОГРАФІЯ<br />
-            НАШОЇ ПРАЦІ<br />
-            ЗА 18 РОКІВ.
+          <h1 className="text-5xl md:text-[4.4rem] font-serif font-normal leading-[1.05] tracking-tight mb-8 text-[var(--text-main)]">
+            КУХНІ ТА ШАФИ<br />
+            НА ЗАМОВЛЕННЯ<br />
+            У ХАРКОВІ.
           </h1>
           
           <p className="text-base md:text-lg text-[var(--text-muted)] max-w-md font-light leading-relaxed mb-12">
-            Справжня історія надійності. Оберіть глобальний перегляд або детальну реальну мапу, щоб побачити радіуси встановлення наших ексклюзивних меблів.
+            Географія нашої праці за {YEARS} років. Оберіть глобальний перегляд або детальну реальну мапу, щоб побачити радіуси встановлення наших ексклюзивних меблів.
           </p>
 
           <div className="flex flex-wrap items-center gap-6">
@@ -1653,7 +1705,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             <h2 className="text-3xl md:text-5xl font-serif text-[var(--text-main)]">БЕЗДОГАННА РЕПУТАЦІЯ</h2>
           </div>
           <p className="text-[var(--text-muted)] text-sm max-w-sm md:text-right">
-            Понад 18 років ми створюємо інтер'єри, які перевершують очікування. Усі відгуки підкріплені реальними проєктами.
+            Понад {YEARS} років ми створюємо інтер'єри, які перевершують очікування. Усі відгуки підкріплені реальними проєктами.
           </p>
         </div>
         
@@ -2218,7 +2270,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               Виготовляємо корпусні меблі на замовлення у Харкові: кухні, шафи-купе, гардеробні, дитячі кімнати, меблі у вітальню та ванну. Виїжджаємо на об'єкт, знімаємо розміри, виконуємо монтаж під ключ по всьому Харкову.
             </p>
             <p>
-              За 18 років виробництва меблів у Харкові реалізовано понад 1500 проєктів. Матеріали: австрійське ДСП Egger, фурнітура Blum та Hettich, італійські емалі. Кожне замовлення — під розмір і дизайн конкретного приміщення.
+              За {YEARS} років виробництва меблів у Харкові реалізовано понад 1500 проєктів. Матеріали: австрійське ДСП Egger, фурнітура Blum та Hettich, італійські емалі. Кожне замовлення — під розмір і дизайн конкретного приміщення.
             </p>
             <p>
               Замовити меблі у Харкові просто: залишіть заявку або зателефонуйте — безкоштовно приїдемо та прорахуємо проєкт. Також обслуговуємо Харківську область.
@@ -2256,12 +2308,14 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                           Живі об'єкти<br/>та бекстейдж<br/>тут 👉
                         </div>
                         
-          <div className="relative flex justify-center items-center w-[280px] h-[450px]" style={{ perspective: '1200px' }}>
-                
-                {/* CSS Айфон безрамковий стиль (повністю статичний, але з 3D-поворотом) */}
+          <div ref={socialsStageRef} className="relative flex justify-center items-center w-[280px] h-[450px]" style={{ perspective: '1200px' }}>
+                {/* шар плавання: тільки translateY (CSS), не перетинається з tilt */}
+                <div className="socials-float" style={{ transformStyle: 'preserve-3d' }}>
+                {/* CSS Айфон: transform належить .socials-phone, JS змінює лише --rx/--ry */}
                 <div 
-                  className="relative w-[220px] h-[440px] bg-black rounded-[44px] p-2 shadow-[-20px_20px_40px_rgba(0,0,0,0.8),inset_0_0_0_1px_#4a4a4c] border-[3px] border-[#1c1c1e] z-10 pointer-events-auto flex flex-col"
-                  style={{ transform: 'rotateY(-14deg) rotateX(4deg) rotateZ(-1deg)', transformStyle: 'preserve-3d' }}
+                  ref={socialsPhoneRef}
+                  className="socials-phone relative w-[220px] h-[440px] bg-black rounded-[44px] p-2 shadow-[-20px_20px_40px_rgba(0,0,0,0.8),inset_0_0_0_1px_#4a4a4c] border-[3px] border-[#1c1c1e] z-10 pointer-events-auto flex flex-col"
+                  style={{ transformStyle: 'preserve-3d' }}
                 >
                   {/* Фізичні кнопки (тіні та об'єм збоку) */}
                   <div className="absolute -left-[5px] top-[90px] w-[3px] h-[22px] bg-[#3a3a3c] rounded-l-md shadow-[-1px_0_2px_rgba(0,0,0,0.5)]"></div>
@@ -2288,36 +2342,71 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                       <span className="block text-xl font-serif">Socials</span>
                     </div>
                     
-                    <a 
-                      href="https://www.instagram.com/grazia.kh.ua/" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="w-16 h-16 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer pointer-events-auto z-20"
-                    >
-                      <InstagramIconSVG size={32} color="white" />
-                    </a>
-                    
-                    <a 
-                      href="https://www.youtube.com/@graziakhua/videos" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="w-16 h-16 bg-[#FF0000] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer pointer-events-auto z-20"
-                    >
-                      <YoutubeIconSVG size={32} color="white" />
-                    </a>
-
-                    <a 
-                      href="https://t.me/MarinaGrazia" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="w-16 h-16 bg-[#2AABEE] rounded-[18px] flex items-center justify-center shadow-[0_5px_15px_rgba(42,171,238,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer pointer-events-auto z-20"
-                    >
-                      <TelegramIconSVG size={32} color="white" />
-                    </a>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 z-20 [&>a:last-child]:col-span-2">
+                      <a 
+                        href="https://www.instagram.com/grazia.kh.ua/" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        aria-label="Instagram"
+                        className="flex flex-col items-center gap-1.5 pointer-events-auto group"
+                      >
+                        <span className="w-14 h-14 bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] rounded-[16px] flex items-center justify-center shadow-[0_5px_15px_rgba(225,48,108,0.4)] group-hover:scale-105 group-active:scale-95 transition-transform duration-300">
+                          <InstagramIconSVG size={28} color="white" />
+                        </span>
+                        <span className="text-[9px] font-mono uppercase tracking-wider text-white/60">Instagram</span>
+                      </a>
+                      <a 
+                        href="https://www.youtube.com/@graziakhua/videos" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        aria-label="YouTube"
+                        className="flex flex-col items-center gap-1.5 pointer-events-auto group"
+                      >
+                        <span className="w-14 h-14 bg-[#FF0000] rounded-[16px] flex items-center justify-center shadow-[0_5px_15px_rgba(255,0,0,0.4)] group-hover:scale-105 group-active:scale-95 transition-transform duration-300">
+                          <YoutubeIconSVG size={28} color="white" />
+                        </span>
+                        <span className="text-[9px] font-mono uppercase tracking-wider text-white/60">YouTube</span>
+                      </a>
+                      <a 
+                        href="https://t.me/MarinaGrazia" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        aria-label="Telegram"
+                        className="flex flex-col items-center gap-1.5 pointer-events-auto group"
+                      >
+                        <span className="w-14 h-14 bg-[#2AABEE] rounded-[16px] flex items-center justify-center shadow-[0_5px_15px_rgba(42,171,238,0.4)] group-hover:scale-105 group-active:scale-95 transition-transform duration-300">
+                          <TelegramIconSVG size={28} color="white" />
+                        </span>
+                        <span className="text-[9px] font-mono uppercase tracking-wider text-white/60">Telegram</span>
+                      </a>
+                      <a 
+                        href="viber://chat?number=%2B380506878243" 
+                        aria-label="Viber"
+                        className="flex flex-col items-center gap-1.5 pointer-events-auto group"
+                      >
+                        <span className="w-14 h-14 bg-[#7360F2] rounded-[16px] flex items-center justify-center shadow-[0_5px_15px_rgba(115,96,242,0.4)] group-hover:scale-105 group-active:scale-95 transition-transform duration-300">
+                          <ViberIconSVG size={28} color="white" />
+                        </span>
+                        <span className="text-[9px] font-mono uppercase tracking-wider text-white/60">Viber</span>
+                      </a>
+                      <a 
+                        href="https://wa.me/380506878243" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        aria-label="WhatsApp"
+                        className="flex flex-col items-center gap-1.5 pointer-events-auto group"
+                      >
+                        <span className="w-14 h-14 bg-[#25D366] rounded-[16px] flex items-center justify-center shadow-[0_5px_15px_rgba(37,211,102,0.4)] group-hover:scale-105 group-active:scale-95 transition-transform duration-300">
+                          <WhatsappIconSVG size={28} color="white" />
+                        </span>
+                        <span className="text-[9px] font-mono uppercase tracking-wider text-white/60">WhatsApp</span>
+                      </a>
+                    </div>
 
                     {/* Смужка Home Swipe */}
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[80px] h-1 bg-white/40 rounded-full pointer-events-none z-30"></div>
                   </div>
+                </div>
                 </div>
               </div>
 
