@@ -1431,17 +1431,25 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             {isSoundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
 
-          <div 
+          <button
+            type="button"
+            role="switch"
             onClick={toggleTheme}
             suppressHydrationWarning
-            className={`theme-toggle-wrapper ${isDark ? 'dark' : ''}`}
+            aria-checked={isDark}
+            aria-label={isDark ? "Увімкнути світлу тему" : "Увімкнути темну тему"}
             title={isDark ? "Увімкнути світлу тему" : "Увімкнути темну тему"}
+            className="sky-switch"
           >
-            <div className="theme-toggle-stars"></div>
-            <div className="theme-toggle-clouds"></div>
-            <div className="theme-toggle-mountains"></div>
-            <div className="theme-toggle-slider"></div>
-          </div>
+            <span className="sky-switch__track">
+              <span className="sky-switch__night" aria-hidden />
+              <span className="sky-switch__stars" aria-hidden />
+              <span className="sky-switch__sun" aria-hidden />
+              <span className="sky-switch__moon" aria-hidden />
+              <span className="sky-switch__clouds" aria-hidden />
+              <span className="sky-switch__knob" aria-hidden />
+            </span>
+          </button>
 
           <button className="bg-[var(--accent-main)] text-white px-6 py-3 text-[10px] font-medium tracking-widest uppercase hover:bg-[var(--accent-hover)] transition-colors shadow-sm">
             Зв'язатись
