@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import ProjectGallery from '@/components/ProjectGallery';
+import SameAsProjectLead from '@/components/SameAsProjectLead';
 import { DEFAULT_MAP_LOCATIONS, groupProjectsByCoordinates, WORK_GROUP_ORDER, workGroupOf } from './lib/portfolio';
 import { 
   ArrowRight, 
@@ -1299,8 +1300,8 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             {/* галерея об'єкта: поверхи/приміщення + сцена з сусідніми фото */}
             <ProjectGallery key={selectedProject.id} project={selectedProject} title={selectedProject.project} />
 
-            <div className="mt-8 pt-12 border-t border-[var(--border-color)] max-w-4xl">
-              
+            <div className="mt-8 pt-12 border-t border-[var(--border-color)] grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-12 items-start">
+
               <div>
                 <span className="text-xs font-mono uppercase tracking-widest text-[var(--accent-main)] font-semibold block mb-4">Деталі виконання</span>
                 <p className="text-[var(--text-muted)] leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
@@ -1315,15 +1316,29 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <a href={selectedProject.youtube_url || '#'} target="_blank" rel="noopener noreferrer" className="bg-[var(--btn-bg)] text-[var(--btn-text)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:opacity-80 transition-opacity duration-300 rounded-sm">
-                    <PlayCircle size={16} /> Відеоогляд об'єкта
-                  </a>
-                  <a href={selectedProject.instagram_url || '#'} target="_blank" rel="noopener noreferrer" className="border border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors duration-300 rounded-sm">
-                    <InstagramIconSVG size={16} color="currentColor" /> Перейти in Instagram
-                  </a>
-                </div>
+                {(selectedProject.youtube_url || selectedProject.instagram_url) && (
+                  <div className="flex flex-wrap gap-4">
+                    {selectedProject.youtube_url && (
+                      <a href={selectedProject.youtube_url} target="_blank" rel="noopener noreferrer" className="bg-[var(--btn-bg)] text-[var(--btn-text)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:opacity-80 transition-opacity duration-300 rounded-sm">
+                        <PlayCircle size={16} /> Відеоогляд об'єкта
+                      </a>
+                    )}
+                    {selectedProject.instagram_url && (
+                      <a href={selectedProject.instagram_url} target="_blank" rel="noopener noreferrer" className="border border-[var(--border-color)] text-[var(--text-main)] px-8 py-4 text-xs font-semibold uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors duration-300 rounded-sm">
+                        <InstagramIconSVG size={16} color="currentColor" /> Перейти в Instagram
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
+
+              <SameAsProjectLead
+                key={`lead-${selectedProject.id}`}
+                projectId={selectedProject.id}
+                projectTitle={selectedProject.project}
+                projectLocation={selectedProject.name}
+                coverUrl={selectedProject.photos?.[0]?.url}
+              />
               
             </div>
 

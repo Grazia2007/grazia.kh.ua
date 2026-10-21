@@ -110,6 +110,8 @@ interface Project {
   created_at?: string;
   category?: string;
   furniture_type?: string | null;
+  youtube_url?: string | null;
+  instagram_url?: string | null;
   slug?: string | null;
   year?: number | null;
   is_published?: boolean;
@@ -149,6 +151,8 @@ export default function AdminPanel() {
   // --- ТИП ОБ'ЄКТА, АДРЕСА СТОРІНКИ, ПРИМІЩЕННЯ ---
   const [category, setCategory] = useState('home');
   const [furnitureType, setFurnitureType] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
   const [slug, setSlug] = useState('');
   const [year, setYear] = useState('');
   const [isPublished, setIsPublished] = useState(true);
@@ -259,6 +263,8 @@ export default function AdminPanel() {
     setSelectedFiles([]);
     setCategory(project.category || 'home');
     setFurnitureType(project.furniture_type || '');
+    setYoutubeUrl(project.youtube_url || '');
+    setInstagramUrl(project.instagram_url || '');
     setSlug(project.slug || '');
     setYear(project.year ? String(project.year) : '');
     setIsPublished(project.is_published !== false);
@@ -279,6 +285,8 @@ export default function AdminPanel() {
     setSelectedFiles([]);
     setCategory('home');
     setFurnitureType('');
+    setYoutubeUrl('');
+    setInstagramUrl('');
     setSlug('');
     setYear('');
     setIsPublished(true);
@@ -503,6 +511,12 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
       setStatusMessage({ type: 'error', text: 'Заповніть назву та публічну зону.' });
       return;
     }
+    const badLink = [youtubeUrl, instagramUrl].find(u => u.trim() && !/^https:\/\//i.test(u.trim()));
+    if (badLink) {
+      setStatusMessage({ type: 'error', text: 'Посилання на відео та Instagram мають починатися з https://' });
+      return;
+    }
+
     // новий об'єкт без адреси не має координат - база його не прийме, а фото завантажились би даремно
     if (!editingId && !realAddress.trim()) {
       setStatusMessage({ type: 'error', text: 'Вкажіть реальну адресу - за нею ставиться точка на глобусі (сама адреса не зберігається).' });
@@ -588,6 +602,8 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
         media: finalMediaArray,
         category,
         furniture_type: furnitureType || null,
+        youtube_url: youtubeUrl.trim() || null,
+        instagram_url: instagramUrl.trim() || null,
         slug: slugify(slug) || slugify(title) || null,
         year: year ? parseInt(year, 10) : null,
         is_published: isPublished,
@@ -828,6 +844,18 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
                   </select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Відеоогляд (YouTube)</label>
+                  <input type="url" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/..." className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Пост в Instagram</label>
+                  <input type="url" value={instagramUrl} onChange={e => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/p/..." className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors" />
+                </div>
+              </div>
+              <p className="text-[10px] text-white/40 font-mono -mt-3">Порожнє поле - кнопка на сайті не показується.</p>
 
               <div>
                 <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Детальний опис проєкту</label>
