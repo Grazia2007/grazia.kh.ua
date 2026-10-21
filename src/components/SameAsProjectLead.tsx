@@ -5,12 +5,13 @@ import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 
 // заявка "Хочу так само" зі сторінки проєкту: менеджер отримує в telegram обкладинку і назву роботи
 export default function SameAsProjectLead({
-  projectId, projectTitle, projectLocation, coverUrl
+  projectId, projectTitle, projectLocation, coverUrl, projectPath
 }: {
   projectId?: string | number;
   projectTitle?: string;
   projectLocation?: string;
   coverUrl?: string;
+  projectPath?: string;
 }) {
   const [phone, setPhone] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
@@ -30,7 +31,7 @@ export default function SameAsProjectLead({
       const res = await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'project', projectId, projectTitle, projectLocation, coverUrl, phone })
+        body: JSON.stringify({ source: 'project', projectId, projectTitle, projectLocation, coverUrl, projectPath, phone })
       });
       if (!res.ok) throw new Error();
       (window as unknown as { gtag?: (...a: unknown[]) => void }).gtag?.('event', 'generate_lead', { form: 'same_as_project' });

@@ -109,6 +109,30 @@ export const formatPortfolioRow = (item: any) => {
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gpxbzpqnpbbumtiyfstc.supabase.co';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_2VUpjTZW1Bf1Bg0Fs0vh6Q_6tIr5eP0';
 
+export const SITE_URL = 'https://grazia.kh.ua';
+
+// адреса сторінки роботи: slug, а для старих записів без slug - id
+export const projectPath = (p: any) => `/proekty/${encodeURIComponent(String(p?.slug || p?.id))}`;
+
+// усі опубліковані роботи (новіші першими); той самий запит, що й для головної - next кешує його один раз
+export async function getPublishedProjects(): Promise<any[]> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/portfolio_projects?select=*&is_published=not.is.false&order=created_at.desc`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      next: { revalidate: 300, tags: ['portfolio'] }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data.map(formatPortfolioRow) : [];
+  } catch {
+    return [];
+  }
+}
+
 // серверне читання портфоліо - кеш 5 хвилин, щоб не бити в базу на кожен запит
 export async function getGroupedPortfolio() {
   try {

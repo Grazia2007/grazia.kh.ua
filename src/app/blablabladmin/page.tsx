@@ -604,7 +604,8 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
         furniture_type: furnitureType || null,
         youtube_url: youtubeUrl.trim() || null,
         instagram_url: instagramUrl.trim() || null,
-        slug: slugify(slug) || slugify(title) || null,
+        // автоматичний slug отримує короткий суфікс: у кількох робіт може бути однакова назва ("Дитяча кімната")
+        slug: slugify(slug) || (slugify(title) ? `${slugify(title).slice(0, 70)}-${(editingId || Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/gi, '').slice(0, 5).toLowerCase()}` : null),
         year: year ? parseInt(year, 10) : null,
         is_published: isPublished,
         rooms: finalRooms

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Image from 'next/image';
 import ProjectGallery from '@/components/ProjectGallery';
 import SameAsProjectLead from '@/components/SameAsProjectLead';
-import { DEFAULT_MAP_LOCATIONS, groupProjectsByCoordinates, WORK_GROUP_ORDER, workGroupOf } from './lib/portfolio';
+import { DEFAULT_MAP_LOCATIONS, groupProjectsByCoordinates, WORK_GROUP_ORDER, workGroupOf, projectPath } from './lib/portfolio';
 import { 
   ArrowRight, 
   ArrowLeft,
@@ -557,6 +557,21 @@ const playWhoosh = useCallback(() => {
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null); // ✅ ДОДАЛИ ЦЕЙ РЯДОК
   const [workFilter, setWorkFilter] = useState<string>('all');
+
+  // відкрита робота має власну адресу (/proekty/...), щоб нею можна було поділитися; кнопка "назад" її закриває
+  const openProject = useCallback((p: any) => {
+    setSelectedProject(p);
+    try { window.history.pushState({ graziaProject: true }, '', projectPath(p)); } catch {}
+  }, []);
+  const closeProject = useCallback(() => {
+    if (window.history.state?.graziaProject) window.history.back();
+    else setSelectedProject(null);
+  }, []);
+  useEffect(() => {
+    const onPop = () => { if (!window.history.state?.graziaProject) setSelectedProject(null); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const latestRowRef = useRef<HTMLDivElement>(null);
 
   // плоский список робіт (новіші першими) і розділи для галереї всіх робіт
@@ -1286,11 +1301,11 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               <h2 className="text-xl font-serif text-[var(--text-main)]">{selectedProject.name}</h2>
             </div>
             {isGalleryModalOpen ? (
-              <button onClick={() => setSelectedProject(null)} className="h-12 px-6 flex items-center gap-2 rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] text-xs font-semibold uppercase tracking-widest hover:scale-105 transition-transform duration-300">
+              <button onClick={closeProject} className="h-12 px-6 flex items-center gap-2 rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] text-xs font-semibold uppercase tracking-widest hover:scale-105 transition-transform duration-300">
                 <ArrowLeft size={16} /> Усі роботи
               </button>
             ) : (
-              <button onClick={() => setSelectedProject(null)} aria-label="Закрити" className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] hover:scale-105 transition-transform duration-300">
+              <button onClick={closeProject} aria-label="Закрити" className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] hover:scale-105 transition-transform duration-300">
                 <X size={20} />
               </button>
             )}
@@ -1338,6 +1353,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 projectTitle={selectedProject.project}
                 projectLocation={selectedProject.name}
                 coverUrl={selectedProject.photos?.[0]?.url}
+                projectPath={projectPath(selectedProject)}
               />
               
             </div>
@@ -1387,7 +1403,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {sec.items.map((project: any, idx: number) => (
-                    <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[4/3] shadow-sm rounded-lg border border-[var(--border-color)]">
+                    <div key={project.id || idx} onClick={() => openProject(project)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[4/3] shadow-sm rounded-lg border border-[var(--border-color)]">
                       {project.photos && project.photos[0] ? (
                         <Image src={project.photos[0].url} alt={project.project || project.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
                       ) : (
@@ -1544,7 +1560,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
                   {/* Основне тіло картки */}
                   <div 
-                    onClick={() => setSelectedProject(currentActiveProject)}
+                    onClick={() => openProject(currentActiveProject)}
                     className="w-full bg-[var(--modal-bg)] backdrop-blur-md p-4 sm:p-5 border border-[var(--border-color)] flex items-center gap-4 sm:gap-5 shadow-2xl rounded-xl transition-all duration-300 hover:bg-[var(--bg-card)] cursor-pointer pointer-events-auto"
                   >
                     {/* Квадратний превью-бокс для фотознімка */}
@@ -1674,7 +1690,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
       </FadeIn>
 
       {/* Портфоліо Проєктів */}
-      <FadeIn delay={0.2} className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[var(--border-color)]">
+      <FadeIn delay={0.2} id="portfolio" className="px-6 md:px-12 py-24 max-w-[1600px] mx-auto border-t border-[var(--border-color)]">
         <div className="flex justify-between items-end mb-12">
           <div>
             <span className="text-[10px] font-mono text-[var(--accent-main)] uppercase tracking-widest block mb-2">Натисніть для перегляду</span>
@@ -1688,7 +1704,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         <div className="relative">
           <div ref={latestRowRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {allWorks.slice(0, 10).map((displayProject: any, idx: number) => (
-              <div key={displayProject.id || idx} onClick={() => setSelectedProject(displayProject)} className="group relative shrink-0 snap-start basis-[78%] sm:basis-[45%] md:basis-[calc((100%-48px)/4)] cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
+              <div key={displayProject.id || idx} onClick={() => openProject(displayProject)} className="group relative shrink-0 snap-start basis-[78%] sm:basis-[45%] md:basis-[calc((100%-48px)/4)] cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
                 {displayProject.photos && displayProject.photos[0] ? (
                   <Image src={displayProject.photos[0].url} alt={displayProject.project || displayProject.name} fill sizes="(max-width: 640px) 78vw, (max-width: 768px) 45vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
                 ) : (

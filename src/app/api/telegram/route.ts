@@ -22,7 +22,9 @@ async function handleProjectLead(body: any) {
   const title = escapeHtml(body.projectTitle || 'Без назви');
   const location = escapeHtml(body.projectLocation || '');
   const phone = escapeHtml(body.phone);
-  const caption = `🛋 <b>ХОЧУ ТАК САМО</b>\n\n<b>Проєкт:</b> ${title}${location ? `\n<b>Район:</b> ${location}` : ''}\n\n📞 <b>Телефон:</b> <code>${phone}</code>`;
+  const path = String(body.projectPath || '');
+  const link = /^\/proekty\/[A-Za-z0-9%_-]+$/.test(path) ? `\n<b>Сторінка:</b> https://grazia.kh.ua${path}` : '';
+  const caption = `🛋 <b>ХОЧУ ТАК САМО</b>\n\n<b>Проєкт:</b> ${title}${location ? `\n<b>Район:</b> ${location}` : ''}${link}\n\n📞 <b>Телефон:</b> <code>${phone}</code>`;
 
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
