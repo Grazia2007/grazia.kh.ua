@@ -1296,11 +1296,13 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           </div>
 
           <div className="max-w-[1400px] mx-auto px-6 py-12">
-            <div className="mb-14 max-w-4xl">
+            {/* галерея об'єкта: поверхи/приміщення + сцена з сусідніми фото */}
+            <ProjectGallery key={selectedProject.id} project={selectedProject} title={selectedProject.project} />
+
+            <div className="mt-8 pt-12 border-t border-[var(--border-color)] max-w-4xl">
               
               <div>
                 <span className="text-xs font-mono uppercase tracking-widest text-[var(--accent-main)] font-semibold block mb-4">Деталі виконання</span>
-                <h2 className="text-4xl md:text-5xl font-serif mb-6 leading-tight text-[var(--text-main)]">{selectedProject.project}</h2>
                 <p className="text-[var(--text-muted)] leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
                 
                 <div className="flex flex-wrap items-center gap-6 mb-8 py-6 border-y border-[var(--border-color)]">
@@ -1325,8 +1327,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               
             </div>
 
-            {/* галерея об'єкта: поверхи/приміщення + сцена з сусідніми фото */}
-            <ProjectGallery key={selectedProject.id} project={selectedProject} />
 
           </div>
         </div>

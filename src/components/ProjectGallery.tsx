@@ -154,7 +154,7 @@ function Stage({
   );
 }
 
-export default function ProjectGallery({ project }: { project: GalleryProject }) {
+export default function ProjectGallery({ project, title }: { project: GalleryProject; title?: string }) {
   const sections = useMemo(() => buildSections(project), [project]);
   const allSlides = useMemo(() => sections.flatMap(s => s.slides), [sections]);
   const groups = useMemo(() => groupByFloor(sections), [sections]);
@@ -196,7 +196,7 @@ export default function ProjectGallery({ project }: { project: GalleryProject })
           <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-[var(--accent-main)] font-bold block mb-2">
             {[project?.year, sections.length > 1 ? pluralSections(sections.length) : null].filter(Boolean).join(' · ') || 'Фотозвіт'}
           </span>
-          <h3 className="text-3xl md:text-4xl font-serif text-[var(--text-main)]">Фотозвіт об’єкта</h3>
+          <h3 className="text-3xl md:text-5xl font-serif leading-tight text-[var(--text-main)]">{title || 'Фотозвіт об’єкта'}</h3>
         </div>
         <div className="font-mono text-xs tracking-widest text-[var(--text-light)] shrink-0">
           <span className="text-[var(--text-main)] font-bold">{String(index + 1).padStart(2, '0')}</span>
