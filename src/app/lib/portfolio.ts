@@ -16,6 +16,35 @@ export const DEFAULT_MAP_LOCATIONS = [
   }
 ];
 
+// вид меблів (для житла) - за ним галерея всіх робіт ділиться на розділи
+export const FURNITURE_TYPES = [
+  { value: 'kitchen', label: 'Кухні' },
+  { value: 'wardrobe', label: 'Шафи та гардероби' },
+  { value: 'kids', label: 'Дитячі кімнати' },
+  { value: 'bedroom', label: 'Спальні' },
+  { value: 'living', label: 'Вітальні' },
+  { value: 'hallway', label: 'Передпокої' },
+  { value: 'office', label: 'Кабінети та столи' },
+  { value: 'bathroom', label: 'Ванні кімнати' },
+];
+
+// розділи галереї всіх робіт у порядку показу: спершу види меблів, потім типи об'єктів
+const OBJECT_GROUPS: Record<string, string> = {
+  hospital: 'Лікарні та медзаклади',
+  kindergarten: 'Дитячі садки та школи',
+  office: 'Офіси',
+  commercial: 'Комерційні приміщення',
+};
+export const WORK_GROUP_ORDER = [
+  ...FURNITURE_TYPES.map(t => t.label),
+  ...Object.values(OBJECT_GROUPS),
+  'Інші роботи',
+];
+export const workGroupOf = (p: any): string => {
+  if (p?.category && p.category !== 'home' && OBJECT_GROUPS[p.category]) return OBJECT_GROUPS[p.category];
+  return FURNITURE_TYPES.find(t => t.value === p?.furniture_type)?.label || 'Інші роботи';
+};
+
 // ГРУПУВАННЯ ПРОЄКТІВ ЗА КООРДИНАТАМИ (Variant B - Product First)
 export const groupProjectsByCoordinates = (projects: any[]) => {
   const groups: Record<string, any> = {};
@@ -67,6 +96,8 @@ export const formatPortfolioRow = (item: any) => {
       : (item.rooms || []).flatMap((r: any) => r.media || []),
     generalPhotos: item.media || [],
     category: item.category || 'home',
+    furniture_type: item.furniture_type || null,
+    created_at: item.created_at || null,
     slug: item.slug || null,
     year: item.year || null,
     rooms: item.rooms || [],
@@ -81,7 +112,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publi
 // серверне читання портфоліо - кеш 5 хвилин, щоб не бити в базу на кожен запит
 export async function getGroupedPortfolio() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/portfolio_projects?select=*&is_published=not.is.false`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/portfolio_projects?select=*&is_published=not.is.false&order=created_at.desc`, {
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,

@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import ProjectGallery from '@/components/ProjectGallery';
-import { DEFAULT_MAP_LOCATIONS, groupProjectsByCoordinates } from './lib/portfolio';
+import { DEFAULT_MAP_LOCATIONS, groupProjectsByCoordinates, WORK_GROUP_ORDER, workGroupOf } from './lib/portfolio';
 import { 
   ArrowRight, 
+  ArrowLeft,
   MapPin, 
   ChevronRight, 
   ChevronLeft, 
@@ -39,6 +40,14 @@ import * as THREE from 'three';
 
 // роки досвіду рахуються від заснування (грудень 2007) - цифра оновлюється сама
 const YEARS = new Date().getFullYear() - 2007;
+
+// 1 робота, 2-4 роботи, 5+ робіт
+const pluralWorks = (n: number) => {
+  const d = n % 10, h = n % 100;
+  if (d === 1 && h !== 11) return `${n} роботу`;
+  if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return `${n} роботи`;
+  return `${n} робіт`;
+};
 
 // --- КАСТОМНІ ІКОНКИ ДЛЯ СОЦМЕРЕЖ ---
 const InstagramIconSVG = ({ size = 24, color = "currentColor" }) => (
@@ -546,6 +555,29 @@ const playWhoosh = useCallback(() => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null); // ✅ ДОДАЛИ ЦЕЙ РЯДОК
+  const [workFilter, setWorkFilter] = useState<string>('all');
+  const latestRowRef = useRef<HTMLDivElement>(null);
+
+  // плоский список робіт (новіші першими) і розділи для галереї всіх робіт
+  const allWorks = useMemo(() => {
+    const flat = dbProjects.flatMap((g: any) => g.projects || [g]);
+    return [...flat].sort((a: any, b: any) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  }, [dbProjects]);
+  const workSections = useMemo(() => {
+    const map = new Map<string, any[]>();
+    allWorks.forEach((p: any) => {
+      const g = workGroupOf(p);
+      if (!map.has(g)) map.set(g, []);
+      map.get(g)!.push(p);
+    });
+    return WORK_GROUP_ORDER.filter(g => map.has(g)).map(g => ({ label: g, items: map.get(g)! }));
+  }, [allWorks]);
+  const scrollLatest = (dir: 1 | -1) => {
+    const el = latestRowRef.current;
+    if (!el) return;
+    const card = el.firstElementChild as HTMLElement | null;
+    el.scrollBy({ left: dir * ((card?.offsetWidth || 300) + 16), behavior: 'smooth' });
+  };
   
   // --- ОНОВЛЕНИЙ СТЕЙТ ЛАЙТБОКСУ ---
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -1245,22 +1277,28 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
       {/* --- КІНЕМАТОГРАФІЧНА ГАЛЕРЕЯ (MODAL) --- */}
       {selectedProject && (
-        <div className="fixed inset-0 z-[100] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
+        <div className="fixed inset-0 z-[110] bg-[var(--bg-main)] overflow-y-auto animate-fadeIn">
           
           <div className="sticky top-0 bg-[var(--modal-bg)] backdrop-blur-md px-6 py-5 border-b border-[var(--border-color)] flex justify-between items-center z-50">
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--accent-main)] block font-bold">GRAZIA PORTFOLIO</span>
               <h2 className="text-xl font-serif text-[var(--text-main)]">{selectedProject.name}</h2>
             </div>
-            <button onClick={() => setSelectedProject(null)} className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] hover:scale-105 transition-transform duration-300">
-              <X size={20} />
-            </button>
+            {isGalleryModalOpen ? (
+              <button onClick={() => setSelectedProject(null)} className="h-12 px-6 flex items-center gap-2 rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] text-xs font-semibold uppercase tracking-widest hover:scale-105 transition-transform duration-300">
+                <ArrowLeft size={16} /> Усі роботи
+              </button>
+            ) : (
+              <button onClick={() => setSelectedProject(null)} aria-label="Закрити" className="w-12 h-12 flex items-center justify-center rounded-full bg-[var(--btn-bg)] text-[var(--btn-text)] hover:scale-105 transition-transform duration-300">
+                <X size={20} />
+              </button>
+            )}
           </div>
 
           <div className="max-w-[1400px] mx-auto px-6 py-12">
-            <div className="flex flex-col lg:flex-row gap-16 mb-20 items-start">
+            <div className="mb-14 max-w-4xl">
               
-              <div className="flex-1">
+              <div>
                 <span className="text-xs font-mono uppercase tracking-widest text-[var(--accent-main)] font-semibold block mb-4">Деталі виконання</span>
                 <h2 className="text-4xl md:text-5xl font-serif mb-6 leading-tight text-[var(--text-main)]">{selectedProject.project}</h2>
                 <p className="text-[var(--text-muted)] leading-relaxed text-base mb-8 font-light">{selectedProject.description}</p>
@@ -1285,18 +1323,6 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 </div>
               </div>
               
-              <div className="flex-1 relative w-full aspect-[4/3] bg-[var(--bg-card)] rounded-sm overflow-hidden shadow-2xl border border-[var(--border-color)]">
-                {selectedProject.photos && selectedProject.photos[0] ? (
-                  <Image src={selectedProject.photos[0].url} alt="Cover" fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                <div className="absolute bottom-6 left-6 text-white z-10 flex items-center gap-2">
-                  <Sparkles size={16} className="text-yellow-400" />
-                  <span className="text-xs font-mono uppercase tracking-widest">Основний ракурс</span>
-                </div>
-              </div>
             </div>
 
             {/* галерея об'єкта: поверхи/приміщення + сцена з сусідніми фото */}
@@ -1319,22 +1345,49 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             </button>
           </div>
           <div className="max-w-[1600px] mx-auto px-6 py-12">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {dbProjects.flatMap(group => group.projects || [group]).map((project, idx) => (
-                <div key={project.id || idx} onClick={() => { setIsGalleryModalOpen(false); setSelectedProject(project); }} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[4/3] shadow-sm rounded-lg border border-[var(--border-color)]">
-                  {project.photos && project.photos[0] ? (
-                    <Image src={project.photos[0].url} alt={project.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  <div className="absolute bottom-0 left-0 w-full p-5 transform transition-transform duration-500 z-10">
-                    <span className="text-[9px] text-white/70 font-mono uppercase tracking-widest block mb-1 truncate"><MapPin size={10} className="inline mr-1"/>{project.name}</span>
-                    <h3 className="text-base font-serif text-white leading-tight line-clamp-2">{project.project}</h3>
-                  </div>
+            {workSections.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-12 -mx-6 px-6">
+                {[{ label: 'Усі роботи', items: allWorks, key: 'all' }, ...workSections.map(s => ({ ...s, key: s.label }))].map(f => (
+                  <button
+                    key={f.key}
+                    onClick={() => setWorkFilter(f.key)}
+                    className={`shrink-0 px-5 py-2.5 rounded-full text-xs uppercase tracking-widest border transition-colors ${
+                      workFilter === f.key
+                        ? 'bg-[var(--btn-bg)] text-[var(--btn-text)] border-transparent'
+                        : 'border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                    }`}
+                  >
+                    {f.label} <span className="ml-1 font-mono opacity-60">{f.items.length}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {workSections.filter(sec => workFilter === 'all' || sec.label === workFilter).map(sec => (
+              <section key={sec.label} className="mb-20 last:mb-0">
+                <div className="flex items-end gap-6 mb-8">
+                  <h3 className="text-2xl md:text-3xl font-serif text-[var(--text-main)] shrink-0">{sec.label}</h3>
+                  <div className="flex-1 h-px bg-[var(--border-color)] mb-3"></div>
+                  <span className="font-mono text-xs tracking-widest text-[var(--text-light)] mb-1 shrink-0">{String(sec.items.length).padStart(2, '0')}</span>
                 </div>
-              ))}
-            </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {sec.items.map((project: any, idx: number) => (
+                    <div key={project.id || idx} onClick={() => setSelectedProject(project)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[4/3] shadow-sm rounded-lg border border-[var(--border-color)]">
+                      {project.photos && project.photos[0] ? (
+                        <Image src={project.photos[0].url} alt={project.project || project.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <div className="absolute bottom-0 left-0 w-full p-5 z-10">
+                        <span className="text-[9px] text-white/70 font-mono uppercase tracking-widest block mb-1 truncate"><MapPin size={10} className="inline mr-1"/>{project.name}</span>
+                        <h3 className="text-base font-serif text-white leading-tight line-clamp-2">{project.project}</h3>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         </div>
       )}
@@ -1613,31 +1666,39 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
             <h2 className="text-3xl md:text-4xl font-serif text-[var(--text-main)]">ОСТАННІ ШЕДЕВРИ</h2>
           </div>
           <button onClick={() => setIsGalleryModalOpen(true)} className="text-xs font-semibold tracking-widest uppercase border-b border-[var(--text-main)] pb-1 flex items-center gap-2 text-[var(--text-main)] hover:text-[var(--accent-main)] hover:border-[var(--accent-main)] transition-colors">
-            Дивитись всі 120+ робіт <ArrowRight size={14} />
+            Дивитись {pluralWorks(allWorks.length)} <ArrowRight size={14} />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {dbProjects.slice(0, 4).map((project, idx) => {
-            // Беремо перший підпроект для відображення в сітці
-            const displayProject = project.projects ? project.projects[0] : project;
-            return (
-              <div key={project.id || idx} onClick={() => setSelectedProject(displayProject)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
+        <div className="relative">
+          <div ref={latestRowRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {allWorks.slice(0, 10).map((displayProject: any, idx: number) => (
+              <div key={displayProject.id || idx} onClick={() => setSelectedProject(displayProject)} className="group relative shrink-0 snap-start basis-[78%] sm:basis-[45%] md:basis-[calc((100%-48px)/4)] cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
                 {displayProject.photos && displayProject.photos[0] ? (
-                  <Image src={displayProject.photos[0].url} alt={displayProject.name} fill sizes="(max-width: 768px) 100vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
+                  <Image src={displayProject.photos[0].url} alt={displayProject.project || displayProject.name} fill sizes="(max-width: 640px) 78vw, (max-width: 768px) 45vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-[var(--text-light)]"><Armchair size={48} /></div>
                 )}
-                
+
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                
+
                 <div className="absolute bottom-0 left-0 w-full p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 z-10">
                   <span className="text-[10px] text-white/70 font-mono uppercase tracking-widest block mb-2">{displayProject.name}</span>
                   <h3 className="text-lg font-serif text-white">{displayProject.project}</h3>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
+          {allWorks.length > 4 && (
+            <div className="hidden md:flex justify-end gap-3 mt-6">
+              <button onClick={() => scrollLatest(-1)} aria-label="Попередні роботи" className="w-12 h-12 rounded-full border border-[var(--border-color)] text-[var(--text-main)] flex items-center justify-center hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors">
+                <ChevronLeft size={20} />
+              </button>
+              <button onClick={() => scrollLatest(1)} aria-label="Наступні роботи" className="w-12 h-12 rounded-full border border-[var(--border-color)] text-[var(--text-main)] flex items-center justify-center hover:bg-[var(--btn-bg)] hover:text-[var(--btn-text)] transition-colors">
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
         </div>
       </FadeIn>
 

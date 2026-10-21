@@ -22,7 +22,7 @@ const pluralSections = (n: number) => {
 };
 
 // скільки сусідів з кожного боку реально рендерять картинку
-const RENDER_RADIUS = 2;
+const RENDER_RADIUS = 3;
 
 const buildSections = (project: GalleryProject): Section[] => {
   const rooms: Room[] = Array.isArray(project?.rooms) ? project.rooms : [];
@@ -116,6 +116,7 @@ function Stage({
                   sizes={dark ? '90vw' : '(max-width: 768px) 78vw, 55vw'}
                   className={dark ? 'object-contain' : 'object-cover'}
                   priority={active}
+                  loading={active ? undefined : 'eager'}
                   draggable={false}
                 />
               )}

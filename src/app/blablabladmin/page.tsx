@@ -24,6 +24,7 @@ import {
   Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FURNITURE_TYPES } from '@/app/lib/portfolio';
 
 // --- НАЛАШТУВАННЯ БЕЗПЕКИ ---
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw";
@@ -108,6 +109,7 @@ interface Project {
   media: { url: string, caption: string }[];
   created_at?: string;
   category?: string;
+  furniture_type?: string | null;
   slug?: string | null;
   year?: number | null;
   is_published?: boolean;
@@ -146,6 +148,7 @@ export default function AdminPanel() {
 
   // --- ТИП ОБ'ЄКТА, АДРЕСА СТОРІНКИ, ПРИМІЩЕННЯ ---
   const [category, setCategory] = useState('home');
+  const [furnitureType, setFurnitureType] = useState('');
   const [slug, setSlug] = useState('');
   const [year, setYear] = useState('');
   const [isPublished, setIsPublished] = useState(true);
@@ -255,6 +258,7 @@ export default function AdminPanel() {
     setExistingMedia(project.media || []);
     setSelectedFiles([]);
     setCategory(project.category || 'home');
+    setFurnitureType(project.furniture_type || '');
     setSlug(project.slug || '');
     setYear(project.year ? String(project.year) : '');
     setIsPublished(project.is_published !== false);
@@ -274,6 +278,7 @@ export default function AdminPanel() {
     setExistingMedia([]);
     setSelectedFiles([]);
     setCategory('home');
+    setFurnitureType('');
     setSlug('');
     setYear('');
     setIsPublished(true);
@@ -582,6 +587,7 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
         radius_meters: 300,
         media: finalMediaArray,
         category,
+        furniture_type: furnitureType || null,
         slug: slugify(slug) || slugify(title) || null,
         year: year ? parseInt(year, 10) : null,
         is_published: isPublished,
@@ -1006,7 +1012,18 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
                 <Layers size={14} /> 4. Тип об’єкта, поверхи та приміщення
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Вид меблів</label>
+                  <select
+                    value={furnitureType}
+                    onChange={e => setFurnitureType(e.target.value)}
+                    className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors appearance-none cursor-pointer"
+                  >
+                    <option value="">Не вказано</option>
+                    {FURNITURE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Тип об’єкта</label>
                   <select
