@@ -19,12 +19,13 @@ import {
   Search,
   Eye,
   EyeOff,
+  ExternalLink,
   ChevronUp,
   ChevronDown,
   Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FURNITURE_TYPES } from '@/app/lib/portfolio';
+import { FURNITURE_TYPES, projectPath } from '@/app/lib/portfolio';
 
 // --- НАЛАШТУВАННЯ БЕЗПЕКИ ---
 const MAPBOX_TOKEN = "pk.eyJ1IjoiZ3JhemlhLTIwMDciLCJhIjoiY21wa2RzNWw2MGYwcDJzcjg2Z2l6N3Y1MiJ9.rxyk7nszY-cdSE9D3hrESw";
@@ -793,14 +794,22 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
                     <div className="p-4 flex-1 flex flex-col justify-between">
                       <div>
                         <h3 className="font-serif text-lg leading-tight mb-1 truncate">{project.title}</h3>
-                        <p className="text-[10px] text-white/50 font-mono flex items-center gap-1 mb-4 truncate">
+                        <p className="text-[10px] text-white/50 font-mono flex items-center gap-1 mb-3 truncate">
                           <MapPin size={10} /> {project.location_name}
                         </p>
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {project.is_published === false && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-white/10 text-white/60">Приховано</span>}
+                          {!project.slug && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-amber-500/15 text-amber-300">Адреса з id - пересохраніть</span>}
+                          {(!project.category || project.category === 'home') && !project.furniture_type && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-amber-500/15 text-amber-300">Не вказано вид меблів</span>}
+                        </div>
                       </div>
                       <div className="flex gap-2 border-t border-white/10 pt-4 mt-2">
                         <button type="button" onClick={() => handleEdit(project)} className="flex-1 bg-white/10 hover:bg-white/20 text-white text-xs py-2 rounded transition-colors flex justify-center items-center gap-2">
                           <Edit3 size={14} /> Редагувати
                         </button>
+                        <a href={projectPath(project)} target="_blank" rel="noopener noreferrer" title="Відкрити на сайті" className="px-3 bg-white/10 hover:bg-white/20 text-white rounded transition-colors flex justify-center items-center">
+                          <ExternalLink size={16} />
+                        </a>
                         <button type="button" onClick={() => handleDelete(project.id)} className="px-3 bg-red-500/10 hover:bg-red-500/30 text-red-400 rounded transition-colors flex justify-center items-center">
                           <Trash2 size={16} />
                         </button>
@@ -1084,7 +1093,14 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
                     placeholder={slugify(title) || 'likarnia-21'}
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors"
                   />
-                  <p className="text-[10px] text-white/40 mt-2 font-mono leading-relaxed">Порожнє поле - згенерується з назви.</p>
+                  <p className="text-[10px] text-white/40 mt-2 font-mono leading-relaxed break-all">
+                    {slug ? `grazia.kh.ua/proekty/${slug}` : 'Порожнє поле - згенерується з назви.'}
+                  </p>
+                  {editingId && (
+                    <a href={projectPath(projects.find(x => x.id === editingId) || { id: editingId })} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 mt-2 text-[10px] font-mono uppercase tracking-widest text-[#D4B895] hover:text-white transition-colors">
+                      <ExternalLink size={12} /> Відкрити на сайті
+                    </a>
+                  )}
                 </div>
               </div>
 

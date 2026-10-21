@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import ProjectGallery from '@/components/ProjectGallery';
 import SameAsProjectLead from '@/components/SameAsProjectLead';
 import { DEFAULT_MAP_LOCATIONS, groupProjectsByCoordinates, WORK_GROUP_ORDER, workGroupOf, projectPath } from './lib/portfolio';
@@ -1403,7 +1404,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {sec.items.map((project: any, idx: number) => (
-                    <div key={project.id || idx} onClick={() => openProject(project)} className="group relative cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[4/3] shadow-sm rounded-lg border border-[var(--border-color)]">
+                    <Link key={project.id || idx} href={projectPath(project)} scroll={false} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); openProject(project); }} className="group relative block cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[4/3] shadow-sm rounded-lg border border-[var(--border-color)]">
                       {project.photos && project.photos[0] ? (
                         <Image src={project.photos[0].url} alt={project.project || project.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
                       ) : (
@@ -1414,7 +1415,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                         <span className="text-[9px] text-white/70 font-mono uppercase tracking-widest block mb-1 truncate"><MapPin size={10} className="inline mr-1"/>{project.name}</span>
                         <h3 className="text-base font-serif text-white leading-tight line-clamp-2">{project.project}</h3>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </section>
@@ -1704,7 +1705,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
         <div className="relative">
           <div ref={latestRowRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {allWorks.slice(0, 10).map((displayProject: any, idx: number) => (
-              <div key={displayProject.id || idx} onClick={() => openProject(displayProject)} className="group relative shrink-0 snap-start basis-[78%] sm:basis-[45%] md:basis-[calc((100%-48px)/4)] cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
+              <Link key={displayProject.id || idx} href={projectPath(displayProject)} scroll={false} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; e.preventDefault(); openProject(displayProject); }} className="group relative block shrink-0 snap-start basis-[78%] sm:basis-[45%] md:basis-[calc((100%-48px)/4)] cursor-pointer overflow-hidden bg-[var(--bg-card)] aspect-[3/4] shadow-sm rounded-sm">
                 {displayProject.photos && displayProject.photos[0] ? (
                   <Image src={displayProject.photos[0].url} alt={displayProject.project || displayProject.name} fill sizes="(max-width: 640px) 78vw, (max-width: 768px) 45vw, 25vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
                 ) : (
@@ -1717,7 +1718,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
                   <span className="text-[10px] text-white/70 font-mono uppercase tracking-widest block mb-2">{displayProject.name}</span>
                   <h3 className="text-lg font-serif text-white">{displayProject.project}</h3>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
           {allWorks.length > 4 && (
