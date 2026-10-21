@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    // avif першим: браузери з підтримкою отримують на ~20-30% легші фото, решта - webp
+    formats: ["image/avif", "image/webp"],
     // supabase storage - джерело фото портфоліо
     remotePatterns: [
       {

@@ -61,7 +61,14 @@ export const formatPortfolioRow = (item: any) => {
     type: item.coordinates ? 'city' : 'region',
     description: item.description,
     rating: parseFloat(item.rating) || 5.0,
-    photos: item.media || [],
+    // у об'єктів без загальних фото (лікарні, садочки) обкладинка береться з приміщень
+    photos: (item.media && item.media.length > 0)
+      ? item.media
+      : (item.rooms || []).flatMap((r: any) => r.media || []),
+    category: item.category || 'home',
+    slug: item.slug || null,
+    year: item.year || null,
+    rooms: item.rooms || [],
     youtube_url: item.youtube_url,
     instagram_url: item.instagram_url
   };
@@ -73,7 +80,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publi
 // серверне читання портфоліо - кеш 5 хвилин, щоб не бити в базу на кожен запит
 export async function getGroupedPortfolio() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/portfolio_projects?select=*`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/portfolio_projects?select=*&is_published=not.is.false`, {
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,

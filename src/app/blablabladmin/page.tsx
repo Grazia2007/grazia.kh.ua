@@ -18,7 +18,10 @@ import {
   Star,
   Search,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronUp,
+  ChevronDown,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -63,6 +66,37 @@ const convertToWebP = (file: File, quality = 0.8): Promise<Blob> => {
   });
 };
 
+type MediaItem = { url: string, caption: string };
+
+// приміщення об'єкта в адмінці: newFiles - ще не завантажені фото
+interface RoomDraft {
+  id: string;
+  floor: string;
+  name: string;
+  media: MediaItem[];
+  newFiles: File[];
+}
+
+const CATEGORIES = [
+  { value: 'home', label: 'Житло (квартира, будинок)' },
+  { value: 'hospital', label: 'Лікарня / медзаклад' },
+  { value: 'kindergarten', label: 'Дитячий садок / школа' },
+  { value: 'office', label: 'Офіс' },
+  { value: 'commercial', label: 'Комерція (магазин, кафе, салон)' },
+];
+
+// транслітерація для адреси сторінки об'єкта
+const TRANSLIT: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ie', ж: 'zh', з: 'z', и: 'y', і: 'i', ї: 'i', й: 'i',
+  к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts',
+  ч: 'ch', ш: 'sh', щ: 'shch', ь: '', ю: 'iu', я: 'ia', ё: 'e', ы: 'y', э: 'e', ъ: ''
+};
+const slugify = (value: string) =>
+  value.toLowerCase().split('').map(ch => TRANSLIT[ch] ?? ch).join('')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+
+const newRoomId = () => `room_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+
 interface Project {
   id: string;
   title: string;
@@ -73,6 +107,11 @@ interface Project {
   radius_meters: number;
   media: { url: string, caption: string }[];
   created_at?: string;
+  category?: string;
+  slug?: string | null;
+  year?: number | null;
+  is_published?: boolean;
+  rooms?: { id: string, floor: string, name: string, media: MediaItem[] }[];
 }
 
 export default function AdminPanel() {
@@ -104,6 +143,13 @@ export default function AdminPanel() {
   // --- НОВІ СТАНІ ДЛЯ DRAG & DROP ТА ГОЛОВНОГО ФОТО ---
   const [isDragging, setIsDragging] = useState(false);
   const [coverType, setCoverType] = useState<'existing' | 'new' | null>(null);
+
+  // --- ТИП ОБ'ЄКТА, АДРЕСА СТОРІНКИ, ПРИМІЩЕННЯ ---
+  const [category, setCategory] = useState('home');
+  const [slug, setSlug] = useState('');
+  const [year, setYear] = useState('');
+  const [isPublished, setIsPublished] = useState(true);
+  const [rooms, setRooms] = useState<RoomDraft[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{type: 'success' | 'error' | 'info', text: string} | null>(null);
@@ -207,6 +253,11 @@ export default function AdminPanel() {
     setRating(project.rating?.toString() || '5.0');
     setExistingMedia(project.media || []);
     setSelectedFiles([]);
+    setCategory(project.category || 'home');
+    setSlug(project.slug || '');
+    setYear(project.year ? String(project.year) : '');
+    setIsPublished(project.is_published !== false);
+    setRooms((project.rooms || []).map(r => ({ ...r, media: r.media || [], newFiles: [] })));
     setView('form');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -221,6 +272,11 @@ export default function AdminPanel() {
     setRating('5.0');
     setExistingMedia([]);
     setSelectedFiles([]);
+    setCategory('home');
+    setSlug('');
+    setYear('');
+    setIsPublished(true);
+    setRooms([]);
     setView('list');
   };
 
@@ -349,6 +405,26 @@ export default function AdminPanel() {
     }
   };
 
+  // --- ПОВЕРХИ ТА ПРИМІЩЕННЯ ---
+  const addRoom = () => setRooms(prev => [...prev, { id: newRoomId(), floor: prev[prev.length - 1]?.floor || '', name: '', media: [], newFiles: [] }]);
+  const updateRoom = (id: string, patch: Partial<RoomDraft>) => setRooms(prev => prev.map(r => (r.id === id ? { ...r, ...patch } : r)));
+  const removeRoom = (id: string) => {
+    if (!window.confirm('Видалити це приміщення разом з його фото?')) return;
+    setRooms(prev => prev.filter(r => r.id !== id));
+  };
+  const moveRoom = (idx: number, dir: -1 | 1) => setRooms(prev => {
+    const target = idx + dir;
+    if (target < 0 || target >= prev.length) return prev;
+    const arr = [...prev];
+    [arr[idx], arr[target]] = [arr[target], arr[idx]];
+    return arr;
+  });
+  const addRoomFiles = (id: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const images = Array.from(files).filter(f => f.type.startsWith('image/'));
+    setRooms(prev => prev.map(r => (r.id === id ? { ...r, newFiles: [...r.newFiles, ...images] } : r)));
+  };
+
   // --- ЛОГІКА "ЗРОБИТИ ГОЛОВНОЮ" ---
   const makeMainExisting = (idx: number) => {
     setCoverType('existing');
@@ -370,12 +446,12 @@ export default function AdminPanel() {
     });
   };
 
-const uploadPhotos = async () => {
-    const newUploadedUrls: { url: string, caption: string }[] = [];
-    for (const file of selectedFiles) {
-      
+const uploadPhotos = async (files: File[] = selectedFiles) => {
+    const newUploadedUrls: MediaItem[] = [];
+    for (const file of files) {
+
       let fileToUpload: File | Blob = file;
-      let fileExt = file.name.split('.').pop();
+      let fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
       let mimeType = file.type;
 
       // Якщо це зображення (не відео чи щось інше), конвертуємо у WebP
@@ -390,19 +466,27 @@ const uploadPhotos = async () => {
         }
       }
 
-      const fileName = `portfolio_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/${fileName}`;
-
       setStatusMessage({ type: 'info', text: `Завантаження оптимізованого фото...` });
 
-      const res = await fetch(uploadUrl, {
+      // одноразове посилання від сервера - запис у сховище тільки після перевірки сесії адмінки
+      const signRes = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY, 'Content-Type': mimeType },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ext: fileExt })
+      });
+      const signData = await signRes.json().catch(() => ({}));
+      if (!signRes.ok) {
+        if (signRes.status === 401) setIsAuthenticated(false);
+        throw new Error(signData.error || `Не вдалося підготувати завантаження ${file.name}`);
+      }
+
+      const res = await fetch(signData.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': mimeType, 'x-upsert': 'false' },
         body: fileToUpload
       });
       if (!res.ok) throw new Error(`Помилка завантаження файлу ${file.name}`);
-      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${fileName}`;
-      newUploadedUrls.push({ url: publicUrl, caption: '' });
+      newUploadedUrls.push({ url: signData.publicUrl, caption: '' });
     }
     return newUploadedUrls;
   };
@@ -466,6 +550,22 @@ const uploadPhotos = async () => {
         finalMediaArray = [newlyUploadedMedia[0], ...existingMedia, ...newlyUploadedMedia.slice(1)];
       }
 
+      // приміщення: дозавантажуємо нові фото кожного, повністю порожні відкидаємо
+      const finalRooms: { id: string, floor: string, name: string, media: MediaItem[] }[] = [];
+      for (const room of rooms) {
+        if (!room.name.trim() && room.media.length === 0 && room.newFiles.length === 0) continue;
+        if (room.newFiles.length > 0) {
+          setStatusMessage({ type: 'info', text: `Фото приміщення: ${room.name || 'без назви'}...` });
+        }
+        const uploaded = room.newFiles.length > 0 ? await uploadPhotos(room.newFiles) : [];
+        finalRooms.push({
+          id: room.id,
+          floor: room.floor.trim(),
+          name: room.name.trim() || 'Без назви',
+          media: [...room.media, ...uploaded]
+        });
+      }
+
       setStatusMessage({ type: 'info', text: editingId ? 'Оновлення проєкту в БД...' : 'Збереження проєкту в БД...' });
 
       const projectData: any = {
@@ -474,7 +574,12 @@ const uploadPhotos = async () => {
         description: description,
         rating: parseFloat(rating),
         radius_meters: 300,
-        media: finalMediaArray
+        media: finalMediaArray,
+        category,
+        slug: slugify(slug) || slugify(title) || null,
+        year: year ? parseInt(year, 10) : null,
+        is_published: isPublished,
+        rooms: finalRooms
       };
 
       if (finalCoordinates) {
@@ -888,6 +993,121 @@ const uploadPhotos = async () => {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className="space-y-6 pt-6 border-t border-white/10">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-white/50 border-b border-white/10 pb-2 flex items-center gap-2">
+                <Layers size={14} /> 4. Тип об’єкта, поверхи та приміщення
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Тип об’єкта</label>
+                  <select
+                    value={category}
+                    onChange={e => setCategory(e.target.value)}
+                    className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors appearance-none cursor-pointer"
+                  >
+                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Рік виконання</label>
+                  <input
+                    type="number"
+                    min={2007}
+                    max={2100}
+                    value={year}
+                    onChange={e => setYear(e.target.value)}
+                    placeholder="Напр. 2019"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-white/60 mb-2">Адреса сторінки</label>
+                  <input
+                    type="text"
+                    value={slug}
+                    onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    placeholder={slugify(title) || 'likarnia-21'}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors"
+                  />
+                  <p className="text-[10px] text-white/40 mt-2 font-mono leading-relaxed">Порожнє поле - згенерується з назви.</p>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none w-fit">
+                <input type="checkbox" checked={isPublished} onChange={e => setIsPublished(e.target.checked)} className="w-4 h-4 accent-[#D4B895]" />
+                <span className="text-sm text-white/70">Показувати на сайті</span>
+              </label>
+
+              <p className="text-[10px] text-white/40 font-mono leading-relaxed">
+                Лікарні, садочки, будинки: кожне приміщення - окремий розділ галереї. Поверх групує приміщення у списку. Перше фото приміщення - його обкладинка.
+              </p>
+
+              <div className="space-y-4">
+                {rooms.map((room, idx) => (
+                  <div key={room.id} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-4">
+                    <div className="flex flex-col md:flex-row gap-3">
+                      <input
+                        type="text"
+                        value={room.floor}
+                        onChange={e => updateRoom(room.id, { floor: e.target.value })}
+                        placeholder="Поверх / корпус, напр. 2 поверх"
+                        className="md:w-1/3 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors"
+                      />
+                      <input
+                        type="text"
+                        value={room.name}
+                        onChange={e => updateRoom(room.id, { name: e.target.value })}
+                        placeholder="Приміщення, напр. Ординаторська"
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#D4B895] outline-none transition-colors"
+                      />
+                      <div className="flex gap-2 shrink-0">
+                        <button type="button" onClick={() => moveRoom(idx, -1)} disabled={idx === 0} title="Вище" className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                          <ChevronUp size={16} />
+                        </button>
+                        <button type="button" onClick={() => moveRoom(idx, 1)} disabled={idx === rooms.length - 1} title="Нижче" className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                          <ChevronDown size={16} />
+                        </button>
+                        <button type="button" onClick={() => removeRoom(room.id)} title="Видалити приміщення" className="p-3 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3">
+                      {room.media.map((m, mIdx) => (
+                        <div key={`room-media-${mIdx}`} className="relative aspect-square rounded-lg overflow-hidden border border-[#D4B895]/30 group">
+                          {mIdx === 0 && <div className="absolute top-1 left-1 bg-[#D4B895] text-black px-1.5 py-0.5 rounded text-[8px] font-bold z-10">ОБКЛАДИНКА</div>}
+                          <img src={m.url} alt="" className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => updateRoom(room.id, { media: room.media.filter((_, i) => i !== mIdx) })} title="Видалити" className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      {room.newFiles.map((file, fIdx) => (
+                        <div key={`room-new-${file.name}-${fIdx}`} className="relative aspect-square rounded-lg overflow-hidden border border-white/20 opacity-80 group">
+                          <div className="absolute top-1 left-1 bg-blue-500/70 px-1.5 py-0.5 rounded text-[8px] text-white z-10">Нове</div>
+                          <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => updateRoom(room.id, { newFiles: room.newFiles.filter((_, i) => i !== fIdx) })} title="Прибрати" className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      <label className="aspect-square rounded-lg border-2 border-dashed border-white/10 hover:border-[#D4B895] flex flex-col items-center justify-center cursor-pointer text-white/40 hover:text-[#D4B895] transition-colors">
+                        <Plus size={20} />
+                        <span className="text-[9px] font-mono uppercase mt-1">Фото</span>
+                        <input type="file" multiple accept="image/*" className="hidden" onChange={e => { addRoomFiles(room.id, e.target.files); e.target.value = ''; }} />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+
+                <button type="button" onClick={addRoom} className="w-full border border-dashed border-white/15 hover:border-[#D4B895] text-white/60 hover:text-[#D4B895] rounded-xl py-4 text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-colors">
+                  <Plus size={14} /> Додати приміщення
+                </button>
+              </div>
             </div>
 
             <div className="pt-8 flex justify-end">
