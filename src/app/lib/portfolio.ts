@@ -65,6 +65,7 @@ export const formatPortfolioRow = (item: any) => {
     photos: (item.media && item.media.length > 0)
       ? item.media
       : (item.rooms || []).flatMap((r: any) => r.media || []),
+    generalPhotos: item.media || [],
     category: item.category || 'home',
     slug: item.slug || null,
     year: item.year || null,

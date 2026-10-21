@@ -150,6 +150,7 @@ export default function AdminPanel() {
   const [year, setYear] = useState('');
   const [isPublished, setIsPublished] = useState(true);
   const [rooms, setRooms] = useState<RoomDraft[]>([]);
+  const [dragRoomId, setDragRoomId] = useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{type: 'success' | 'error' | 'info', text: string} | null>(null);
@@ -1052,7 +1053,13 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
 
               <div className="space-y-4">
                 {rooms.map((room, idx) => (
-                  <div key={room.id} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-4">
+                  <div
+                    key={room.id}
+                    onDragOver={e => { e.preventDefault(); if (dragRoomId !== room.id) setDragRoomId(room.id); }}
+                    onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragRoomId(null); }}
+                    onDrop={e => { e.preventDefault(); setDragRoomId(null); addRoomFiles(room.id, e.dataTransfer.files); }}
+                    className={`border rounded-xl p-4 space-y-4 transition-colors ${dragRoomId === room.id ? 'border-[#D4B895] bg-[#D4B895]/10' : 'bg-white/[0.03] border-white/10'}`}
+                  >
                     <div className="flex flex-col md:flex-row gap-3">
                       <input
                         type="text"
@@ -1102,7 +1109,7 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
                       ))}
                       <label className="aspect-square rounded-lg border-2 border-dashed border-white/10 hover:border-[#D4B895] flex flex-col items-center justify-center cursor-pointer text-white/40 hover:text-[#D4B895] transition-colors">
                         <Plus size={20} />
-                        <span className="text-[9px] font-mono uppercase mt-1">Фото</span>
+                        <span className="text-[9px] font-mono uppercase mt-1 text-center leading-tight">Фото<br />або перетягніть</span>
                         <input type="file" multiple accept="image/*" className="hidden" onChange={e => { addRoomFiles(room.id, e.target.files); e.target.value = ''; }} />
                       </label>
                     </div>

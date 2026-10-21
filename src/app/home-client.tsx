@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
+import ProjectGallery from '@/components/ProjectGallery';
 import { DEFAULT_MAP_LOCATIONS, groupProjectsByCoordinates } from './lib/portfolio';
 import { 
   ArrowRight, 
@@ -1298,77 +1299,10 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
               </div>
             </div>
 
-            {/* ОНОВЛЕНА СІТКА ФОТО (Без тексту) */}
-            <div className="mb-12">
-              <h3 className="text-2xl font-serif text-[var(--text-main)] mb-8">Фотозвіт проєкту</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {selectedProject.photos.map((photo: any, idx: number) => (
-                  <div 
-                    key={idx} 
-                    onClick={() => setLightboxIndex(idx)}
-                    className="relative aspect-[4/3] bg-[var(--bg-card)] cursor-zoom-in group overflow-hidden rounded-sm border border-[var(--border-color)] shadow-sm"
-                  >
-                    <Image src={photo.url} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" alt={`Фото ${idx + 1}`} />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-500"></div>
-                    
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="w-14 h-14 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[var(--accent-main)] shadow-xl">
-                        <Eye size={24} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* галерея об'єкта: поверхи/приміщення + сцена з сусідніми фото */}
+            <ProjectGallery key={selectedProject.id} project={selectedProject} />
 
           </div>
-        </div>
-      )}
-
-      {/* --- ОНОВЛЕНИЙ LIGHTBOX ПОВНОЕКРАННИЙ --- */}
-      {lightboxIndex !== null && selectedProject && (
-        <div 
-          className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center animate-fadeIn"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          {/* Top Bar: Counter & Close */}
-          <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-50">
-            <div className="text-white/70 font-mono text-sm tracking-widest bg-black/40 px-5 py-2 rounded-full backdrop-blur-md border border-white/10 shadow-lg select-none">
-              <span className="text-white font-bold">{lightboxIndex + 1}</span> <span className="opacity-50 mx-1">/</span> {selectedProject.photos.length}
-            </div>
-            <button 
-              onClick={() => setLightboxIndex(null)} 
-              className="w-12 h-12 flex items-center justify-center text-white/70 hover:text-white bg-black/40 hover:bg-black/60 rounded-full transition-all border border-white/10 backdrop-blur-md shadow-lg"
-            >
-              <X size={24} />
-            </button>
-          </div>
-          
-          {/* Main Image */}
-          <img 
-            src={selectedProject.photos[lightboxIndex].url} 
-            className="max-w-[95vw] max-h-[85vh] object-contain rounded-sm shadow-2xl transition-transform duration-500 select-none pointer-events-none" 
-            alt="Zoomed view" 
-            draggable="false"
-          />
-          
-          {/* Left Arrow */}
-          <button 
-            onClick={(e) => { e.stopPropagation(); handlePrevPhoto(); }}
-            className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center text-white/50 hover:text-white bg-black/20 hover:bg-black/50 rounded-full transition-all border border-transparent hover:border-white/20 z-50 backdrop-blur-md shadow-lg hidden sm:flex"
-          >
-            <ChevronLeft size={36} strokeWidth={1.5} />
-          </button>
-
-          {/* Right Arrow */}
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleNextPhoto(); }}
-            className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center text-white/50 hover:text-white bg-black/20 hover:bg-black/50 rounded-full transition-all border border-transparent hover:border-white/20 z-50 backdrop-blur-md shadow-lg hidden sm:flex"
-          >
-            <ChevronRight size={36} strokeWidth={1.5} />
-          </button>
         </div>
       )}
 
