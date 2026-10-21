@@ -497,6 +497,11 @@ const uploadPhotos = async (files: File[] = selectedFiles) => {
       setStatusMessage({ type: 'error', text: 'Заповніть назву та публічну зону.' });
       return;
     }
+    // новий об'єкт без адреси не має координат - база його не прийме, а фото завантажились би даремно
+    if (!editingId && !realAddress.trim()) {
+      setStatusMessage({ type: 'error', text: 'Вкажіть реальну адресу - за нею ставиться точка на глобусі (сама адреса не зберігається).' });
+      return;
+    }
 
     setIsSubmitting(true);
 
