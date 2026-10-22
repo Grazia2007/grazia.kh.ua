@@ -41,8 +41,8 @@ export function buildSpec(c: Config): string[] {
     lines.push(`Правий пенал: ${TALL_MODULES[c.rightModule]}`);
   }
   if (c.type === 'Шафа-купе / Гардеробна') {
-    lines.push(`Двері: ${c.wardrobeDoors}, ${model.units.find((u) => u.kind === 'wardrobe')?.doors ?? 0} шт.${c.wardrobeDoors === 'Розпашні' && c.glassBar ? ' (крайні - скляна вітрина з підсвіткою)' : ''}`);
-    lines.push(`Антресоль: ${model.units.some((u) => u.kind === 'top') ? 'так' : 'ні'}`);
+    lines.push(`Двері: ${c.wardrobeDoors}, ${model.units.find((u) => u.kind === 'wardrobe' && !u.wardrobe?.mezz)?.doors ?? 0} шт.${c.wardrobeDoors === 'Розпашні' && c.glassBar ? ' (крайні - скляна вітрина з підсвіткою)' : ''}`);
+    lines.push(`Антресоль: ${model.units.some((u) => u.wardrobe?.mezz) ? (c.mezzDoors === 'hinged' ? 'так, розпашні дверцята' : 'так, дверцята вгору') : 'ні'}`);
     if (c.wardrobeDoors === 'Купе') {
       lines.push(`Двері купе: ${KUPE_STYLES[c.kupeStyle]}`);
       if (c.kupeStyle !== 'ldsp') lines.push(`Дзеркало: ${MIRROR_KINDS[c.mirrorKind]}`);
@@ -55,7 +55,7 @@ export function buildSpec(c: Config): string[] {
 
   // модулі з ширинами
   const groups = new Map<string, number[]>();
-  for (const u of model.units) { const k = u.cargo ? 'Карго (висувне)' : KIND_LABEL[u.kind]; groups.set(k, [...(groups.get(k) ?? []), u.w]); }
+  for (const u of model.units) { const k = u.cargo ? 'Карго (висувне)' : u.wardrobe?.mezz ? 'Антресоль' : KIND_LABEL[u.kind]; groups.set(k, [...(groups.get(k) ?? []), u.w]); }
   lines.push('Модулі:');
   for (const [label, ws] of groups) lines.push(`• ${label}: ${ws.length} шт. (${ws.map((w) => Math.round(w)).join(', ')} мм)`);
 

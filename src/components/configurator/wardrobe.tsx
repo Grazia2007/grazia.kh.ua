@@ -10,8 +10,8 @@ import { Box, Facade, glowTexture, type Mats, type Rect } from './modules';
 
 // ---------- двері, що відчиняються ----------
 
-// hinge: обертання навколо осі pivotX (кут у радіанах); slide: зсув по X
-function Movable({ kind, pivotX = 0, pivotZ = 0, amount, open, children }: { kind: 'hinge' | 'slide'; pivotX?: number; pivotZ?: number; amount: number; open: boolean; children: ReactNode }) {
+// hinge: обертання навколо вертикальної осі pivotX; lift: навколо горизонтальної осі pivotY (дверцята вгору); slide: зсув по X
+function Movable({ kind, pivotX = 0, pivotY = 0, pivotZ = 0, amount, open, children }: { kind: 'hinge' | 'slide' | 'lift'; pivotX?: number; pivotY?: number; pivotZ?: number; amount: number; open: boolean; children: ReactNode }) {
   const ref = useRef<THREE.Group>(null);
   const invalidate = useThree((s) => s.invalidate);
   const [local, setLocal] = useState(false);
@@ -21,11 +21,11 @@ function Movable({ kind, pivotX = 0, pivotZ = 0, amount, open, children }: { kin
     const g = ref.current;
     if (!g) return;
     const target = isOpen ? amount : 0;
-    const cur = kind === 'hinge' ? g.rotation.y : g.position.x - pivotX;
+    const cur = kind === 'hinge' ? g.rotation.y : kind === 'lift' ? g.rotation.x : g.position.x - pivotX;
     const diff = target - cur;
-    const done = Math.abs(diff) < (kind === 'hinge' ? 0.002 : 0.5);
+    const done = Math.abs(diff) < (kind === 'slide' ? 0.5 : 0.002);
     const next = done ? target : cur + diff * Math.min(1, dt * 5);
-    if (kind === 'hinge') g.rotation.y = next; else g.position.x = pivotX + next;
+    if (kind === 'hinge') g.rotation.y = next; else if (kind === 'lift') g.rotation.x = next; else g.position.x = pivotX + next;
     if (!done) invalidate();
   });
   const onClick = (e: ThreeEvent<MouseEvent>) => {
@@ -36,12 +36,12 @@ function Movable({ kind, pivotX = 0, pivotZ = 0, amount, open, children }: { kin
   return (
     <group
       ref={ref}
-      position={[pivotX, 0, pivotZ]}
+      position={[pivotX, pivotY, pivotZ]}
       onClick={onClick}
       onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
       onPointerOut={() => { document.body.style.cursor = ''; }}
     >
-      <group position={[-pivotX, 0, -pivotZ]}>{children}</group>
+      <group position={[-pivotX, -pivotY, -pivotZ]}>{children}</group>
     </group>
   );
 }
@@ -162,12 +162,16 @@ function Interior({ u, t, mats, front, ledMode }: { u: Unit; t: number; mats: Ma
     if (fill === 'shelves') {
       for (let y = base + 360; y < y1 - 120; y += 360) shelf(`sh${k}-${Math.round(y)}`, s, y);
     } else if (fill === 'pantograph') {
-      // пантограф зверху (штанга на важелях), під ним звичайна штанга, якщо вистачає висоти
-      shelf(`top${k}`, s, y1 - 320);
-      rod(`pg${k}`, s, y1 - 420);
-      items.push(<Box key={`pga${k}`} x={s.x + 15} y={y1 - 420} z={z0 + depth / 2 - 10} w={18} h={110} d={18} m={mats.steel} />);
-      items.push(<Box key={`pgb${k}`} x={s.x + s.w - 33} y={y1 - 420} z={z0 + depth / 2 - 10} w={18} h={110} d={18} m={mats.steel} />);
-      if (y1 - 420 - base > 2000) { shelf(`mid${k}`, s, base + 1150); rod(`rd${k}`, s, base + 1080); }
+      // пантограф: механізми кріпляться до боковин, штанга між вертикальними важелями, ручка-тяга по центру
+      const zc = z0 + depth / 2 - 15;
+      const top = y1 - 90, mountY = y1 - 700;
+      for (const [q, mx] of [[0, s.x], [1, s.x + s.w - 34]] as const) {
+        items.push(<Box key={`pgm${k}-${q}`} x={mx} y={mountY} z={zc - 20} w={34} h={230} d={70} m={mats.plinth} />);
+        items.push(<Box key={`pgv${k}-${q}`} x={mx + 9} y={mountY + 230} z={zc} w={16} h={top - mountY - 230} d={16} m={mats.plinth} />);
+      }
+      items.push(<Box key={`pgr${k}`} x={s.x + 9} y={top} z={zc} w={s.w - 18} h={18} d={18} m={mats.plinth} />);
+      items.push(<Box key={`pgt${k}`} x={s.x + s.w / 2 - 6} y={top - 520} z={zc + 30} w={12} h={520} d={12} m={mats.plinth} />);
+      if (y1 - 700 - base > 1250) { shelf(`mid${k}`, s, base + 1150); rod(`rd${k}`, s, base + 1080); }
     } else {
       shelf(`top${k}`, s, y1 - 320);
       rod(`rd${k}`, s, y1 - 390);
@@ -225,10 +229,53 @@ function GlassDoor({ x, y, w, h, z, mats }: { x: number; y: number; w: number; h
   );
 }
 
+// антресоль: ті самі секції, що й шафа внизу; по одних дверцятах на секцію, відчиняються вгору
+function Mezzanine({ u, mats, handle, t, open, hide, doorsKey }: { u: Unit; mats: Mats; handle: HandleType; t: number; open: boolean; hide: boolean; doorsKey: string }) {
+  const secs = u.wardrobe!.sections;
+  const fz = u.d + K.facadeOffset;
+  return (
+    <group position={[u.frame.x, u.y, u.frame.z]} rotation={[0, u.frame.rotY, 0]}>
+      <Box x={0} y={0} z={0} w={t} h={u.h} d={u.d} m={mats.carcass} />
+      <Box x={u.w - t} y={0} z={0} w={t} h={u.h} d={u.d} m={mats.carcass} />
+      <Box x={t} y={0} z={0} w={u.w - 2 * t} h={t} d={u.d} m={mats.carcass} />
+      <Box x={t} y={u.h - t} z={0} w={u.w - 2 * t} h={t} d={u.d} m={mats.carcass} />
+      <Box x={t} y={t} z={0} w={u.w - 2 * t} h={u.h - 2 * t} d={4} m={mats.carcass} />
+      {secs.slice(1).map((s, k) => <Box key={`p${k}`} x={s.x - t} y={t} z={4} w={t} h={u.h - 2 * t} d={u.d - 4} m={mats.carcass} />)}
+      {!hide && secs.map((s, i) => {
+        const l = i === 0 ? 0 : s.x - t / 2;
+        const r = i === secs.length - 1 ? u.w : s.x + s.w + t / 2;
+        const hnd: HandleType = handle === 'long' ? 'rail' : handle;
+        if (u.wardrobe!.mezz === 'hinged') {
+          // пара розпашних дверцят на секцію, ручки знизу біля центру пари
+          const m = (l + r) / 2;
+          return [
+            { x: l, w: m - l, side: 'right' as const },
+            { x: m, w: r - m, side: 'left' as const },
+          ].map((d, q) => {
+            const rect: Rect = { x: d.x, y: 0, w: d.w, h: u.h, profile: d.side, rail: { orient: 'v', side: d.side, at: 'bottom' } };
+            return (
+              <Movable key={`m${i}-${q}-${doorsKey}`} kind="hinge" pivotX={d.side === 'right' ? d.x : d.x + d.w} pivotZ={fz} amount={(d.side === 'right' ? -1 : 1) * 1.75} open={open}>
+                <Facade r={rect} z={fz} m={mats.base} mats={mats} handle={hnd} />
+              </Movable>
+            );
+          });
+        }
+        const rect: Rect = { x: l, y: 0, w: r - l, h: u.h, profile: 'bottom', rail: { orient: 'h' } };
+        return (
+          <Movable key={`m${i}-${doorsKey}`} kind="lift" pivotY={u.h} pivotZ={fz} amount={-1.25} open={open}>
+            <Facade r={rect} z={fz} m={mats.base} mats={mats} handle={hnd} />
+          </Movable>
+        );
+      })}
+    </group>
+  );
+}
+
 // ---------- шафа цілком ----------
 
 export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide, doorsKey }: { u: Unit; mats: Mats; handle: HandleType; t: number; open: boolean; ledMode: LedMode | null; hide: boolean; doorsKey: string }) {
   const cfg = u.wardrobe!;
+  if (cfg.mezz) return <Mezzanine u={u} mats={mats} handle={handle} t={t} open={open} hide={hide} doorsKey={doorsKey} />;
   const y0 = u.plinth;
   const mirror = cfg.mirror === 'pattern' ? mats.mirrorPattern : cfg.mirror === 'photo' ? mats.photo : mats.mirror;
   const sliding = !!u.sliding;
@@ -245,10 +292,11 @@ export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide, doorsKey
       const x = t + i * (dw - ov);
       // дві напрямні: парні двері ззаду, непарні спереду
       const z = u.d - 70 + (i % 2) * 35;
-      // відчиняється, зсуваючись за сусідні двері (до центру або до краю)
-      const dir = i < n / 2 ? 1 : -1;
+      // задні двері (парні) заїжджають за сусідні передні; передні стоять, а по кліку їдуть за задні
+      const back = i % 2 === 0;
+      const dir = back ? (i + 1 < n ? 1 : -1) : i > 0 ? -1 : 1;
       doors.push(
-        <Movable key={`d${i}-${doorsKey}`} kind="slide" amount={dir * (dw - ov) * 0.92} open={open}>
+        <Movable key={`d${i}-${doorsKey}`} kind="slide" amount={dir * (dw - ov)} open={open && back}>
           <KupeDoor i={i} n={n} x={x} w={dw} y0={dy} h={dh} z={z} style={cfg.style} mats={mats} mirror={mirror} />
         </Movable>,
       );

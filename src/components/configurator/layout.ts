@@ -84,6 +84,7 @@ export interface Config {
   rightModule: TallModule;
   wardrobeDoors: WardrobeDoors;
   mezzanine: boolean;
+  mezzDoors: 'lift' | 'hinged'; // антресоль: дверцята вгору або розпашні
   kupeStyle: KupeStyle;
   mirrorKind: MirrorKind;
   fill: WardrobeFill;
@@ -142,6 +143,7 @@ export const DEFAULT_CONFIG: Config = {
   rightModule: 'none',
   wardrobeDoors: 'Купе',
   mezzanine: false,
+  mezzDoors: 'hinged',
   kupeStyle: 'mirror-center',
   mirrorKind: 'clean',
   fill: { dresserAt: 'center', drawers: 3, center: 'pantograph', sides: 'shelves' },
@@ -187,6 +189,7 @@ export function normalizeConfig(raw: unknown): Config {
     rightModule: oneOf(Object.keys(TALL_MODULES) as TallModule[], r.rightModule, 'none'),
     wardrobeDoors: oneOf(WARDROBE_DOORS, r.wardrobeDoors, d.wardrobeDoors),
     mezzanine: r.mezzanine === true,
+    mezzDoors: r.mezzDoors === 'lift' ? 'lift' : 'hinged',
     kupeStyle: oneOf(Object.keys(KUPE_STYLES) as KupeStyle[], r.kupeStyle, d.kupeStyle),
     mirrorKind: oneOf(Object.keys(MIRROR_KINDS) as MirrorKind[], r.mirrorKind, d.mirrorKind),
     fill: (() => {
@@ -262,7 +265,7 @@ export interface Unit {
   tall?: TallModule;
   handleSide?: 'left' | 'right'; // для пеналів: ручка з боку робочої зони
   cargo?: boolean; // вузьке висувне карго
-  wardrobe?: { style: KupeStyle; mirror: MirrorKind; fill: WardrobeFill; sections: WSection[] };
+  wardrobe?: { style: KupeStyle; mirror: MirrorKind; fill: WardrobeFill; sections: WSection[]; mezz?: 'lift' | 'hinged' };
   sliding?: boolean;
   mirror?: boolean;
 }
@@ -447,7 +450,9 @@ export function buildScene(c: Config): SceneModel {
     if (sliding) notes.push(`Купе забирає ~100 мм глибини: корисна глибина ${D - 100} мм${D < 700 ? ' (для повноцінної штанги рекомендуємо глибину 700 мм)' : ''}`);
     const doorH = H - mezz - 80 - 2 * carcassThickness(c);
     if (doorH > SHEET_MAX) notes.push(`Висота дверей ${doorH} мм більша за лист (2800 мм): двері будуть поділені на ${SHEET_MAX} + ${doorH - SHEET_MAX} мм${sliding ? ' горизонтальним профілем' : ''}`);
-    if (mezz) units.push({ id: nid('top'), kind: 'top', frame: place(back, 0, W), y: H - mezz, w: W, h: mezz, d: D, plinth: 0, zone: 'base', doors: Math.max(2, Math.round(W / 600)), drawers: 0, handleAt: 'bottom' });
+    // антресоль - продовження шафи: ті самі секції, по одних дверцятах (вгору) на секцію
+    if (mezz) units.push({ id: nid('mezz'), kind: 'wardrobe', frame: place(back, 0, W), y: H - mezz, w: W, h: mezz, d: D, plinth: 0, zone: 'base', doors: sections.length * (c.mezzDoors === 'hinged' ? 2 : 1), drawers: 0, handleAt: 'bottom',
+      wardrobe: { style: c.kupeStyle, mirror: c.mirrorKind, fill: c.fill, sections, mezz: c.mezzDoors } });
   } else if (c.type === 'Меблі у вітальню') {
     const { a: W, height: H } = c.dims;
     const back: Wall = { kind: 'back' };

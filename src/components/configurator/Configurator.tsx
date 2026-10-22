@@ -371,6 +371,7 @@ export default function Configurator() {
                             </>
                           )}
                           <Toggle on={config.mezzanine} onChange={(mezzanine) => set({ mezzanine })} text="Антресоль зверху" />
+                          {config.mezzanine && <div><span className={label}>Дверцята антресолі</span><Chips items={['hinged', 'lift'] as const} value={config.mezzDoors} onChange={(mezzDoors) => set({ mezzDoors })} render={(v) => (v === 'hinged' ? 'Розпашні (вліво/вправо)' : 'Відкидні вгору')} /></div>}
                           <div className="space-y-3">
                             <span className={label}>Наповнення</span>
                             <div><span className="text-xs text-[var(--text-muted)] block mb-2">Комоди з шухлядами</span><Chips items={Object.keys(DRESSER_AT) as DresserAt[]} value={config.fill.dresserAt} onChange={(dresserAt) => setFill({ dresserAt })} render={(v) => DRESSER_AT[v]} /></div>
