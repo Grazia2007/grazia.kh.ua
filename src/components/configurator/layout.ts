@@ -194,6 +194,8 @@ export interface Unit {
   handleAt: 'top' | 'bottom' | 'side';
   blind?: { side: 'start' | 'end'; w: number };
   tall?: TallModule;
+  handleSide?: 'left' | 'right'; // для пеналів: ручка з боку робочої зони
+  cargo?: boolean; // вузьке висувне карго
   sliding?: boolean;
   mirror?: boolean;
 }
@@ -278,9 +280,9 @@ export function buildScene(c: Config): SceneModel {
     const upperProto = { kind: 'upper' as const, y: K.upperY, h: K.upperH, d: K.upperD, plinth: 0, zone: 'upper' as const, handleAt: 'bottom' as const };
     // антресолі глибокі, як нижні модулі й пенали; верхні лишаються вузькими (рівень голови)
     const topProto = { kind: 'top' as const, y: K.tallH, h: tierH, d: K.baseD, plinth: 0, zone: 'topTier' as const, handleAt: 'bottom' as const, doors: 1 };
-    const addTall = (wall: Wall, s: number, mod: TallModule) => {
+    const addTall = (wall: Wall, s: number, mod: TallModule, handleSide: 'left' | 'right') => {
       // з антресолями пенал іде до стелі одним корпусом - верхній фасад суцільний
-      units.push({ id: nid('tall'), kind: 'tall', frame: place(wall, s, 600), y: 0, w: 600, h: K.tallH + (tier ? tierH : 0), d: K.baseD, plinth: K.plinth, zone: 'base', doors: 1, drawers: 0, handleAt: 'side', tall: mod });
+      units.push({ id: nid('tall'), kind: 'tall', frame: place(wall, s, 600), y: 0, w: 600, h: K.tallH + (tier ? tierH : 0), d: K.baseD, plinth: K.plinth, zone: 'base', doors: 1, drawers: 0, handleAt: 'side', tall: mod, handleSide });
     };
     const counter = (wall: Wall, s0: number, s1: number, d = counterD, z0 = 0, splashFrom = s0) => {
       if (s1 - s0 <= 0) return;
@@ -301,33 +303,55 @@ export function buildScene(c: Config): SceneModel {
     let bs = aStart, be = aEnd;
     if (hasLeft) { corner(back, 0, 'start'); bs = 1000; }
     if (hasRight) { corner(back, a - 1000, 'end'); be = a - 1000; }
-    fill(back, bs, be, baseProto);
+    // нижні основної стіни: варильна - над шухлядами біля пенала (або на ~2/3 ряду),
+    // карго (подарунок) - вузький модуль між шухлядами й пеналом
+    const tallR = !hasRight && rt > 0, tallL = !hasLeft && lt > 0;
+    const cargoW = c.gift === 'Висувне Карго' && be - bs >= 900 ? 200 : 0;
+    const cargoAtStart = cargoW > 0 && !tallR && tallL;
+    let rs = bs, re = be;
+    const pushCargo = (s: number) => units.push({ id: nid('cargo'), kind: 'base', frame: place(back, s, cargoW), y: 0, w: cargoW, h: K.baseH, d: K.baseD, plinth: K.plinth, zone: 'base', doors: 1, drawers: 0, handleAt: 'top', cargo: true });
+    if (cargoW) { if (cargoAtStart) { pushCargo(rs); rs += cargoW; } else { re -= cargoW; pushCargo(re); } }
+    const ws = splitWidths(re - rs);
+    const hobIdx = ws.length === 0 ? -1
+      : cargoW ? (cargoAtStart ? 0 : ws.length - 1)
+      : tallR ? ws.length - 1
+      : tallL ? 0
+      : hasLeft || hasRight ? Math.floor(ws.length / 2)
+      : Math.min(ws.length - 1, Math.round((ws.length - 1) * 0.68));
+    let hob: { s: number; w: number } | null = null;
+    let sx = rs;
+    ws.forEach((w, i) => {
+      const isHob = i === hobIdx;
+      if (isHob) hob = { s: sx, w };
+      units.push({ id: nid('base'), kind: 'base', frame: place(back, sx, w), y: 0, w, h: K.baseH, d: K.baseD, plinth: K.plinth, zone: 'base', doors: isHob ? 0 : doorsFor(w), drawers: isHob ? 3 : 0, handleAt: 'top' });
+      sx += w;
+    });
     counter(back, aStart, aEnd);
     fill(back, aStart, aEnd, upperProto);
     if (tier) fill(back, aStart, aEnd, topProto);
-    if (!hasLeft && lt) addTall(back, 0, c.leftModule);
-    if (!hasRight && rt) addTall(back, a - 600, c.rightModule);
+    if (!hasLeft && lt) addTall(back, 0, c.leftModule, 'right');
+    if (!hasRight && rt) addTall(back, a - 600, c.rightModule, 'left');
 
     // бічні стіни
-    const side = (wall: Wall, len: number, tallW: number, mod: TallModule) => {
+    const side = (wall: Wall, len: number, tallW: number, mod: TallModule, handleSide: 'left' | 'right') => {
       const end = len - tallW;
       fill(wall, cornerD, end, baseProto);
       // фартух бічної стіни - від самого кута, щоб не було щілини
       counter(wall, counterD, end, counterD, 0, 12);
       fill(wall, K.upperD, end, upperProto);
       if (tier) fill(wall, cornerD, end, topProto);
-      if (tallW) addTall(wall, end, mod);
+      if (tallW) addTall(wall, end, mod, handleSide);
     };
-    if (hasLeft) { side(left, b, lt, c.leftModule); walls.left = b; }
-    if (hasRight) { side(right, rightLen, rt, c.rightModule); walls.right = { x: a, len: rightLen }; }
+    if (hasLeft) { side(left, b, lt, c.leftModule, 'right'); walls.left = b; }
+    if (hasRight) { side(right, rightLen, rt, c.rightModule, 'left'); walls.right = { x: a, len: rightLen }; }
 
     // мийка й варильна поверхня - лише як орієнтир на макеті
     const sinkWall = hasLeft ? left : hasRight ? right : back;
     const sinkRange: [number, number] = hasLeft ? [counterD, b - lt] : hasRight ? [counterD, rightLen - rt] : [aStart, aEnd];
-    const hobRange: [number, number] = [bs, be];
-    if (hobRange[1] - hobRange[0] >= 600) {
-      const s = hasLeft || hasRight ? (hobRange[0] + hobRange[1]) / 2 : hobRange[0] + (hobRange[1] - hobRange[0]) * 0.68;
-      fixtures.push({ id: nid('hob'), kind: 'hob', frame: place(back, s - 290, 580), y: K.baseH + c.counterThickness, x0: 0, z0: 40, w: 580, h: 6, d: 510 });
+    const h = hob as { s: number; w: number } | null;
+    if (h && h.w >= 450) {
+      const hw = Math.min(580, h.w - 20);
+      fixtures.push({ id: nid('hob'), kind: 'hob', frame: place(back, h.s + (h.w - hw) / 2, hw), y: K.baseH + c.counterThickness, x0: 0, z0: 40, w: hw, h: 6, d: 510 });
     }
     const sinkLen = sinkRange[1] - sinkRange[0];
     if (sinkLen >= (sinkWall === back ? 1600 : 700)) {

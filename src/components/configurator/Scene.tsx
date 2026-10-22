@@ -1,8 +1,8 @@
 'use client';
 // 3D-сцена конструктора. Вантажиться лише через next/dynamic (ssr:false), тому three.js
 // не потрапляє в початковий бандл головної.
-import { useEffect, useMemo, type MutableRefObject } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import { buildScene, carcassThickness, K, type Config, type SceneModel } from './layout';
@@ -127,7 +127,43 @@ const SHOT_W = 1600;
 const SHOT_H = 1000;
 
 type View = 'front' | 'angle';
-type Controls = { target: THREE.Vector3; update: () => void };
+type Controls = { target: THREE.Vector3; update: () => void; addEventListener?: (t: 'start', f: () => void) => void; removeEventListener?: (t: 'start', f: () => void) => void };
+
+// куди підлетіти камері: точка, на яку дивимось, і позиція камери (метри)
+export interface Focus { key: string; target: [number, number, number]; pos: [number, number, number] }
+
+// локальна точка модуля (мм) -> світові координати (м)
+const toWorld = (f: { x: number; z: number; rotY: number }, lx: number, y: number, lz: number) => {
+  const c = Math.cos(f.rotY), s = Math.sin(f.rotY);
+  return new THREE.Vector3((f.x + lx * c + lz * s) / 1000, y / 1000, (f.z - lx * s + lz * c) / 1000);
+};
+
+// показ подарунка: карго - збоку спереду, мийка - зверху спереду, LED - фронтально на всю кухню
+export function giftFocus(config: Config, model: SceneModel): Focus | null {
+  if (config.type !== 'Кухня' || !config.gift) return null;
+  if (config.gift === 'Висувне Карго') {
+    const u = model.units.find((x) => x.cargo);
+    if (!u) return null;
+    const t = toWorld(u.frame, u.w / 2, u.plinth + (u.h - u.plinth) * 0.45, u.d + 400);
+    const n = new THREE.Vector3(Math.sin(u.frame.rotY), 0, Math.cos(u.frame.rotY));
+    const side = new THREE.Vector3(Math.cos(u.frame.rotY), 0, -Math.sin(u.frame.rotY));
+    const p = t.clone().addScaledVector(n, 2.3).addScaledVector(side, -0.9).add(new THREE.Vector3(0, 0.9, 0));
+    return { key: `cargo:${u.id}`, target: t.toArray() as Focus['target'], pos: p.toArray() as Focus['pos'] };
+  }
+  if (config.gift === "Кам'яна Мийка") {
+    const f = model.fixtures.find((x) => x.kind === 'sink');
+    if (!f) return null;
+    const t = toWorld(f.frame, f.x0 + f.w / 2, f.y, f.z0 + f.d / 2);
+    const n = new THREE.Vector3(Math.sin(f.frame.rotY), 0, Math.cos(f.frame.rotY));
+    const p = t.clone().addScaledVector(n, 1.5).add(new THREE.Vector3(0, 1.1, 0));
+    return { key: `sink:${f.id}`, target: t.toArray() as Focus['target'], pos: p.toArray() as Focus['pos'] };
+  }
+  const b = model.bounds;
+  const t = new THREE.Vector3((b.minX + b.maxX) / 2000, 1.15, b.minZ / 1000 + 0.25);
+  const dist = Math.max((b.maxX - b.minX) / 1000 * 1.15, 2.2) + 1;
+  const p = t.clone().addScaledVector(new THREE.Vector3(0.15, 0.12, 1).normalize(), dist);
+  return { key: 'led', target: t.toArray() as Focus['target'], pos: p.toArray() as Focus['pos'] };
+}
 
 const makeMat = (m: Material) =>
   m.clearcoat
@@ -152,7 +188,8 @@ function frameCamera(cam: THREE.PerspectiveCamera, ctrl: Controls | null, b: Sce
   if (ctrl) { ctrl.target.copy(center); ctrl.update(); } else cam.lookAt(center);
 }
 
-function Rig({ model, apiRef }: { model: SceneModel; apiRef: MutableRefObject<SceneApi | null> }) {
+function Rig({ model, apiRef, focus }: { model: SceneModel; apiRef: MutableRefObject<SceneApi | null>; focus: Focus | null }) {
+  const goal = useRef<{ pos: THREE.Vector3; target: THREE.Vector3 } | null>(null);
   const get = useThree((s) => s.get);
   const invalidate = useThree((s) => s.invalidate);
   const controls = useThree((s) => s.controls) as unknown as Controls | null;
@@ -162,6 +199,7 @@ function Rig({ model, apiRef }: { model: SceneModel; apiRef: MutableRefObject<Sc
   // перекадровуємо лише при зміні габаритів, щоб не збивати ракурс користувача при зміні кольорів
   useEffect(() => {
     const { camera, size } = get();
+    goal.current = null;
     frameCamera(camera as THREE.PerspectiveCamera, controls, b, 'angle', size.width / Math.max(1, size.height));
     invalidate();
     // b входить у key
@@ -201,6 +239,32 @@ function Rig({ model, apiRef }: { model: SceneModel; apiRef: MutableRefObject<Sc
     return () => { apiRef.current = null; };
   }, [apiRef, b, get, invalidate]);
 
+  // плавний переліт до подарунка; будь-яке перетягування камери користувачем його скасовує
+  const focusKey = focus?.key;
+  useEffect(() => {
+    if (!focus) return;
+    goal.current = { pos: new THREE.Vector3(...focus.pos), target: new THREE.Vector3(...focus.target) };
+    invalidate();
+    // focus оновлюється разом із key
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey, invalidate]);
+  useEffect(() => {
+    if (!controls?.addEventListener) return;
+    const cancel = () => { goal.current = null; };
+    controls.addEventListener('start', cancel);
+    return () => controls.removeEventListener?.('start', cancel);
+  }, [controls]);
+  useFrame(({ camera }, dt) => {
+    const g = goal.current;
+    if (!g || !controls) return;
+    const k = 1 - Math.exp(-dt * 3);
+    camera.position.lerp(g.pos, k);
+    controls.target.lerp(g.target, k);
+    controls.update();
+    if (camera.position.distanceTo(g.pos) < 0.005) goal.current = null;
+    else invalidate();
+  });
+
   return null;
 }
 
@@ -227,7 +291,7 @@ function Furniture({ config, model }: { config: Config; model: SceneModel }) {
   const hType = handleOf(handle).type;
   // візуалізація подарунка: карго висувається, LED світить, мийка - гранітна
   const kitchen = config.type === 'Кухня';
-  const cargoId = kitchen ? (model.units.find((u) => u.kind === 'base' && u.doors === 1) ?? model.units.find((u) => u.kind === 'base' && u.doors > 0))?.id : undefined;
+  const cargoId = kitchen ? model.units.find((u) => u.cargo)?.id : undefined;
   const cargoOpen = config.gift === 'Висувне Карго';
   const led = kitchen && config.gift === 'LED Підсвітка';
   const granite = config.gift === "Кам'яна Мийка";
@@ -244,6 +308,7 @@ function Furniture({ config, model }: { config: Config; model: SceneModel }) {
 
 export default function Scene({ config, apiRef, interior = 'studio' }: { config: Config; apiRef: MutableRefObject<SceneApi | null>; interior?: Interior }) {
   const model = useMemo(() => buildScene(config), [config]);
+  const focus = useMemo(() => giftFocus(config, model), [config, model]);
   // на телефонах: менша щільність пікселів і без тіней
   const mobile = useMemo(() => window.matchMedia('(max-width: 768px), (pointer: coarse)').matches, []);
   const b = model.bounds;
@@ -299,7 +364,7 @@ export default function Scene({ config, apiRef, interior = 'studio' }: { config:
         minDistance={1}
         maxDistance={span * 4 + 4}
       />
-      <Rig model={model} apiRef={apiRef} />
+      <Rig model={model} apiRef={apiRef} focus={focus} />
     </Canvas>
   );
 }

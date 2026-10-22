@@ -49,7 +49,7 @@ export function buildSpec(c: Config): string[] {
 
   // модулі з ширинами
   const groups = new Map<string, number[]>();
-  for (const u of model.units) groups.set(KIND_LABEL[u.kind], [...(groups.get(KIND_LABEL[u.kind]) ?? []), u.w]);
+  for (const u of model.units) { const k = u.cargo ? 'Карго (висувне)' : KIND_LABEL[u.kind]; groups.set(k, [...(groups.get(k) ?? []), u.w]); }
   lines.push('Модулі:');
   for (const [label, ws] of groups) lines.push(`• ${label}: ${ws.length} шт. (${ws.map((w) => Math.round(w)).join(', ')} мм)`);
 

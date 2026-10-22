@@ -128,8 +128,9 @@ function Led({ w, d, drop }: { w: number; d: number; drop: number }) {
         <meshBasicMaterial map={tex} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </mesh>
       {/* і на стільниці */}
-      <mesh position={[w / 2, -drop + 1, 14 + 300]} rotation-x={-Math.PI / 2}>
-        <planeGeometry args={[w, 600]} />
+      {/* глибина 300 мм: світіння сусідніх рядів у куті не перетинається */}
+      <mesh position={[w / 2, -drop + 1, 14 + 150]} rotation-x={-Math.PI / 2}>
+        <planeGeometry args={[w, 300]} />
         <meshBasicMaterial map={tex} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} opacity={0.6} />
       </mesh>
     </>
@@ -168,10 +169,11 @@ function CabinetImpl({ u, mats, handle, t, cargo, led }: { u: Unit; mats: Mats; 
       box(`db${i}`, x + fw, y0, z - 4, dw - 2 * fw, fw, 18, mats.handle);
     }
   } else if (u.kind === 'tall' && u.tall) {
-    const v = (y: number, h: number): Rect => ({ x: 0, y, w: u.w, h, profile: 'left', rail: { orient: 'v', side: 'left', at: 'mid' } });
+    const hs = u.handleSide ?? 'left';
+    const v = (y: number, h: number): Rect => ({ x: 0, y, w: u.w, h, profile: hs, rail: { orient: 'v', side: hs, at: 'mid' } });
     const flip = (y: number, h: number, e: Edge): Rect => ({ x: 0, y, w: u.w, h, profile: e, rail: { orient: 'h' } });
-    if (u.tall === 'fridge_built') rects.push(v(y0, 1770), { ...v(y0 + 1770, u.h - y0 - 1770), rail: { orient: 'v', side: 'left', at: 'bottom' } });
-    if (u.tall === 'storage') rects.push(v(y0, hc * 0.55), { ...v(y0 + hc * 0.55, hc * 0.45), rail: { orient: 'v', side: 'left', at: 'bottom' } });
+    if (u.tall === 'fridge_built') rects.push(v(y0, 1770), { ...v(y0 + 1770, u.h - y0 - 1770), rail: { orient: 'v', side: hs, at: 'bottom' } });
+    if (u.tall === 'storage') rects.push(v(y0, hc * 0.55), { ...v(y0 + hc * 0.55, hc * 0.45), rail: { orient: 'v', side: hs, at: 'bottom' } });
     if (u.tall === 'oven') {
       rects.push(flip(y0, 800 - y0, 'top'), flip(1780, u.h - 1780, 'bottom'));
       box('ov', t + 2, 805, fz - 20, u.w - 2 * t - 4, 590, 40, mats.glass);
@@ -210,12 +212,15 @@ function CabinetImpl({ u, mats, handle, t, cargo, led }: { u: Unit; mats: Mats; 
   if (cargo !== undefined) {
     // карго: фасад виїжджає разом із кошиками (3 рівні + стійки)
     const bw = u.w - 2 * t - 30, bd = u.d - 80, bx = t + 15, bz = 40;
-    const baskets = [0.12, 0.42, 0.72].flatMap((k, i) => {
+    // два рівні кошиків з високими бортами, як у типового карго 150-200 мм
+    const baskets = [0.1, 0.56].flatMap((k, i) => {
       const by = y0 + hc * k;
       return [
         <Box key={`cb${i}`} x={bx} y={by} z={bz} w={bw} h={6} d={bd} m={mats.steel} />,
-        <Box key={`cf${i}`} x={bx} y={by} z={bz + bd - 6} w={bw} h={70} d={6} m={mats.steel} />,
-        <Box key={`ck${i}`} x={bx} y={by} z={bz} w={bw} h={70} d={6} m={mats.steel} />,
+        <Box key={`cl${i}`} x={bx} y={by} z={bz} w={4} h={120} d={bd} m={mats.steel} />,
+        <Box key={`cr${i}`} x={bx + bw - 4} y={by} z={bz} w={4} h={120} d={bd} m={mats.steel} />,
+        <Box key={`cf${i}`} x={bx} y={by} z={bz + bd - 6} w={bw} h={120} d={6} m={mats.steel} />,
+        <Box key={`ck${i}`} x={bx} y={by} z={bz} w={bw} h={120} d={6} m={mats.steel} />,
       ];
     });
     items.push(
