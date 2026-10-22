@@ -7,8 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ChevronLeft, CheckCircle2, Check, Sparkles, Hammer, Layers, Box, Sun, Phone, AlertCircle, Loader2 } from 'lucide-react';
 import {
   CALL_TIMES, CLASSES, COUNTER_OVERHANG, COUNTER_THICKNESS, DEFAULT_CONFIG, DEFAULT_DIMS, FURNITURE_TYPES, KITCHEN_LAYOUTS,
-  TALL_MODULES, UPPER_TIERS, WARDROBE_DOORS, dimFields, giftsFor, buildScene, KUPE_STYLES, MIRROR_KINDS, LIV_COLUMNS, LIV_FRONTS, TV_SIZES, DRESSER_AT, DRAWER_COUNTS, FILL_KINDS, LED_MODES,
-  type Config, type TallModule, type KupeStyle, type MirrorKind, type LivColumn, type LivFronts, type DresserAt, type FillKind, type LedMode,
+  TALL_MODULES, UPPER_TIERS, WARDROBE_DOORS, dimFields, giftsFor, buildScene, KUPE_STYLES, MIRROR_KINDS, LIV_COLUMNS, LIV_FRONTS, TV_SIZES, SEC_KINDS, DRESSER_AT, DRAWER_COUNTS, FILL_KINDS, LED_MODES,
+  type Config, type TallModule, type KupeStyle, type MirrorKind, type LivColumn, type LivFronts, type SecKind, type DresserAt, type FillKind, type LedMode,
 } from './layout';
 import { BACKSPLASH_ALL, CARCASS_ALL, COUNTERTOPS, FACADE_ALL, FAMILY_LABEL, HANDLES, INTERIORS, type Interior, type Material } from './materials';
 import { buildSpec, facadeZones, hasCountertop, hasHandles } from './spec';
@@ -390,14 +390,25 @@ export default function Configurator() {
                       {config.type === 'Меблі у вітальню' && (
                         <>
                           <div><span className={label}>Тумба</span><Chips items={['floor', 'wall'] as const} value={config.living.mount} onChange={(mount) => setLiv({ mount })} render={(v) => (v === 'floor' ? 'На підлозі' : 'Підвісна')} /></div>
-                          <div><span className={label}>Фасади тумби</span><Chips items={Object.keys(LIV_FRONTS) as LivFronts[]} value={config.living.fronts} onChange={(fronts) => setLiv({ fronts })} render={(v) => LIV_FRONTS[v]} /></div>
-                          <Toggle on={config.living.niche} onChange={(niche) => setLiv({ niche })} text="Відкрита ніша під техніку по центру" />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><span className={label}>Центральні секції тумби</span><Chips items={Object.keys(SEC_KINDS) as SecKind[]} value={config.living.centerKind} onChange={(centerKind) => setLiv({ centerKind })} render={(v) => SEC_KINDS[v]} /></div>
+                            <div><span className={label}>Бокові секції тумби</span><Chips items={Object.keys(SEC_KINDS) as SecKind[]} value={config.living.sideKind} onChange={(sideKind) => setLiv({ sideKind })} render={(v) => SEC_KINDS[v]} /></div>
+                          </div>
+                          {(config.living.centerKind === 'closed' || config.living.sideKind === 'closed') && <div><span className={label}>Закриті фасади</span><Chips items={Object.keys(LIV_FRONTS) as LivFronts[]} value={config.living.fronts} onChange={(fronts) => setLiv({ fronts })} render={(v) => LIV_FRONTS[v]} /></div>}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><span className={label}>Ліворуч</span><Chips items={Object.keys(LIV_COLUMNS) as LivColumn[]} value={config.living.left} onChange={(left) => setLiv({ left })} render={(v) => LIV_COLUMNS[v]} /></div>
                             <div><span className={label}>Праворуч</span><Chips items={Object.keys(LIV_COLUMNS) as LivColumn[]} value={config.living.right} onChange={(right) => setLiv({ right })} render={(v) => LIV_COLUMNS[v]} /></div>
                           </div>
-                          <div><span className={label}>Настінні полиці над ТВ</span><Chips items={[0, 1, 2, 3] as const} value={config.living.shelves as 0} onChange={(shelves) => setLiv({ shelves })} render={(v) => (v ? `${v}` : 'Без полиць')} /></div>
+                          {(config.living.left !== 'none' || config.living.right !== 'none') && (
+                            <>
+                              <div><span className={label}>Колони</span><Chips items={['floor', 'wall'] as const} value={config.living.colMount} onChange={(colMount) => setLiv({ colMount })} render={(v) => (v === 'floor' ? 'На підлозі' : 'Підвісні')} /></div>
+                              <Toggle on={config.living.topRow} onChange={(topRow) => setLiv({ topRow })} text="Ряд шаф над ТВ між колонами" />
+                            </>
+                          )}
+                          <div><span className={label}>Настінні полиці</span><Chips items={[0, 1, 2, 3] as const} value={config.living.shelves as 0} onChange={(shelves) => setLiv({ shelves })} render={(v) => (v ? `${v}` : 'Без полиць')} /></div>
+                          {config.living.shelves > 0 && <div><span className={label}>Де полиці</span><Chips items={['tv', 'left', 'right'] as const} value={config.living.shelvesAt} onChange={(shelvesAt) => setLiv({ shelvesAt })} render={(v) => (v === 'tv' ? 'Над ТВ' : v === 'left' ? 'Ліворуч від ТВ' : 'Праворуч від ТВ')} /></div>}
                           <Toggle on={config.living.panel} onChange={(panel) => setLiv({ panel })} text="Декоративна панель за ТВ" />
+                          {config.living.panel && <div><span className={label}>Панель</span><Chips items={['flat', 'slats'] as const} value={config.living.panelKind} onChange={(panelKind) => setLiv({ panelKind })} render={(v) => (v === 'flat' ? 'Гладка' : 'Рейки')} /></div>}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><span className={label}>Телевізор</span><Chips items={['wall', 'stand'] as const} value={config.living.tv} onChange={(tv) => setLiv({ tv })} render={(v) => (v === 'wall' ? 'На стіні' : 'На тумбі')} /></div>
                             <div><span className={label}>Діагональ</span><Chips items={TV_SIZES} value={config.living.tvSize as 55} onChange={(tvSize) => setLiv({ tvSize })} render={(v) => `${v}"`} /></div>

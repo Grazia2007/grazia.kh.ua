@@ -88,7 +88,7 @@ function doorRow(x0: number, w: number, y: number, h: number, n: number, profile
 }
 
 // плавно висуває вміст (карго) - кадри рендеряться лише під час руху
-function Slide({ open, by, children }: { open: boolean; by: number; children: ReactNode }) {
+export function Slide({ open, by, children }: { open: boolean; by: number; children: ReactNode }) {
   const ref = useRef<THREE.Group>(null);
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => { invalidate(); }, [open, invalidate]);

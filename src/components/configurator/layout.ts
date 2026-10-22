@@ -71,10 +71,17 @@ export type LivColumn = keyof typeof LIV_COLUMNS;
 export const LIV_FRONTS = { drawers: 'Шухляди', doors: 'Дверцята', flip: 'Відкидні фасади' } as const;
 export type LivFronts = keyof typeof LIV_FRONTS;
 export const TV_SIZES = [55, 65, 75] as const;
+export const SEC_KINDS = { closed: 'Закриті фасади', open: 'Відкриті', glass: 'За склом' } as const;
+export type SecKind = keyof typeof SEC_KINDS;
 export interface Living {
   mount: 'floor' | 'wall'; // тумба на підлозі (цоколь) чи підвісна
   fronts: LivFronts;
-  niche: boolean; // відкрита ніша під техніку по центру тумби
+  centerKind: SecKind; // центральні секції тумби
+  sideKind: SecKind; // бокові секції тумби
+  colMount: 'floor' | 'wall'; // колони на підлозі чи підвісні
+  shelvesAt: 'tv' | 'left' | 'right'; // де настінні полиці
+  panelKind: 'flat' | 'slats'; // панель за ТВ: гладка чи рейки
+  topRow: boolean; // ряд шаф над ТВ між колонами
   left: LivColumn;
   right: LivColumn;
   shelves: number; // настінні полиці над ТВ: 0-3
@@ -170,7 +177,7 @@ export const DEFAULT_CONFIG: Config = {
   glassBar: false,
   ledMode: 'vertical',
   sidePenals: true,
-  living: { mount: 'floor', fronts: 'drawers', niche: true, left: 'vitrine', right: 'shelves', shelves: 0, panel: false, tv: 'wall', tvSize: 65 },
+  living: { mount: 'floor', fronts: 'drawers', centerKind: 'open', sideKind: 'closed', colMount: 'floor', shelvesAt: 'tv', panelKind: 'flat', topRow: false, left: 'vitrine', right: 'shelves', shelves: 0, panel: false, tv: 'wall', tvSize: 65 },
   bathPenal: false,
   materials: { base: 'GR-F05', upper: 'GR-F01', topTier: 'GR-V01', carcass: 'GR-C01', countertop: 'GR-T01', handle: 'GR-H04' },
   counterThickness: 38,
@@ -232,7 +239,12 @@ export function normalizeConfig(raw: unknown): Config {
       return {
         mount: v.mount === 'wall' ? 'wall' : 'floor',
         fronts: oneOf(Object.keys(LIV_FRONTS) as LivFronts[], v.fronts, dl.fronts),
-        niche: v.niche === true,
+        centerKind: oneOf(Object.keys(SEC_KINDS) as SecKind[], v.centerKind, dl.centerKind),
+        sideKind: oneOf(Object.keys(SEC_KINDS) as SecKind[], v.sideKind, dl.sideKind),
+        colMount: v.colMount === 'wall' ? 'wall' : 'floor',
+        shelvesAt: v.shelvesAt === 'left' || v.shelvesAt === 'right' ? v.shelvesAt : 'tv',
+        panelKind: v.panelKind === 'slats' ? 'slats' : 'flat',
+        topRow: v.topRow === true,
         left: col(v.left, 'none'),
         right: col(v.right, 'none'),
         shelves: Math.max(0, Math.min(3, Math.round(Number(v.shelves) || 0))),
@@ -301,7 +313,7 @@ export interface Unit {
   tall?: TallModule;
   handleSide?: 'left' | 'right'; // для пеналів: ручка з боку робочої зони
   cargo?: boolean; // вузьке висувне карго
-  living?: Living & { colW: number; colH: number; tumbaY: number; tumbaH: number; modules: number[] };
+  living?: Living & { colW: number; colH: number; tumbaY: number; tumbaH: number; modules: number[]; tvBox: { x: number; y: number; w: number; h: number } };
   wardrobe?: { style: KupeStyle; mirror: MirrorKind; fill: WardrobeFill; sections: WSection[]; mezz?: 'lift' | 'hinged' };
   sliding?: boolean;
   mirror?: boolean;
@@ -500,13 +512,16 @@ export function buildScene(c: Config): SceneModel {
     const tumbaY = v.mount === 'wall' ? 250 : 0;
     const tumbaH = v.mount === 'wall' ? 400 : 480;
     const modules = splitWidths(W - l - r, 700, 400, 900);
-    units.push({ id: nid('living'), kind: 'living', frame: place({ kind: 'back' }, 0, W), y: 0, w: W, h: colH, d: 420, plinth: 0, zone: 'base', doors: 0, drawers: 0, handleAt: 'side',
-      living: { ...v, colW, colH, tumbaY, tumbaH, modules } });
     // ТВ: 16:9, ширина корпусу за діагоналлю
     const tw = Math.round(v.tvSize * 25.4 * 0.885), th = Math.round(tw * 0.5625);
     const top = tumbaY + tumbaH + 18;
     const ty = v.tv === 'stand' ? top + 70 : Math.max(top + 250, 1050 - th / 2);
-    fixtures.push({ id: nid('tv'), kind: 'tv', frame: place({ kind: 'back' }, (W + l - r) / 2 - tw / 2, tw), y: ty, x0: 0, z0: v.tv === 'stand' ? 150 : 30, w: tw, h: th, d: 40 });
+    const tx = (W + l - r) / 2 - tw / 2;
+    units.push({ id: nid('living'), kind: 'living', frame: place({ kind: 'back' }, 0, W), y: 0, w: W, h: colH, d: 420, plinth: 0, zone: 'base', doors: 0, drawers: 0, handleAt: 'side',
+      living: { ...v, colW, colH, tumbaY, tumbaH, modules, tvBox: { x: tx, y: ty, w: tw, h: th } } });
+    fixtures.push({ id: nid('tv'), kind: 'tv', frame: place({ kind: 'back' }, tx, tw), y: ty, x0: 0, z0: v.tv === 'stand' ? 150 : v.panel ? 50 : 30, w: tw, h: th, d: 40 });
+    if (v.shelves && v.shelvesAt !== 'tv' && Math.min(tx - l, W - r - tx - tw) < 500) notes.push('Збоку від ТВ мало місця для полиць - зменшіть ТВ або розмістіть полиці над ним');
+    if (v.shelves && v.shelvesAt === 'tv' && ty + th + 150 + (v.shelves - 1) * 300 > colH) notes.push('Полиці над ТВ не вміщуються по висоті - оберіть полиці збоку або менший ТВ');
     if (v.tvSize >= 75 && W - l - r < tw + 200) notes.push(`ТВ ${v.tvSize}" ширший за тумбу між колонами`);
   } else {
     const W = c.dims.a;

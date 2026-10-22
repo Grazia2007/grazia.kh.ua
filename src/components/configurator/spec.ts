@@ -1,5 +1,5 @@
 // Текст специфікації ліда. Той самий текст бачить клієнт (підсумок) і менеджер (Telegram, orders).
-import { buildScene, carcassThickness, dimFields, TALL_MODULES, LIV_COLUMNS, LIV_FRONTS, KUPE_STYLES, MIRROR_KINDS, DRESSER_AT, FILL_KINDS, LED_MODES, type Config, type Unit } from './layout';
+import { buildScene, carcassThickness, dimFields, TALL_MODULES, LIV_COLUMNS, LIV_FRONTS, SEC_KINDS, KUPE_STYLES, MIRROR_KINDS, DRESSER_AT, FILL_KINDS, LED_MODES, type Config, type Unit } from './layout';
 import { facadeOf, carcassOf, countertopOf, handleOf, backsplashOf, materialLabel } from './materials';
 
 const KIND_LABEL: Record<Unit['kind'], string> = {
@@ -55,10 +55,10 @@ export function buildSpec(c: Config): string[] {
   if (c.type === 'Меблі у вітальню') {
     const v = c.living;
     const u = model.units.find((x) => x.living)?.living;
-    lines.push(`Тумба: ${v.mount === 'wall' ? 'підвісна' : 'на підлозі'}, ${LIV_FRONTS[v.fronts].toLowerCase()}${v.niche ? ', відкрита ніша під техніку' : ''}${u ? ` (${u.modules.length} секції: ${u.modules.join(', ')} мм)` : ''}`);
-    lines.push(`Ліва колона: ${LIV_COLUMNS[v.left]}; права колона: ${LIV_COLUMNS[v.right]}`);
-    if (v.shelves) lines.push(`Настінні полиці над ТВ: ${v.shelves} шт.`);
-    if (v.panel) lines.push('Декоративна панель за ТВ');
+    lines.push(`Тумба: ${v.mount === 'wall' ? 'підвісна' : 'на підлозі'}, закриті - ${LIV_FRONTS[v.fronts].toLowerCase()}; центр - ${SEC_KINDS[v.centerKind].toLowerCase()}, боки - ${SEC_KINDS[v.sideKind].toLowerCase()}${u ? ` (${u.modules.length} секції: ${u.modules.join(', ')} мм)` : ''}`);
+    lines.push(`Ліва колона: ${LIV_COLUMNS[v.left]}; права колона: ${LIV_COLUMNS[v.right]}${v.left !== 'none' || v.right !== 'none' ? (v.colMount === 'wall' ? ' (підвісні)' : ' (на підлозі)') : ''}${v.topRow && (v.left !== 'none' || v.right !== 'none') ? '; ряд шаф над ТВ' : ''}`);
+    if (v.shelves) lines.push(`Настінні полиці: ${v.shelves} шт., ${v.shelvesAt === 'tv' ? 'над ТВ' : v.shelvesAt === 'left' ? 'ліворуч від ТВ' : 'праворуч від ТВ'}`);
+    if (v.panel) lines.push(`Панель за ТВ: ${v.panelKind === 'slats' ? 'рейки' : 'гладка'}`);
     lines.push(`ТВ ${v.tvSize}" ${v.tv === 'wall' ? 'на стіні' : 'на тумбі'}`);
   }
   if (c.type === 'Меблі для ванної') lines.push(`Пенал: ${c.bathPenal ? 'так' : 'ні'}`);
