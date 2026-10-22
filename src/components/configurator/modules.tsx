@@ -8,7 +8,7 @@ import { K, type Unit, type Slab, type Fixture, type LedMode } from './layout';
 import { WardrobeUnit } from './wardrobe';
 import type { HandleType } from './materials';
 
-export type MatKey = 'carcass' | 'base' | 'upper' | 'topTier' | 'countertop' | 'handle' | 'plinth' | 'steel' | 'glass' | 'mirror' | 'ceramic' | 'granite' | 'mirrorPattern' | 'photo' | 'lacomat';
+export type MatKey = 'carcass' | 'base' | 'upper' | 'topTier' | 'countertop' | 'handle' | 'plinth' | 'steel' | 'glass' | 'mirror' | 'ceramic' | 'granite' | 'mirrorPattern' | 'photo' | 'lacomat' | 'glassClear';
 export type Mats = Record<MatKey, THREE.Material>;
 
 // одна геометрія на всю сцену, розмір задає scale
@@ -145,8 +145,8 @@ function Led({ w, d, drop }: { w: number; d: number; drop: number }) {
   );
 }
 
-function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number; open?: boolean; ledMode?: LedMode | null; hideDoors?: boolean }) {
-  if (u.kind === 'wardrobe') return <WardrobeUnit u={u} mats={mats} handle={handle} t={t} open={!!open} ledMode={ledMode ?? null} hide={!!hideDoors} />;
+function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors, doorsKey }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number; open?: boolean; ledMode?: LedMode | null; hideDoors?: boolean; doorsKey?: string }) {
+  if (u.kind === 'wardrobe') return <WardrobeUnit u={u} mats={mats} handle={handle} t={t} open={!!open} ledMode={ledMode ?? null} hide={!!hideDoors} doorsKey={doorsKey ?? ''} />;
   const fm = mats[u.zone];
   const y0 = u.plinth;
   const hc = u.h - y0;

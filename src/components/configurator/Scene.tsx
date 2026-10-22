@@ -15,6 +15,7 @@ export interface SceneApi {
 }
 
 const BG = '#e9e6e1';
+export type DoorsMode = 'closed' | 'open' | 'hidden';
 
 // ---- інтер'єр: процедурні текстури (без файлів і мереж. запитів), генеруються один раз на пресет ----
 
@@ -327,7 +328,7 @@ function Rig({ model, apiRef, focus }: { model: SceneModel; apiRef: MutableRefOb
   return null;
 }
 
-function Furniture({ config, model, showInterior }: { config: Config; model: SceneModel; showInterior: boolean }) {
+function Furniture({ config, model, doorsMode }: { config: Config; model: SceneModel; doorsMode: DoorsMode }) {
   const { base, upper, topTier, carcass, countertop, handle } = config.materials;
   const mats = useMemo<Mats>(() => ({
     base: makeMat(facadeOf(base)),
@@ -344,6 +345,7 @@ function Furniture({ config, model, showInterior }: { config: Config; model: Sce
     mirrorPattern: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.2, metalness: 0.55, map: patternTexture() }),
     photo: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.25, metalness: 0, map: photoTexture() }),
     lacomat: new THREE.MeshStandardMaterial({ color: '#eef0ee', roughness: 0.55, metalness: 0 }),
+    glassClear: new THREE.MeshStandardMaterial({ color: '#d8e6ea', roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false }),
     ceramic: new THREE.MeshStandardMaterial({ color: '#fbfbfa', roughness: 0.15 }),
     granite: new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55 }),
   }), [base, upper, topTier, carcass, countertop, handle]);
@@ -363,14 +365,14 @@ function Furniture({ config, model, showInterior }: { config: Config; model: Sce
   const t = carcassThickness(config);
   return (
     <group scale={0.001}>
-      {model.units.map((u) => <Cabinet key={u.id} u={u} mats={mats} handle={hType} t={t} cargo={u.id === cargoId ? cargoOpen : undefined} led={led && u.kind === 'upper' ? ledDrop : undefined} open={wardrobeLed} hideDoors={showInterior} ledMode={wardrobeLed ? config.ledMode : null} />)}
+      {model.units.map((u) => <Cabinet key={u.id} u={u} mats={mats} handle={hType} t={t} cargo={u.id === cargoId ? cargoOpen : undefined} led={led && u.kind === 'upper' ? ledDrop : undefined} open={doorsMode === 'open'} hideDoors={doorsMode === 'hidden'} doorsKey={doorsMode} ledMode={wardrobeLed ? config.ledMode : null} />)}
       {model.slabs.map((s) => <SlabMesh key={s.id} s={s} m={s.kind === 'backsplash' ? splashMat : mats.countertop} />)}
       {model.fixtures.map((f) => <FixtureMesh key={f.id} f={f} mats={mats} granite={granite} />)}
     </group>
   );
 }
 
-export default function Scene({ config, apiRef, interior = 'studio', showInterior = false }: { config: Config; apiRef: MutableRefObject<SceneApi | null>; interior?: Interior; showInterior?: boolean }) {
+export default function Scene({ config, apiRef, interior = 'studio', doorsMode = 'closed' }: { config: Config; apiRef: MutableRefObject<SceneApi | null>; interior?: Interior; doorsMode?: DoorsMode }) {
   const model = useMemo(() => buildScene(config), [config]);
   const focus = useMemo(() => giftFocus(config, model), [config, model]);
   // на телефонах: менша щільність пікселів і без тіней
@@ -412,7 +414,7 @@ export default function Scene({ config, apiRef, interior = 'studio', showInterio
         <Lightformer form="rect" intensity={0.6} position={[5, 2, 3]} rotation-y={-Math.PI / 2.5} scale={[4, 3, 1]} />
       </Environment>
 
-      <Furniture config={config} model={model} showInterior={showInterior} />
+      <Furniture config={config} model={model} doorsMode={doorsMode} />
 
       {/* підлога і задня стіна приймають тіні */}
       <Room interior={interior} cx={cx} cz={cz} span={span} walls={model.walls} />

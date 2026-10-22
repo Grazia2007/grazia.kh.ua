@@ -98,25 +98,26 @@ function KupeDoor({ i, n, x, w, y0, h, z, style, mats, mirror }: { i: number; n:
 
 // ---------- наповнення ----------
 
-interface Section { x: number; w: number; kind: 'shelves' | 'main' | 'ironing' }
+type Section = { x: number; w: number; kind: 'center' | 'side' | 'bar' };
 
 function Interior({ u, t, mats, front, ledMode }: { u: Unit; t: number; mats: Mats; front: number; ledMode: LedMode | null }) {
   const cfg = u.wardrobe!;
+  const f = cfg.fill;
   const y0 = u.plinth + t, y1 = u.h - t;
-  const x0 = t, x1 = u.w - t;
   const depth = front - 4; // від задньої стінки до лінії дверей
   const z0 = 4;
-  // секції: прасувальна дошка 320 мм (за бажанням) + решта по ~800 мм
-  const iron = cfg.ironing ? 320 : 0;
-  const rest = x1 - x0 - iron - (iron ? t : 0);
-  const n = Math.max(2, Math.round(rest / 800));
-  const sw = (rest - (n - 1) * t) / n;
+  const IRON = 360; // прасувальна дошка займає праву частину останньої секції
   const secs: Section[] = [];
-  for (let k = 0; k < n; k++) {
-    const isMain = n === 2 ? k === 0 : k > 0 && k < n - 1;
-    secs.push({ x: x0 + k * (sw + t), w: sw, kind: isMain ? 'main' : 'shelves' });
-  }
-  if (iron) secs.push({ x: x1 - iron, w: iron, kind: 'ironing' });
+  const irons: { x: number; w: number }[] = [];
+  const parts: number[] = []; // x перегородок
+  cfg.sections.forEach((s, k) => {
+    if (k > 0) parts.push(s.x - t);
+    if (s.ironing && s.w > IRON + 250) {
+      secs.push({ x: s.x, w: s.w - IRON - t, kind: s.kind });
+      parts.push(s.x + s.w - IRON - t);
+      irons.push({ x: s.x + s.w - IRON, w: IRON });
+    } else secs.push({ x: s.x, w: s.w, kind: s.kind });
+  });
 
   const items: ReactNode[] = [];
   const shelvesY: { x: number; w: number; y: number }[] = [];
@@ -126,45 +127,58 @@ function Interior({ u, t, mats, front, ledMode }: { u: Unit; t: number; mats: Ma
   };
   const rod = (k: string, s: Section, y: number) =>
     items.push(<Box key={k} x={s.x} y={y} z={z0 + depth / 2 - 10} w={s.w} h={20} d={20} m={mats.steel} />);
+  const drawerH = 200;
+
+  // перегородки між секціями
+  parts.forEach((x, k) => items.push(<Box key={`pt${k}`} x={x} y={y0} z={z0} w={t} h={y1 - y0} d={depth} m={mats.carcass} />));
+  // складена прасувальна дошка на кронштейні + полиця над нею
+  irons.forEach((s, k) => {
+    items.push(<Box key={`ib${k}`} x={s.x + 40} y={y0 + 250} z={z0 + depth - 90} w={s.w - 80} h={1250} d={30} m={mats.ceramic} />);
+    items.push(<Box key={`ik${k}`} x={s.x + 30} y={y0 + 200} z={z0 + depth - 110} w={s.w - 60} h={30} d={60} m={mats.steel} />);
+    shelf(`ish${k}`, { ...s, kind: 'side' }, y1 - 350);
+  });
 
   secs.forEach((s, k) => {
-    // перегородки між секціями
-    if (k > 0) items.push(<Box key={`pt${k}`} x={s.x - t} y={y0} z={z0} w={t} h={y1 - y0} d={depth} m={mats.carcass} />);
-    if (s.kind === 'shelves') {
-      for (let y = y0 + 380; y < y1 - 120; y += 380) shelf(`sh${k}-${y}`, s, y);
-    } else if (s.kind === 'ironing') {
-      // складена прасувальна дошка на кронштейні
-      items.push(<Box key="ib" x={s.x + 40} y={y0 + 250} z={z0 + depth - 90} w={s.w - 80} h={1250} d={30} m={mats.ceramic} />);
-      items.push(<Box key="ik" x={s.x + 30} y={y0 + 200} z={z0 + depth - 110} w={s.w - 60} h={30} d={60} m={mats.steel} />);
-      shelf(`ish${k}`, s, y1 - 350);
-    } else if (cfg.interior === 'shelves-pantograph') {
+    if (s.kind === 'bar') {
+      // вітрина: полиці через 350 мм і власне світло по боках
+      for (let y = y0 + 350; y < y1 - 120; y += 350) shelf(`bs${k}-${Math.round(y)}`, s, y);
+      return;
+    }
+    // комод знизу (якщо обрано для цієї секції)
+    const hasDresser = f.dresserAt === 'all' || (f.dresserAt === 'center' && s.kind === 'center') || (f.dresserAt === 'sides' && s.kind === 'side');
+    let base = y0;
+    if (hasDresser) {
+      for (let q = 0; q < f.drawers; q++) {
+        const dy = y0 + q * drawerH;
+        items.push(<Box key={`dr${k}-${q}`} x={s.x + 2} y={dy + 2} z={z0 + depth - 24} w={s.w - 4} h={drawerH - 4} d={18} m={mats.base} />);
+        items.push(<Box key={`dh${k}-${q}`} x={s.x + s.w / 2 - 60} y={dy + drawerH - 40} z={z0 + depth - 6} w={120} h={10} d={10} m={mats.steel} />);
+      }
+      base = y0 + f.drawers * drawerH;
+      items.push(<Box key={`dk${k}`} x={s.x} y={y0} z={z0} w={s.w} h={base - y0} d={depth - 26} m={mats.carcass} />);
+      shelf(`dtop${k}`, s, base);
+      base += t;
+    }
+    const fill = s.kind === 'center' ? f.center : f.sides;
+    if (fill === 'shelves') {
+      for (let y = base + 360; y < y1 - 120; y += 360) shelf(`sh${k}-${Math.round(y)}`, s, y);
+    } else if (fill === 'pantograph') {
+      // пантограф зверху (штанга на важелях), під ним звичайна штанга, якщо вистачає висоти
       shelf(`top${k}`, s, y1 - 320);
-      // пантограф: штанга на важелях, що опускається
       rod(`pg${k}`, s, y1 - 420);
       items.push(<Box key={`pga${k}`} x={s.x + 15} y={y1 - 420} z={z0 + depth / 2 - 10} w={18} h={110} d={18} m={mats.steel} />);
       items.push(<Box key={`pgb${k}`} x={s.x + s.w - 33} y={y1 - 420} z={z0 + depth / 2 - 10} w={18} h={110} d={18} m={mats.steel} />);
-      shelf(`mid${k}`, s, 1250);
-      rod(`rd${k}`, s, 1180);
-    } else if (cfg.interior === 'dresser-center') {
-      // комод: 4 шухляди до 800 мм
-      const dh = (800 - y0) / 4;
-      for (let q = 0; q < 4; q++) {
-        items.push(<Box key={`dr${k}-${q}`} x={s.x + 2} y={y0 + q * dh + 2} z={z0 + depth - 24} w={s.w - 4} h={dh - 4} d={18} m={mats.base} />);
-        items.push(<Box key={`dh${k}-${q}`} x={s.x + s.w / 2 - 60} y={y0 + q * dh + dh - 40} z={z0 + depth - 6} w={120} h={10} d={10} m={mats.steel} />);
-      }
-      items.push(<Box key={`dk${k}`} x={s.x} y={y0} z={z0} w={s.w} h={800 - y0} d={depth - 26} m={mats.carcass} />);
-      shelf(`dtop${k}`, s, 800);
-      rod(`rd${k}`, s, 1750);
-      shelf(`top${k}`, s, y1 - 320);
+      if (y1 - 420 - base > 2000) { shelf(`mid${k}`, s, base + 1150); rod(`rd${k}`, s, base + 1080); }
     } else {
-      shelf(`top${k}`, s, y1 - 330);
-      rod(`rd${k}`, s, y1 - 400);
-      shelf(`low${k}`, s, y0 + 300);
+      shelf(`top${k}`, s, y1 - 320);
+      rod(`rd${k}`, s, y1 - 390);
+      if (!hasDresser && y1 - y0 > 2300) shelf(`low${k}`, s, y0 + 300);
     }
   });
 
   // LED: по висоті - профілі по боках секцій; під полицями - стрічки біля переднього краю
-  if (ledMode) {
+  // вітрина світиться завжди; решта - лише з подарунком LED
+  const barOnly = !ledMode;
+  if (ledMode || secs.some((s) => s.kind === 'bar')) {
     const tex = glowTexture();
     const strip = (k: string, x: number, y: number, w: number, h: number, z: number) =>
       items.push(
@@ -180,8 +194,8 @@ function Interior({ u, t, mats, front, ledMode }: { u: Unit; t: number; mats: Ma
           <meshBasicMaterial map={tex} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} opacity={op} />
         </mesh>,
       );
-    if (ledMode === 'vertical') {
-      secs.forEach((s, k) => {
+    if (ledMode !== 'shelves') {
+      (barOnly ? secs.filter((s) => s.kind === 'bar') : secs).forEach((s, k) => {
         strip(`lv${k}a`, s.x + 4, y0, 8, y1 - y0, z0 + depth - 40);
         strip(`lv${k}b`, s.x + s.w - 12, y0, 8, y1 - y0, z0 + depth - 40);
         glow(`lg${k}`, s.x, y1, s.w, y1 - y0, 0.45);
@@ -196,9 +210,24 @@ function Interior({ u, t, mats, front, ledMode }: { u: Unit; t: number; mats: Ma
   return <>{items}</>;
 }
 
+// скляні двері вітрини: алюмінієва рамка + прозоре скло
+function GlassDoor({ x, y, w, h, z, mats }: { x: number; y: number; w: number; h: number; z: number; mats: Mats }) {
+  const g = K.gap / 2, fw = 22;
+  const X = x + g, Y = y + g, Wd = w - K.gap, H = h - K.gap;
+  return (
+    <>
+      <Box x={X} y={Y} z={z} w={fw} h={H} d={20} m={mats.handle} />
+      <Box x={X + Wd - fw} y={Y} z={z} w={fw} h={H} d={20} m={mats.handle} />
+      <Box x={X + fw} y={Y} z={z} w={Wd - 2 * fw} h={fw} d={20} m={mats.handle} />
+      <Box x={X + fw} y={Y + H - fw} z={z} w={Wd - 2 * fw} h={fw} d={20} m={mats.handle} />
+      <Box x={X + fw} y={Y + fw} z={z + 6} w={Wd - 2 * fw} h={H - 2 * fw} d={6} m={mats.glassClear} />
+    </>
+  );
+}
+
 // ---------- шафа цілком ----------
 
-export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide }: { u: Unit; mats: Mats; handle: HandleType; t: number; open: boolean; ledMode: LedMode | null; hide: boolean }) {
+export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide, doorsKey }: { u: Unit; mats: Mats; handle: HandleType; t: number; open: boolean; ledMode: LedMode | null; hide: boolean; doorsKey: string }) {
   const cfg = u.wardrobe!;
   const y0 = u.plinth;
   const mirror = cfg.mirror === 'pattern' ? mats.mirrorPattern : cfg.mirror === 'photo' ? mats.photo : mats.mirror;
@@ -219,7 +248,7 @@ export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide }: { u: U
       // відчиняється, зсуваючись за сусідні двері (до центру або до краю)
       const dir = i < n / 2 ? 1 : -1;
       doors.push(
-        <Movable key={`d${i}`} kind="slide" amount={dir * (dw - ov) * 0.92} open={open}>
+        <Movable key={`d${i}-${doorsKey}`} kind="slide" amount={dir * (dw - ov) * 0.92} open={open}>
           <KupeDoor i={i} n={n} x={x} w={dw} y0={dy} h={dh} z={z} style={cfg.style} mats={mats} mirror={mirror} />
         </Movable>,
       );
@@ -228,24 +257,32 @@ export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide }: { u: U
     doors.push(<Box key="tr" x={t} y={u.h - t - 10} z={u.d - 80} w={iw} h={10} d={80} m={mats.handle} />);
     doors.push(<Box key="br" x={t} y={y0 + t} z={u.d - 80} w={iw} h={6} d={80} m={mats.handle} />);
   } else {
-    const n = u.doors;
     const hc = u.h - y0;
     const fz = u.d + K.facadeOffset;
-    for (let i = 0; i < n; i++) {
-      const side: 'left' | 'right' = n === 1 || i % 2 === 0 ? 'right' : 'left'; // пари дверей відчиняються від центру пари
-      const x = (u.w / n) * i, w = u.w / n;
-      // висота більша за лист - нижня дверка 2780, над нею окрема
-      const parts = hc > SHEET_MAX ? [{ y: y0, h: SHEET_MAX }, { y: y0 + SHEET_MAX, h: hc - SHEET_MAX }] : [{ y: y0, h: hc }];
+    const secs = cfg.sections;
+    // висота більша за лист - нижня дверка 2780, над нею окрема
+    const parts = hc > SHEET_MAX ? [{ y: y0, h: SHEET_MAX }, { y: y0 + SHEET_MAX, h: hc - SHEET_MAX }] : [{ y: y0, h: hc }];
+    const door = (key: string, x: number, w: number, side: 'left' | 'right', glass: boolean) =>
       parts.forEach((p, k) => {
         const r: Rect = { x, y: p.y, w, h: p.h, profile: side, rail: { orient: 'v', side, at: k === 0 ? 'mid' : 'bottom' } };
         const hingeX = side === 'right' ? x : x + w; // петлі - з протилежного від ручки боку
         doors.push(
-          <Movable key={`d${i}-${k}`} kind="hinge" pivotX={hingeX} pivotZ={fz} amount={(side === 'right' ? -1 : 1) * 1.75} open={open}>
-            <Facade r={r} z={fz} m={mats.base} mats={mats} handle={handle} />
+          <Movable key={`${key}-${k}-${doorsKey}`} kind="hinge" pivotX={hingeX} pivotZ={fz} amount={(side === 'right' ? -1 : 1) * 1.75} open={open}>
+            {glass ? <GlassDoor x={x} y={p.y} w={w} h={p.h} z={fz} mats={mats} /> : <Facade r={r} z={fz} m={mats.base} mats={mats} handle={handle} />}
           </Movable>,
         );
       });
-    }
+    secs.forEach((s, i) => {
+      // межі дверей - по осях перегородок, крайні - по краю корпусу
+      const l = i === 0 ? 0 : s.x - t / 2;
+      const r = i === secs.length - 1 ? u.w : s.x + s.w + t / 2;
+      if (s.kind === 'bar') door(`b${i}`, l, r - l, 'left', true);
+      else {
+        const m = (l + r) / 2;
+        door(`a${i}`, l, m - l, 'right', false); // пара відчиняється від центру - ручки поруч
+        door(`c${i}`, m, r - m, 'left', false);
+      }
+    });
   }
 
   return (

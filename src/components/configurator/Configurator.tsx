@@ -7,8 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ChevronLeft, CheckCircle2, Check, Sparkles, Hammer, Layers, Box, Sun, Phone, AlertCircle, Loader2 } from 'lucide-react';
 import {
   CALL_TIMES, CLASSES, COUNTER_OVERHANG, COUNTER_THICKNESS, DEFAULT_CONFIG, DEFAULT_DIMS, FURNITURE_TYPES, KITCHEN_LAYOUTS,
-  TALL_MODULES, UPPER_TIERS, WARDROBE_DOORS, dimFields, giftsFor, buildScene, KUPE_STYLES, MIRROR_KINDS, INTERIORS_W, LED_MODES,
-  type Config, type TallModule, type KupeStyle, type MirrorKind, type WardrobeInterior, type LedMode,
+  TALL_MODULES, UPPER_TIERS, WARDROBE_DOORS, dimFields, giftsFor, buildScene, KUPE_STYLES, MIRROR_KINDS, DRESSER_AT, DRAWER_COUNTS, FILL_KINDS, LED_MODES,
+  type Config, type TallModule, type KupeStyle, type MirrorKind, type DresserAt, type FillKind, type LedMode,
 } from './layout';
 import { BACKSPLASH_ALL, CARCASS_ALL, COUNTERTOPS, FACADE_ALL, FAMILY_LABEL, HANDLES, INTERIORS, type Interior, type Material } from './materials';
 import { buildSpec, facadeZones, hasCountertop, hasHandles } from './spec';
@@ -165,9 +165,11 @@ export default function Configurator() {
   const activeZone = zones.some((z) => z.id === zone) ? zone : 'base';
   const spec = useMemo(() => buildSpec(config), [config]);
   const notes = useMemo(() => buildScene(config).notes, [config]);
-  const [showInterior, setShowInterior] = useState(false);
+  // стан дверей шафи на моделі (лише візуал)
+  const [doors, setDoors] = useState<'closed' | 'open' | 'hidden'>('closed');
 
   const set = (patch: Partial<Config>) => setConfig((c) => ({ ...c, ...patch }));
+  const setFill = (patch: Partial<Config['fill']>) => setConfig((c) => ({ ...c, fill: { ...c.fill, ...patch } }));
   const setMat = (k: keyof Config['materials'], code: string) => setConfig((c) => ({ ...c, materials: { ...c.materials, [k]: code } }));
 
   const setType = (type: Config['type']) => {
@@ -228,7 +230,14 @@ export default function Configurator() {
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
       <div ref={panelRef} className="lg:w-1/2 relative bg-[#e9e6e1] overflow-hidden border-b lg:border-b-0 lg:border-r border-[var(--border-color)] min-h-[400px] lg:min-h-0 cursor-grab active:cursor-grabbing">
-        <div className="absolute inset-0">{sceneOn ? <Scene config={config} apiRef={sceneApi} interior={interior} showInterior={showInterior} /> : <SceneLoading />}</div>
+        <div className="absolute inset-0">{sceneOn ? <Scene config={config} apiRef={sceneApi} interior={interior} doorsMode={doors} /> : <SceneLoading />}</div>
+        {config.type === 'Шафа-купе / Гардеробна' && (
+          <div className="absolute top-4 right-4 flex gap-1 bg-black/55 rounded-full p-1" role="group" aria-label="Двері на моделі">
+            {([['closed', 'Зачинені'], ['open', 'Відчинені'], ['hidden', 'Без дверей']] as const).map(([k, t]) => (
+              <button key={k} type="button" aria-pressed={doors === k} onClick={() => setDoors(k)} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider transition-colors ${doors === k ? 'bg-white text-black' : 'text-white/80 hover:text-white'}`}>{t}</button>
+            ))}
+          </div>
+        )}
         <div className="absolute top-5 left-5 flex flex-wrap gap-2 pointer-events-none">
           {[config.type, config.type === 'Кухня' ? config.layout : null, config.furnitureClass].filter(Boolean).map((t) => (
             <span key={t} className="bg-black/60 text-white/90 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{t}</span>
@@ -240,11 +249,6 @@ export default function Configurator() {
               <button key={k} type="button" aria-pressed={interior === k} onClick={() => setInterior(k)} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider transition-colors ${interior === k ? 'bg-white text-black' : 'text-white/80 hover:text-white'}`}>{INTERIORS[k]}</button>
             ))}
           </div>
-          {config.type === 'Шафа-купе / Гардеробна' && (
-            <button type="button" aria-pressed={showInterior} onClick={() => setShowInterior((v) => !v)} className="bg-black/55 text-white rounded-full px-4 py-1.5 text-[11px] uppercase tracking-wider hover:bg-black/70">
-              {showInterior ? 'Зачинити двері' : 'Показати наповнення'}
-            </button>
-          )}
           <p className="text-[11px] text-[#5f5a52] pointer-events-none">{config.type === 'Шафа-купе / Гардеробна' ? 'Клацніть по дверях, щоб відчинити · ' : ''}Потягніть, щоб покрутити · масштаб: коліщатко або два пальці</p>
         </div>
       </div>
@@ -367,8 +371,15 @@ export default function Configurator() {
                             </>
                           )}
                           <Toggle on={config.mezzanine} onChange={(mezzanine) => set({ mezzanine })} text="Антресоль зверху" />
-                          <div><span className={label}>Наповнення</span><Chips items={Object.keys(INTERIORS_W) as WardrobeInterior[]} value={config.interior} onChange={(interior) => set({ interior })} render={(v) => INTERIORS_W[v]} /></div>
-                          <Toggle on={config.ironing} onChange={(ironing) => set({ ironing })} text="Місце під прасувальну дошку" />
+                          <div className="space-y-3">
+                            <span className={label}>Наповнення</span>
+                            <div><span className="text-xs text-[var(--text-muted)] block mb-2">Комоди з шухлядами</span><Chips items={Object.keys(DRESSER_AT) as DresserAt[]} value={config.fill.dresserAt} onChange={(dresserAt) => setFill({ dresserAt })} render={(v) => DRESSER_AT[v]} /></div>
+                            {config.fill.dresserAt !== 'none' && <div><span className="text-xs text-[var(--text-muted)] block mb-2">Шухляд у комоді</span><Chips items={DRAWER_COUNTS} value={config.fill.drawers as 2} onChange={(drawers) => setFill({ drawers })} /></div>}
+                            <div><span className="text-xs text-[var(--text-muted)] block mb-2">Центральні секції</span><Chips items={Object.keys(FILL_KINDS) as FillKind[]} value={config.fill.center} onChange={(center) => setFill({ center })} render={(v) => FILL_KINDS[v]} /></div>
+                            <div><span className="text-xs text-[var(--text-muted)] block mb-2">Бокові секції</span><Chips items={Object.keys(FILL_KINDS) as FillKind[]} value={config.fill.sides} onChange={(sides) => setFill({ sides })} render={(v) => FILL_KINDS[v]} /></div>
+                          </div>
+                          <Toggle on={config.ironing} onChange={(ironing) => set({ ironing })} text="Місце під прасувальну дошку (справа в крайній секції)" />
+                          {config.wardrobeDoors === 'Розпашні' && <Toggle on={config.glassBar} onChange={(glassBar) => set({ glassBar })} text="Вітрина справа: скляні двері в рамці, полиці з підсвіткою" />}
                           <Notes items={notes} />
                         </>
                       )}
@@ -427,7 +438,7 @@ export default function Configurator() {
                     <div className="space-y-5">
                     <div className={`grid grid-cols-1 gap-3 ${giftsFor(config.type).length > 1 ? 'sm:grid-cols-3' : ''}`}>
                       {giftsFor(config.type).map((g) => (
-                        <button key={g} type="button" aria-pressed={config.gift === g} onClick={() => set({ gift: g })} className={`${choice(config.gift === g)} p-5 flex flex-col items-center text-center gap-3`}>
+                        <button key={g} type="button" aria-pressed={config.gift === g} onClick={() => { set({ gift: g }); if (config.type === 'Шафа-купе / Гардеробна' && g === 'LED Підсвітка') setDoors('open'); }} className={`${choice(config.gift === g)} p-5 flex flex-col items-center text-center gap-3`}>
                           {GIFT_ICONS[g]}<span className="text-sm font-medium">{g}</span><span className="text-[11px] text-[var(--text-muted)]">{config.type === 'Кухня' ? GIFT_NOTE[g] : 'Усередині шафи'}</span>
                         </button>
                       ))}

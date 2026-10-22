@@ -43,12 +43,29 @@ export const KUPE_STYLES = {
 export type KupeStyle = keyof typeof KUPE_STYLES;
 export const MIRROR_KINDS = { clean: 'Чисте дзеркало', pattern: 'З візерунком (піскоструй)', photo: 'Фотодрук' } as const;
 export type MirrorKind = keyof typeof MIRROR_KINDS;
-export const INTERIORS_W = {
-  'shelves-pantograph': 'Полиці по боках, по центру пантограф зверху і штанга знизу',
-  'dresser-center': 'Комод знизу по центру, над ним штанга, по боках полиці',
-  'rod-shelves': 'Штанга з полицею зверху + секції полиць',
-} as const;
-export type WardrobeInterior = keyof typeof INTERIORS_W;
+// наповнення шафи: де комоди, скільки шухляд, що в центрі й по боках
+export const DRESSER_AT = { none: 'Без комодів', center: 'По центру', sides: 'По боках', all: 'В усіх секціях' } as const;
+export type DresserAt = keyof typeof DRESSER_AT;
+export const DRAWER_COUNTS = [2, 3, 4] as const;
+export const FILL_KINDS = { rod: 'Штанга', pantograph: 'Пантограф + штанга', shelves: 'Полиці' } as const;
+export type FillKind = keyof typeof FILL_KINDS;
+// секції шафи (внутрішні координати між перегородками, мм); розпашні двері - по 2 на секцію, вітрина - 1 скляні
+export interface WSection { x: number; w: number; kind: 'center' | 'side' | 'bar'; ironing: boolean }
+export function wardrobeSections(W: number, t: number, hinged: boolean, bar: boolean, ironing: boolean): WSection[] {
+  const barW = hinged && bar ? 450 : 0;
+  const inner = W - 2 * t - (barW ? barW + t : 0);
+  const n = hinged ? Math.max(1, Math.round(inner / 900)) : Math.max(2, Math.round(inner / 800));
+  const sw = (inner - (n - 1) * t) / n;
+  const out: WSection[] = [];
+  for (let k = 0; k < n; k++) {
+    const isCenter = n <= 2 ? k === 0 : k > 0 && k < n - 1;
+    out.push({ x: t + k * (sw + t), w: sw, kind: isCenter ? 'center' : 'side', ironing: ironing && k === n - 1 });
+  }
+  if (barW) out.push({ x: W - t - barW, w: barW, kind: 'bar', ironing: false });
+  return out;
+}
+
+export interface WardrobeFill { dresserAt: DresserAt; drawers: number; center: FillKind; sides: FillKind }
 export const SHEET_MAX = 2780; // лист 2800 мм мінус обробка кромок
 export const CALL_TIMES = ['Найближчим часом', '10:00 - 12:00', '14:00 - 16:00', 'Після 18:00'] as const;
 export const COUNTER_THICKNESS = [28, 38] as const;
@@ -69,8 +86,9 @@ export interface Config {
   mezzanine: boolean;
   kupeStyle: KupeStyle;
   mirrorKind: MirrorKind;
-  interior: WardrobeInterior;
+  fill: WardrobeFill;
   ironing: boolean;
+  glassBar: boolean;
   ledMode: LedMode;
   sidePenals: boolean;
   bathPenal: boolean;
@@ -123,11 +141,12 @@ export const DEFAULT_CONFIG: Config = {
   leftModule: 'none',
   rightModule: 'none',
   wardrobeDoors: 'Купе',
-  mezzanine: true,
+  mezzanine: false,
   kupeStyle: 'mirror-center',
   mirrorKind: 'clean',
-  interior: 'shelves-pantograph',
+  fill: { dresserAt: 'center', drawers: 3, center: 'pantograph', sides: 'shelves' },
   ironing: false,
+  glassBar: false,
   ledMode: 'vertical',
   sidePenals: true,
   bathPenal: false,
@@ -170,8 +189,17 @@ export function normalizeConfig(raw: unknown): Config {
     mezzanine: r.mezzanine === true,
     kupeStyle: oneOf(Object.keys(KUPE_STYLES) as KupeStyle[], r.kupeStyle, d.kupeStyle),
     mirrorKind: oneOf(Object.keys(MIRROR_KINDS) as MirrorKind[], r.mirrorKind, d.mirrorKind),
-    interior: oneOf(Object.keys(INTERIORS_W) as WardrobeInterior[], r.interior, d.interior),
+    fill: (() => {
+      const f = (r.fill && typeof r.fill === 'object' ? r.fill : {}) as Record<string, unknown>;
+      return {
+        dresserAt: oneOf(Object.keys(DRESSER_AT) as DresserAt[], f.dresserAt, d.fill.dresserAt),
+        drawers: DRAWER_COUNTS.includes(Number(f.drawers) as 2) ? Number(f.drawers) : d.fill.drawers,
+        center: oneOf(Object.keys(FILL_KINDS) as FillKind[], f.center, d.fill.center),
+        sides: oneOf(Object.keys(FILL_KINDS) as FillKind[], f.sides, d.fill.sides),
+      };
+    })(),
     ironing: r.ironing === true,
+    glassBar: r.glassBar === true,
     ledMode: oneOf(Object.keys(LED_MODES) as LedMode[], r.ledMode, d.ledMode),
     sidePenals: r.sidePenals === true,
     bathPenal: r.bathPenal === true,
@@ -234,7 +262,7 @@ export interface Unit {
   tall?: TallModule;
   handleSide?: 'left' | 'right'; // для пеналів: ручка з боку робочої зони
   cargo?: boolean; // вузьке висувне карго
-  wardrobe?: { style: KupeStyle; mirror: MirrorKind; interior: WardrobeInterior; ironing: boolean };
+  wardrobe?: { style: KupeStyle; mirror: MirrorKind; fill: WardrobeFill; sections: WSection[] };
   sliding?: boolean;
   mirror?: boolean;
 }
@@ -410,9 +438,11 @@ export function buildScene(c: Config): SceneModel {
     if (c.mezzanine && !mezz) notes.push(`Антресоль не додано: висота ${H} мм`);
     const back: Wall = { kind: 'back' };
     const sliding = c.wardrobeDoors === 'Купе';
-    const doors = sliding ? Math.max(2, Math.round(W / 900)) : Math.max(2, Math.round(W / 450));
+    const sections = wardrobeSections(W, carcassThickness(c), !sliding, c.glassBar, c.ironing);
+    // купе - за шириною; розпашні - по 2 двері на секцію (+1 скляні двері вітрини), тож ручки завжди парами
+    const doors = sliding ? Math.max(2, Math.round(W / 900)) : sections.reduce((n, s) => n + (s.kind === 'bar' ? 1 : 2), 0);
     units.push({ id: nid('wardrobe'), kind: 'wardrobe', frame: place(back, 0, W), y: 0, w: W, h: H - mezz, d: D, plinth: 80, zone: 'base', doors, drawers: 0, handleAt: 'side', sliding,
-      wardrobe: { style: c.kupeStyle, mirror: c.mirrorKind, interior: c.interior, ironing: c.ironing } });
+      wardrobe: { style: c.kupeStyle, mirror: c.mirrorKind, fill: c.fill, sections } });
     // купе: напрямні й двері стоять усередині корпусу і забирають ~100 мм глибини
     if (sliding) notes.push(`Купе забирає ~100 мм глибини: корисна глибина ${D - 100} мм${D < 700 ? ' (для повноцінної штанги рекомендуємо глибину 700 мм)' : ''}`);
     const doorH = H - mezz - 80 - 2 * carcassThickness(c);

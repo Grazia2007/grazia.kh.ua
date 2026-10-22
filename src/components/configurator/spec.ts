@@ -1,5 +1,5 @@
 // Текст специфікації ліда. Той самий текст бачить клієнт (підсумок) і менеджер (Telegram, orders).
-import { buildScene, carcassThickness, dimFields, TALL_MODULES, KUPE_STYLES, MIRROR_KINDS, INTERIORS_W, LED_MODES, type Config, type Unit } from './layout';
+import { buildScene, carcassThickness, dimFields, TALL_MODULES, KUPE_STYLES, MIRROR_KINDS, DRESSER_AT, FILL_KINDS, LED_MODES, type Config, type Unit } from './layout';
 import { facadeOf, carcassOf, countertopOf, handleOf, backsplashOf, materialLabel } from './materials';
 
 const KIND_LABEL: Record<Unit['kind'], string> = {
@@ -41,13 +41,14 @@ export function buildSpec(c: Config): string[] {
     lines.push(`Правий пенал: ${TALL_MODULES[c.rightModule]}`);
   }
   if (c.type === 'Шафа-купе / Гардеробна') {
-    lines.push(`Двері: ${c.wardrobeDoors}, ${model.units.find((u) => u.kind === 'wardrobe')?.doors ?? 0} шт.`);
+    lines.push(`Двері: ${c.wardrobeDoors}, ${model.units.find((u) => u.kind === 'wardrobe')?.doors ?? 0} шт.${c.wardrobeDoors === 'Розпашні' && c.glassBar ? ' (крайні - скляна вітрина з підсвіткою)' : ''}`);
     lines.push(`Антресоль: ${model.units.some((u) => u.kind === 'top') ? 'так' : 'ні'}`);
     if (c.wardrobeDoors === 'Купе') {
       lines.push(`Двері купе: ${KUPE_STYLES[c.kupeStyle]}`);
       if (c.kupeStyle !== 'ldsp') lines.push(`Дзеркало: ${MIRROR_KINDS[c.mirrorKind]}`);
     }
-    lines.push(`Наповнення: ${INTERIORS_W[c.interior]}${c.ironing ? '; місце під прасувальну дошку' : ''}`);
+    const f = c.fill;
+    lines.push(`Наповнення: комоди - ${DRESSER_AT[f.dresserAt].toLowerCase()}${f.dresserAt !== 'none' ? ` (${f.drawers} шухляди)` : ''}; центр - ${FILL_KINDS[f.center].toLowerCase()}; боки - ${FILL_KINDS[f.sides].toLowerCase()}${c.ironing ? '; місце під прасувальну дошку' : ''}`);
   }
   if (c.type === 'Меблі у вітальню') lines.push(`Пенали з боків: ${c.sidePenals ? 'так' : 'ні'}`);
   if (c.type === 'Меблі для ванної') lines.push(`Пенал: ${c.bathPenal ? 'так' : 'ні'}`);
