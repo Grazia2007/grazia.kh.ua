@@ -207,6 +207,8 @@ export interface SceneModel {
   fixtures: Fixture[];
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number; maxY: number };
   notes: string[];
+  // бічні стіни кімнати (для кутових і П-подібних): x і довжина в мм
+  walls: { left?: number; right?: { x: number; len: number } };
 }
 
 type Wall = { kind: 'back' } | { kind: 'left' } | { kind: 'right'; x: number } | { kind: 'island'; x0: number; len: number; z: number };
@@ -239,6 +241,7 @@ export function buildScene(c: Config): SceneModel {
   const slabs: Slab[] = [];
   const fixtures: Fixture[] = [];
   const notes: string[] = [];
+  const walls: SceneModel['walls'] = {};
   let id = 0;
   const nid = (p: string) => `${p}${++id}`;
 
@@ -266,8 +269,9 @@ export function buildScene(c: Config): SceneModel {
     const counterD = K.baseD + K.facadeOffset + K.facadeT + c.counterOverhang;
     const cornerD = K.baseD + K.facadeOffset + K.facadeT; // ширина "сліпої" зони кута
     const twoTier = c.upperTier === 'Двоярусні (з антресолями)';
-    const tierH = Math.min(K.tierMax, height - K.tallH - 20);
-    const tier = twoTier && tierH >= 200;
+    // антресолі займають простір до стелі (мінус 20 мм монтажного зазору), а не додають висоту
+    const tierH = Math.min(900, height - 20 - K.tallH);
+    const tier = twoTier && tierH >= 250;
     if (twoTier && !tier) notes.push(`Антресолі не вміщуються: стеля ${height} мм`);
 
     const baseProto = { kind: 'base' as const, y: 0, h: K.baseH, d: K.baseD, plinth: K.plinth, zone: 'base' as const, handleAt: 'top' as const, drawersEvery: 3 };
@@ -275,17 +279,17 @@ export function buildScene(c: Config): SceneModel {
     // антресолі глибокі, як нижні модулі й пенали; верхні лишаються вузькими (рівень голови)
     const topProto = { kind: 'top' as const, y: K.tallH, h: tierH, d: K.baseD, plinth: 0, zone: 'topTier' as const, handleAt: 'bottom' as const, doors: 1 };
     const addTall = (wall: Wall, s: number, mod: TallModule) => {
-      units.push({ id: nid('tall'), kind: 'tall', frame: place(wall, s, 600), y: 0, w: 600, h: K.tallH, d: K.baseD, plinth: K.plinth, zone: 'base', doors: 1, drawers: 0, handleAt: 'side', tall: mod });
-      if (tier) units.push({ id: nid('top'), kind: 'top', frame: place(wall, s, 600), y: K.tallH, w: 600, h: tierH, d: K.baseD, plinth: 0, zone: 'topTier', doors: 1, drawers: 0, handleAt: 'bottom' });
+      // з антресолями пенал іде до стелі одним корпусом - верхній фасад суцільний
+      units.push({ id: nid('tall'), kind: 'tall', frame: place(wall, s, 600), y: 0, w: 600, h: K.tallH + (tier ? tierH : 0), d: K.baseD, plinth: K.plinth, zone: 'base', doors: 1, drawers: 0, handleAt: 'side', tall: mod });
     };
-    const counter = (wall: Wall, s0: number, s1: number, d = counterD, z0 = 0) => {
+    const counter = (wall: Wall, s0: number, s1: number, d = counterD, z0 = 0, splashFrom = s0) => {
       if (s1 - s0 <= 0) return;
       slabs.push({ id: nid('top'), frame: place(wall, s0, s1 - s0), y: K.baseH, x0: 0, z0, w: s1 - s0, h: c.counterThickness, d });
       // фартух - на стіні від стільниці до верхніх шаф; скло 6 мм, решта 12 мм
       if (c.backsplash !== 'none' && wall.kind !== 'island') {
         const y = K.baseH + c.counterThickness;
         const th = GLASS.some((g) => g.code === c.backsplash) ? 6 : 12;
-        slabs.push({ id: nid('bs'), kind: 'backsplash', frame: place(wall, s0, s1 - s0), y, x0: 0, z0: 0, w: s1 - s0, h: K.upperY - y, d: th });
+        slabs.push({ id: nid('bs'), kind: 'backsplash', frame: place(wall, splashFrom, s1 - splashFrom), y, x0: 0, z0: 0, w: s1 - splashFrom, h: K.upperY - y, d: th });
       }
     };
     const corner = (wall: Wall, s: number, side: 'start' | 'end') =>
@@ -308,13 +312,14 @@ export function buildScene(c: Config): SceneModel {
     const side = (wall: Wall, len: number, tallW: number, mod: TallModule) => {
       const end = len - tallW;
       fill(wall, cornerD, end, baseProto);
-      counter(wall, counterD, end);
+      // фартух бічної стіни - від самого кута, щоб не було щілини
+      counter(wall, counterD, end, counterD, 0, 12);
       fill(wall, K.upperD, end, upperProto);
       if (tier) fill(wall, cornerD, end, topProto);
       if (tallW) addTall(wall, end, mod);
     };
-    if (hasLeft) side(left, b, lt, c.leftModule);
-    if (hasRight) side(right, rightLen, rt, c.rightModule);
+    if (hasLeft) { side(left, b, lt, c.leftModule); walls.left = b; }
+    if (hasRight) { side(right, rightLen, rt, c.rightModule); walls.right = { x: a, len: rightLen }; }
 
     // мийка й варильна поверхня - лише як орієнтир на макеті
     const sinkWall = hasLeft ? left : hasRight ? right : back;
@@ -384,5 +389,5 @@ export function buildScene(c: Config): SceneModel {
   fixtures.forEach((f) => grow(f.frame, f.x0, f.z0, f.w, f.d, f.y + f.h));
   if (!Number.isFinite(bounds.minX)) Object.assign(bounds, { minX: 0, maxX: 1000, minZ: 0, maxZ: 600, maxY: 1000 });
 
-  return { units, slabs, fixtures, bounds, notes };
+  return { units, slabs, fixtures, bounds, notes, walls };
 }

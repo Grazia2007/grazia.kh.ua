@@ -52,6 +52,12 @@ const CLASS_INFO: { id: Config['furnitureClass']; desc: string; icon: ReactNode 
 ];
 const GIFT_ICONS: Record<string, ReactNode> = { 'Висувне Карго': <Box size={24} />, 'LED Підсвітка': <Sun size={24} />, "Кам'яна Мийка": <CheckCircle2 size={24} /> };
 
+const GIFT_NOTE: Record<string, string> = {
+  'Висувне Карго': 'Висувна секція з кошиками',
+  'LED Підсвітка': 'Під верхніми шафами',
+  "Кам'яна Мийка": 'Гранітна мийка Granado',
+};
+
 const label = 'text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3';
 const choice = (on: boolean) =>
   `border rounded-lg transition-colors duration-200 text-left ${on ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`;
@@ -381,7 +387,7 @@ export default function Configurator() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {GIFTS.map((g) => (
                         <button key={g} type="button" aria-pressed={config.gift === g} onClick={() => set({ gift: g })} className={`${choice(config.gift === g)} p-5 flex flex-col items-center text-center gap-3`}>
-                          {GIFT_ICONS[g]}<span className="text-sm font-medium">{g}</span>
+                          {GIFT_ICONS[g]}<span className="text-sm font-medium">{g}</span><span className="text-[11px] text-[var(--text-muted)]">{GIFT_NOTE[g]}</span>
                         </button>
                       ))}
                     </div>

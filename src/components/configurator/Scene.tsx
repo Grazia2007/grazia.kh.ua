@@ -5,7 +5,7 @@ import { useEffect, useMemo, type MutableRefObject } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
-import { buildScene, carcassThickness, type Config, type SceneModel } from './layout';
+import { buildScene, carcassThickness, K, type Config, type SceneModel } from './layout';
 import { type Interior, facadeOf, carcassOf, countertopOf, handleOf, backsplashOf, type Material } from './materials';
 import { Cabinet, SlabMesh, FixtureMesh, type Mats } from './modules';
 
@@ -85,7 +85,7 @@ function floorTexture(kind: Interior): { tex: THREE.CanvasTexture; meters: numbe
   return { tex, meters };
 }
 
-function Room({ interior, cx, cz, span }: { interior: Interior; cx: number; cz: number; span: number }) {
+function Room({ interior, cx, cz, span, walls }: { interior: Interior; cx: number; cz: number; span: number; walls: SceneModel['walls'] }) {
   const size = span * 4 + 6;
   const floor = useMemo(() => {
     const f = floorTexture(interior);
@@ -104,6 +104,21 @@ function Room({ interior, cx, cz, span }: { interior: Interior; cx: number; cz: 
         <planeGeometry args={[size, span * 3 + 4]} />
         <meshStandardMaterial color={WALL[interior]} roughness={0.95} />
       </mesh>
+      {/* бічні стіни кутових/П-подібних кухонь; видно лише зсередини (FrontSide), тож не заважають крутити камеру */}
+      {walls.left !== undefined && (
+        <mesh position={[-0.002, span * 1.5, (walls.left / 1000 + 0.6) / 2]} rotation-y={Math.PI / 2} receiveShadow>
+          <planeGeometry args={[walls.left / 1000 + 0.6, span * 3 + 4]} />
+          {/* легке самосвітіння: бічна стіна часто в тіні від ключового світла */}
+          <meshStandardMaterial color={WALL[interior]} roughness={0.95} emissive={WALL[interior]} emissiveIntensity={0.35} />
+        </mesh>
+      )}
+      {walls.right && (
+        <mesh position={[walls.right.x / 1000 + 0.002, span * 1.5, (walls.right.len / 1000 + 0.6) / 2]} rotation-y={-Math.PI / 2} receiveShadow>
+          <planeGeometry args={[walls.right.len / 1000 + 0.6, span * 3 + 4]} />
+          {/* легке самосвітіння: бічна стіна часто в тіні від ключового світла */}
+          <meshStandardMaterial color={WALL[interior]} roughness={0.95} emissive={WALL[interior]} emissiveIntensity={0.35} />
+        </mesh>
+      )}
     </>
   );
 }
@@ -203,18 +218,26 @@ function Furniture({ config, model }: { config: Config; model: SceneModel }) {
     glass: new THREE.MeshStandardMaterial({ color: '#0d0d0f', roughness: 0.08, metalness: 0.3 }),
     mirror: new THREE.MeshStandardMaterial({ color: '#dfe6ea', roughness: 0.03, metalness: 1 }),
     ceramic: new THREE.MeshStandardMaterial({ color: '#fbfbfa', roughness: 0.15 }),
+    granite: new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55 }),
   }), [base, upper, topTier, carcass, countertop, handle]);
   useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
   const splashMat = useMemo(() => makeMat(backsplashOf(config.backsplash, countertop)), [config.backsplash, countertop]);
   useEffect(() => () => splashMat.dispose(), [splashMat]);
 
   const hType = handleOf(handle).type;
+  // візуалізація подарунка: карго висувається, LED світить, мийка - гранітна
+  const kitchen = config.type === 'Кухня';
+  const cargoId = kitchen ? (model.units.find((u) => u.kind === 'base' && u.doors === 1) ?? model.units.find((u) => u.kind === 'base' && u.doors > 0))?.id : undefined;
+  const cargoOpen = config.gift === 'Висувне Карго';
+  const led = kitchen && config.gift === 'LED Підсвітка';
+  const granite = config.gift === "Кам'яна Мийка";
+  const ledDrop = K.upperY - K.baseH - config.counterThickness;
   const t = carcassThickness(config);
   return (
     <group scale={0.001}>
-      {model.units.map((u) => <Cabinet key={u.id} u={u} mats={mats} handle={hType} t={t} />)}
+      {model.units.map((u) => <Cabinet key={u.id} u={u} mats={mats} handle={hType} t={t} cargo={u.id === cargoId ? cargoOpen : undefined} led={led && u.kind === 'upper' ? ledDrop : undefined} />)}
       {model.slabs.map((s) => <SlabMesh key={s.id} s={s} m={s.kind === 'backsplash' ? splashMat : mats.countertop} />)}
-      {model.fixtures.map((f) => <FixtureMesh key={f.id} f={f} mats={mats} />)}
+      {model.fixtures.map((f) => <FixtureMesh key={f.id} f={f} mats={mats} granite={granite} />)}
     </group>
   );
 }
@@ -263,7 +286,7 @@ export default function Scene({ config, apiRef, interior = 'studio' }: { config:
       <Furniture config={config} model={model} />
 
       {/* підлога і задня стіна приймають тіні */}
-      <Room interior={interior} cx={cx} cz={cz} span={span} />
+      <Room interior={interior} cx={cx} cz={cz} span={span} walls={model.walls} />
 
       <OrbitControls
         makeDefault

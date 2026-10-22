@@ -64,6 +64,6 @@ export function buildSpec(c: Config): string[] {
     if (c.type === 'Кухня') lines.push(`• Фартук: ${c.backsplash === 'none' ? 'без фартуха' : c.backsplash === 'same' ? 'як стільниця' : materialLabel(backsplashOf(c.backsplash, c.materials.countertop))}`);
   }
   for (const n of model.notes) lines.push(`⚠ ${n}`);
-  lines.push(`Подарунок: ${c.gift || 'не обрано'}`);
+  lines.push(`Подарунок: ${c.gift === "Кам'яна Мийка" ? "Кам'яна мийка Granado" : c.gift || 'не обрано'}`);
   return lines;
 }

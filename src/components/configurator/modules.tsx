@@ -1,12 +1,13 @@
 'use client';
 // Параметричні модулі: корпус з ДСП заданої товщини, цоколь, фасади із зазором, ручки.
 // Усі розміри в мм у локальній системі модуля (X - ширина, Y - висота, Z - до фасаду).
-import { memo, type ReactNode } from 'react';
+import { memo, useEffect, useRef, type ReactNode } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { K, type Unit, type Slab, type Fixture } from './layout';
 import type { HandleType } from './materials';
 
-export type MatKey = 'carcass' | 'base' | 'upper' | 'topTier' | 'countertop' | 'handle' | 'plinth' | 'steel' | 'glass' | 'mirror' | 'ceramic';
+export type MatKey = 'carcass' | 'base' | 'upper' | 'topTier' | 'countertop' | 'handle' | 'plinth' | 'steel' | 'glass' | 'mirror' | 'ceramic' | 'granite';
 export type Mats = Record<MatKey, THREE.Material>;
 
 // одна геометрія на всю сцену, розмір задає scale
@@ -52,7 +53,8 @@ function Facade({ r, z, m, mats, handle }: { r: Rect; z: number; m: THREE.Materi
     const hz = z + t + 18;
     if (r.rail.orient === 'h') {
       const len = Math.max(60, Math.min(w - 120, 320));
-      extra = <Box x={x + (w - len) / 2} y={y + h - 50} z={hz} w={len} h={12} d={12} m={mats.handle} />;
+      // на антресолях і верхніх (відкриваються вгору) - ручка знизу, а не під стелею
+      extra = <Box x={x + (w - len) / 2} y={r.profile === 'bottom' ? y + 38 : y + h - 50} z={hz} w={len} h={12} d={12} m={mats.handle} />;
     } else {
       const len = Math.min(RAIL, h - 80);
       const hx = r.rail.side === 'left' ? x + 40 : x + w - 52;
@@ -76,7 +78,65 @@ function doorRow(x0: number, w: number, y: number, h: number, n: number, profile
   });
 }
 
-function CabinetImpl({ u, mats, handle, t }: { u: Unit; mats: Mats; handle: HandleType; t: number }) {
+// плавно висуває вміст (карго) - кадри рендеряться лише під час руху
+function Slide({ open, by, children }: { open: boolean; by: number; children: ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => { invalidate(); }, [open, invalidate]);
+  useFrame((_, dt) => {
+    const g = ref.current;
+    if (!g) return;
+    const target = open ? by : 0;
+    const diff = target - g.position.z;
+    if (Math.abs(diff) < 0.5) { g.position.z = target; return; }
+    g.position.z += diff * Math.min(1, dt * 5);
+    invalidate();
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
+// м'яке світіння LED-стрічки: градієнт згенерований один раз
+let glowTex: THREE.CanvasTexture | null = null;
+function glowTexture() {
+  if (glowTex) return glowTex;
+  const cv = document.createElement('canvas');
+  cv.width = 4; cv.height = 256;
+  const g = cv.getContext('2d')!;
+  const gr = g.createLinearGradient(0, 0, 0, 256);
+  gr.addColorStop(0, 'rgba(255,226,170,0.85)');
+  gr.addColorStop(0.35, 'rgba(255,220,160,0.35)');
+  gr.addColorStop(1, 'rgba(255,215,150,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 4, 256);
+  glowTex = new THREE.CanvasTexture(cv);
+  glowTex.colorSpace = THREE.SRGBColorSpace;
+  return glowTex;
+}
+
+function Led({ w, d, drop }: { w: number; d: number; drop: number }) {
+  const tex = glowTexture();
+  return (
+    <>
+      {/* стрічка під шафою */}
+      <mesh position={[w / 2, -3, d - 50]} scale={[w - 40, 6, 14]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial color="#fff1d0" toneMapped={false} />
+      </mesh>
+      {/* світло на фартусі */}
+      <mesh position={[w / 2, -drop / 2, 14]}>
+        <planeGeometry args={[w, drop]} />
+        <meshBasicMaterial map={tex} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+      </mesh>
+      {/* і на стільниці */}
+      <mesh position={[w / 2, -drop + 1, 14 + 300]} rotation-x={-Math.PI / 2}>
+        <planeGeometry args={[w, 600]} />
+        <meshBasicMaterial map={tex} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} opacity={0.6} />
+      </mesh>
+    </>
+  );
+}
+
+function CabinetImpl({ u, mats, handle, t, cargo, led }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number }) {
   const fm = mats[u.zone];
   const y0 = u.plinth;
   const hc = u.h - y0;
@@ -146,7 +206,27 @@ function CabinetImpl({ u, mats, handle, t }: { u: Unit; mats: Mats; handle: Hand
   const doorMat = u.mirror ? mats.mirror : fm;
   // верхні шафи з Gola не мають каналу - відкриваються push-to-open
   const h2: HandleType = handle === 'gola' && (u.kind === 'upper' || u.kind === 'top' || u.kind === 'mirror') ? 'none' : handle;
-  rects.forEach((r, i) => items.push(<Facade key={`f${i}`} r={r} z={fz} m={doorMat} mats={mats} handle={u.mirror ? 'none' : h2} />));
+  const fronts = rects.map((r, i) => <Facade key={`f${i}`} r={r} z={fz} m={doorMat} mats={mats} handle={u.mirror ? 'none' : h2} />);
+  if (cargo !== undefined) {
+    // карго: фасад виїжджає разом із кошиками (3 рівні + стійки)
+    const bw = u.w - 2 * t - 30, bd = u.d - 80, bx = t + 15, bz = 40;
+    const baskets = [0.12, 0.42, 0.72].flatMap((k, i) => {
+      const by = y0 + hc * k;
+      return [
+        <Box key={`cb${i}`} x={bx} y={by} z={bz} w={bw} h={6} d={bd} m={mats.steel} />,
+        <Box key={`cf${i}`} x={bx} y={by} z={bz + bd - 6} w={bw} h={70} d={6} m={mats.steel} />,
+        <Box key={`ck${i}`} x={bx} y={by} z={bz} w={bw} h={70} d={6} m={mats.steel} />,
+      ];
+    });
+    items.push(
+      <Slide key="cargo" open={cargo} by={Math.min(450, u.d - 60)}>
+        {fronts}
+        {baskets}
+        <Box x={bx} y={y0 + t} z={bz + bd / 2 - 8} w={bw} h={hc - 2 * t - 40} d={16} m={mats.steel} />
+      </Slide>,
+    );
+  } else items.push(...fronts);
+  if (led) items.push(<Led key="led" w={u.w} d={u.d} drop={led} />);
   // дзеркальна шафа: рамка-полиця знизу в кольорі фасаду
   if (u.mirror) box('mf', 0, y0 - 20, 0, u.w, 20, u.d + K.facadeOffset + K.facadeT, fm);
 
@@ -166,8 +246,18 @@ export function SlabMesh({ s, m }: { s: Slab; m: THREE.Material }) {
   );
 }
 
-export function FixtureMesh({ f, mats }: { f: Fixture; mats: Mats }) {
+export function FixtureMesh({ f, mats, granite }: { f: Fixture; mats: Mats; granite?: boolean }) {
   const m = f.kind === 'hob' || f.kind === 'tv' ? mats.glass : f.kind === 'basin' ? mats.ceramic : mats.steel;
+  if (f.kind === 'sink' && granite) {
+    // гранітна мийка: борт + чаша (темніша, трохи нижче борту)
+    return (
+      <group position={[f.frame.x, f.y, f.frame.z]} rotation={[0, f.frame.rotY, 0]}>
+        <Box x={f.x0} y={0} z={f.z0} w={f.w} h={10} d={f.d} m={mats.granite} />
+        <Box x={f.x0 + 40} y={0} z={f.z0 + 40} w={f.w - 80} h={11} d={f.d - 80} m={mats.glass} />
+        <Box x={f.x0 + f.w / 2 - 20} y={0} z={f.z0 - 40} w={40} h={260} d={40} m={mats.granite} />
+      </group>
+    );
+  }
   return (
     <group position={[f.frame.x, f.y, f.frame.z]} rotation={[0, f.frame.rotY, 0]}>
       <Box x={f.x0} y={0} z={f.z0} w={f.w} h={f.h} d={f.d} m={m} />
