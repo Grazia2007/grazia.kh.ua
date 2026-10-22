@@ -143,7 +143,7 @@ const toWorld = (f: { x: number; z: number; rotY: number }, lx: number, y: numbe
 
 // показ подарунка: карго - збоку спереду, мийка - зверху спереду, LED - фронтально на всю кухню
 export function giftFocus(config: Config, model: SceneModel): Focus | null {
-  if (config.type === 'Шафа-купе / Гардеробна' && config.gift === 'LED Підсвітка') {
+  if ((config.type === 'Шафа-купе / Гардеробна' || config.type === 'Меблі у вітальню') && config.gift === 'LED Підсвітка') {
     // шафа зі світлом: фронтально, двері відчинені
     const b = model.bounds;
     const t = new THREE.Vector3((b.minX + b.maxX) / 2000, b.maxY / 2000, (b.minZ + b.maxZ) / 2000);
@@ -360,7 +360,7 @@ function Furniture({ config, model, doorsMode, openSlot }: { config: Config; mod
   const cargoOpen = config.gift === 'Висувне Карго';
   const led = kitchen && config.gift === 'LED Підсвітка';
   const granite = config.gift === "Кам'яна Мийка";
-  const wardrobeLed = config.type === 'Шафа-купе / Гардеробна' && config.gift === 'LED Підсвітка';
+  const wardrobeLed = (config.type === 'Шафа-купе / Гардеробна' || config.type === 'Меблі у вітальню') && config.gift === 'LED Підсвітка';
   const ledDrop = K.upperY - K.baseH - config.counterThickness;
   const t = carcassThickness(config);
   return (

@@ -65,6 +65,24 @@ export function wardrobeSections(W: number, t: number, hinged: boolean, bar: boo
   return out;
 }
 
+// вітальня / ТВ-зона
+export const LIV_COLUMNS = { none: 'Немає', shelves: 'Стелаж (відкриті полиці)', vitrine: 'Вітрина зі склом', closed: 'Закрита шафа' } as const;
+export type LivColumn = keyof typeof LIV_COLUMNS;
+export const LIV_FRONTS = { drawers: 'Шухляди', doors: 'Дверцята', flip: 'Відкидні фасади' } as const;
+export type LivFronts = keyof typeof LIV_FRONTS;
+export const TV_SIZES = [55, 65, 75] as const;
+export interface Living {
+  mount: 'floor' | 'wall'; // тумба на підлозі (цоколь) чи підвісна
+  fronts: LivFronts;
+  niche: boolean; // відкрита ніша під техніку по центру тумби
+  left: LivColumn;
+  right: LivColumn;
+  shelves: number; // настінні полиці над ТВ: 0-3
+  panel: boolean; // декоративна панель за ТВ
+  tv: 'wall' | 'stand';
+  tvSize: number;
+}
+
 export interface WardrobeFill { dresserAt: DresserAt; drawers: number; center: FillKind; sides: FillKind }
 export const SHEET_MAX = 2780; // лист 2800 мм мінус обробка кромок
 export const CALL_TIMES = ['Найближчим часом', '10:00 - 12:00', '14:00 - 16:00', 'Після 18:00'] as const;
@@ -92,6 +110,7 @@ export interface Config {
   glassBar: boolean;
   ledMode: LedMode;
   sidePenals: boolean;
+  living: Living;
   bathPenal: boolean;
   materials: { base: string; upper: string; topTier: string; carcass: string; countertop: string; handle: string };
   counterThickness: number;
@@ -151,6 +170,7 @@ export const DEFAULT_CONFIG: Config = {
   glassBar: false,
   ledMode: 'vertical',
   sidePenals: true,
+  living: { mount: 'floor', fronts: 'drawers', niche: true, left: 'vitrine', right: 'shelves', shelves: 0, panel: false, tv: 'wall', tvSize: 65 },
   bathPenal: false,
   materials: { base: 'GR-F05', upper: 'GR-F01', topTier: 'GR-V01', carcass: 'GR-C01', countertop: 'GR-T01', handle: 'GR-H04' },
   counterThickness: 38,
@@ -205,6 +225,22 @@ export function normalizeConfig(raw: unknown): Config {
     glassBar: r.glassBar === true,
     ledMode: oneOf(Object.keys(LED_MODES) as LedMode[], r.ledMode, d.ledMode),
     sidePenals: r.sidePenals === true,
+    living: (() => {
+      const v = (r.living && typeof r.living === 'object' ? r.living : {}) as Record<string, unknown>;
+      const dl = d.living;
+      const col = (x: unknown, def: LivColumn) => oneOf(Object.keys(LIV_COLUMNS) as LivColumn[], x, def);
+      return {
+        mount: v.mount === 'wall' ? 'wall' : 'floor',
+        fronts: oneOf(Object.keys(LIV_FRONTS) as LivFronts[], v.fronts, dl.fronts),
+        niche: v.niche === true,
+        left: col(v.left, 'none'),
+        right: col(v.right, 'none'),
+        shelves: Math.max(0, Math.min(3, Math.round(Number(v.shelves) || 0))),
+        panel: v.panel === true,
+        tv: v.tv === 'stand' ? 'stand' : 'wall',
+        tvSize: TV_SIZES.includes(Number(v.tvSize) as 55) ? Number(v.tvSize) : dl.tvSize,
+      } as Living;
+    })(),
     bathPenal: r.bathPenal === true,
     materials: {
       base: code(FACADE_ALL, m.base, d.materials.base),
@@ -246,7 +282,7 @@ export const carcassThickness = (c: Pick<Config, 'furnitureClass'>) => (c.furnit
 // Frame - точка "ліво-низ-зад" модуля і поворот навколо Y.
 export interface Frame { x: number; z: number; rotY: number }
 
-export type UnitKind = 'base' | 'corner' | 'upper' | 'top' | 'tall' | 'wardrobe' | 'hanging' | 'vanity' | 'mirror' | 'penal';
+export type UnitKind = 'base' | 'corner' | 'upper' | 'top' | 'tall' | 'wardrobe' | 'hanging' | 'vanity' | 'mirror' | 'penal' | 'living';
 
 export interface Unit {
   id: string;
@@ -265,6 +301,7 @@ export interface Unit {
   tall?: TallModule;
   handleSide?: 'left' | 'right'; // для пеналів: ручка з боку робочої зони
   cargo?: boolean; // вузьке висувне карго
+  living?: Living & { colW: number; colH: number; tumbaY: number; tumbaH: number; modules: number[] };
   wardrobe?: { style: KupeStyle; mirror: MirrorKind; fill: WardrobeFill; sections: WSection[]; mezz?: 'lift' | 'hinged' };
   sliding?: boolean;
   mirror?: boolean;
@@ -454,15 +491,23 @@ export function buildScene(c: Config): SceneModel {
     if (mezz) units.push({ id: nid('mezz'), kind: 'wardrobe', frame: place(back, 0, W), y: H - mezz, w: W, h: mezz, d: D, plinth: 0, zone: 'base', doors: sections.length * (c.mezzDoors === 'hinged' ? 2 : 1), drawers: 0, handleAt: 'bottom',
       wardrobe: { style: c.kupeStyle, mirror: c.mirrorKind, fill: c.fill, sections, mezz: c.mezzDoors } });
   } else if (c.type === 'Меблі у вітальню') {
+    // ТВ-зона одним модулем: тумба між колонами, колони (стелаж/вітрина/шафа), полиці, панель, ТВ
     const { a: W, height: H } = c.dims;
-    const back: Wall = { kind: 'back' };
-    const side = c.sidePenals ? 450 : 0;
-    const tallH = Math.min(H - 100, 2200);
-    if (side) {
-      for (const s of [0, W - side]) units.push({ id: nid('penal'), kind: 'penal', frame: place(back, s, side), y: 0, w: side, h: tallH, d: 400, plinth: 80, zone: 'base', doors: 1, drawers: 0, handleAt: 'side' });
-    }
-    fill(back, side, W - side, { kind: 'hanging', y: 250, h: 450, d: 420, plinth: 0, zone: 'base', handleAt: 'top', target: 800, doors: 1 });
-    fixtures.push({ id: nid('tv'), kind: 'tv', frame: place(back, W / 2 - 725, 1450), y: 1000, x0: 0, z0: 30, w: 1450, h: 830, d: 40 });
+    const v = c.living;
+    const colW = 450;
+    const colH = Math.min(H - 100, 2100);
+    const l = v.left !== 'none' ? colW : 0, r = v.right !== 'none' ? colW : 0;
+    const tumbaY = v.mount === 'wall' ? 250 : 0;
+    const tumbaH = v.mount === 'wall' ? 400 : 480;
+    const modules = splitWidths(W - l - r, 700, 400, 900);
+    units.push({ id: nid('living'), kind: 'living', frame: place({ kind: 'back' }, 0, W), y: 0, w: W, h: colH, d: 420, plinth: 0, zone: 'base', doors: 0, drawers: 0, handleAt: 'side',
+      living: { ...v, colW, colH, tumbaY, tumbaH, modules } });
+    // ТВ: 16:9, ширина корпусу за діагоналлю
+    const tw = Math.round(v.tvSize * 25.4 * 0.885), th = Math.round(tw * 0.5625);
+    const top = tumbaY + tumbaH + 18;
+    const ty = v.tv === 'stand' ? top + 70 : Math.max(top + 250, 1050 - th / 2);
+    fixtures.push({ id: nid('tv'), kind: 'tv', frame: place({ kind: 'back' }, (W + l - r) / 2 - tw / 2, tw), y: ty, x0: 0, z0: v.tv === 'stand' ? 150 : 30, w: tw, h: th, d: 40 });
+    if (v.tvSize >= 75 && W - l - r < tw + 200) notes.push(`ТВ ${v.tvSize}" ширший за тумбу між колонами`);
   } else {
     const W = c.dims.a;
     const back: Wall = { kind: 'back' };

@@ -6,6 +6,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { K, type Unit, type Slab, type Fixture, type LedMode } from './layout';
 import { WardrobeUnit } from './wardrobe';
+import { LivingUnit } from './living';
 import type { HandleType } from './materials';
 
 export type MatKey = 'carcass' | 'base' | 'upper' | 'topTier' | 'countertop' | 'handle' | 'plinth' | 'steel' | 'glass' | 'mirror' | 'ceramic' | 'granite' | 'mirrorPattern' | 'photo' | 'lacomat' | 'glassClear';
@@ -146,6 +147,7 @@ function Led({ w, d, drop }: { w: number; d: number; drop: number }) {
 }
 
 function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors, doorsKey, openSlot }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number; open?: boolean; ledMode?: LedMode | null; hideDoors?: boolean; doorsKey?: string; openSlot?: number }) {
+  if (u.kind === 'living') return <LivingUnit u={u} mats={mats} handle={handle} t={t} open={!!open} hide={!!hideDoors} doorsKey={doorsKey ?? ''} led={!!ledMode} />;
   if (u.kind === 'wardrobe') return <WardrobeUnit u={u} mats={mats} handle={handle} t={t} open={!!open} ledMode={ledMode ?? null} hide={!!hideDoors} doorsKey={doorsKey ?? ''} openSlot={openSlot ?? 0} />;
   const fm = mats[u.zone];
   const y0 = u.plinth;

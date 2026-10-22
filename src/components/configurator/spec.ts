@@ -1,5 +1,5 @@
 // Текст специфікації ліда. Той самий текст бачить клієнт (підсумок) і менеджер (Telegram, orders).
-import { buildScene, carcassThickness, dimFields, TALL_MODULES, KUPE_STYLES, MIRROR_KINDS, DRESSER_AT, FILL_KINDS, LED_MODES, type Config, type Unit } from './layout';
+import { buildScene, carcassThickness, dimFields, TALL_MODULES, LIV_COLUMNS, LIV_FRONTS, KUPE_STYLES, MIRROR_KINDS, DRESSER_AT, FILL_KINDS, LED_MODES, type Config, type Unit } from './layout';
 import { facadeOf, carcassOf, countertopOf, handleOf, backsplashOf, materialLabel } from './materials';
 
 const KIND_LABEL: Record<Unit['kind'], string> = {
@@ -13,6 +13,7 @@ const KIND_LABEL: Record<Unit['kind'], string> = {
   vanity: 'Тумба',
   mirror: 'Дзеркальна шафа',
   penal: 'Пенали',
+  living: 'ТВ-зона (тумба + колони)',
 };
 
 export const hasCountertop = (c: Config) => c.type === 'Кухня' || c.type === 'Меблі для ванної';
@@ -24,6 +25,7 @@ export function facadeZones(c: Config): { id: 'base' | 'upper' | 'topTier'; labe
     if (c.upperTier === 'Двоярусні (з антресолями)') z.push({ id: 'topTier', label: 'Антресолі' });
     return z;
   }
+  if (c.type === 'Меблі у вітальню') return [{ id: 'base', label: 'Фасади' }, { id: 'upper', label: 'Стільниця, полиці, панель' }];
   if (c.type === 'Меблі для ванної') return [{ id: 'base', label: 'Фасади тумби' }, { id: 'upper', label: 'Рамка дзеркальної шафи' }];
   return [{ id: 'base', label: 'Фасади' }];
 }
@@ -50,7 +52,15 @@ export function buildSpec(c: Config): string[] {
     const f = c.fill;
     lines.push(`Наповнення: комоди - ${DRESSER_AT[f.dresserAt].toLowerCase()}${f.dresserAt !== 'none' ? ` (${f.drawers} шухляди)` : ''}; центр - ${FILL_KINDS[f.center].toLowerCase()}; боки - ${FILL_KINDS[f.sides].toLowerCase()}${c.ironing ? '; місце під прасувальну дошку' : ''}`);
   }
-  if (c.type === 'Меблі у вітальню') lines.push(`Пенали з боків: ${c.sidePenals ? 'так' : 'ні'}`);
+  if (c.type === 'Меблі у вітальню') {
+    const v = c.living;
+    const u = model.units.find((x) => x.living)?.living;
+    lines.push(`Тумба: ${v.mount === 'wall' ? 'підвісна' : 'на підлозі'}, ${LIV_FRONTS[v.fronts].toLowerCase()}${v.niche ? ', відкрита ніша під техніку' : ''}${u ? ` (${u.modules.length} секції: ${u.modules.join(', ')} мм)` : ''}`);
+    lines.push(`Ліва колона: ${LIV_COLUMNS[v.left]}; права колона: ${LIV_COLUMNS[v.right]}`);
+    if (v.shelves) lines.push(`Настінні полиці над ТВ: ${v.shelves} шт.`);
+    if (v.panel) lines.push('Декоративна панель за ТВ');
+    lines.push(`ТВ ${v.tvSize}" ${v.tv === 'wall' ? 'на стіні' : 'на тумбі'}`);
+  }
   if (c.type === 'Меблі для ванної') lines.push(`Пенал: ${c.bathPenal ? 'так' : 'ні'}`);
 
   // модулі з ширинами

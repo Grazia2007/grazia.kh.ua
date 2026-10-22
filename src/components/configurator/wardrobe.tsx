@@ -11,7 +11,7 @@ import { Box, Facade, glowTexture, type Mats, type Rect } from './modules';
 // ---------- двері, що відчиняються ----------
 
 // hinge: обертання навколо вертикальної осі pivotX; lift: навколо горизонтальної осі pivotY (дверцята вгору); slide: зсув по X
-function Movable({ kind, pivotX = 0, pivotY = 0, pivotZ = 0, amount, open, children }: { kind: 'hinge' | 'slide' | 'lift'; pivotX?: number; pivotY?: number; pivotZ?: number; amount: number; open: boolean; children: ReactNode }) {
+export function Movable({ kind, pivotX = 0, pivotY = 0, pivotZ = 0, amount, open, children }: { kind: 'hinge' | 'slide' | 'lift'; pivotX?: number; pivotY?: number; pivotZ?: number; amount: number; open: boolean; children: ReactNode }) {
   const ref = useRef<THREE.Group>(null);
   const invalidate = useThree((s) => s.invalidate);
   const [local, setLocal] = useState(false);
@@ -215,7 +215,7 @@ function Interior({ u, t, mats, front, ledMode }: { u: Unit; t: number; mats: Ma
 }
 
 // скляні двері вітрини: алюмінієва рамка + прозоре скло
-function GlassDoor({ x, y, w, h, z, mats }: { x: number; y: number; w: number; h: number; z: number; mats: Mats }) {
+export function GlassDoor({ x, y, w, h, z, mats }: { x: number; y: number; w: number; h: number; z: number; mats: Mats }) {
   const g = K.gap / 2, fw = 22;
   const X = x + g, Y = y + g, Wd = w - K.gap, H = h - K.gap;
   return (
