@@ -102,7 +102,8 @@ function Room({ interior, cx, cz, span, walls }: { interior: Interior; cx: numbe
       </mesh>
       <mesh position={[cx, span * 1.5, -0.002]} receiveShadow>
         <planeGeometry args={[size, span * 3 + 4]} />
-        <meshStandardMaterial color={WALL[interior]} roughness={0.95} />
+        {/* той самий матеріал, що й у бічних стін - інакше в куті видно різницю тону смугою */}
+        <meshStandardMaterial color={WALL[interior]} roughness={0.95} emissive={WALL[interior]} emissiveIntensity={0.35} />
       </mesh>
       {/* бічні стіни кутових/П-подібних кухонь; видно лише зсередини (FrontSide), тож не заважають крутити камеру */}
       {walls.left !== undefined && (
