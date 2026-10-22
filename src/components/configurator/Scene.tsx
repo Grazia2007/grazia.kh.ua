@@ -131,7 +131,8 @@ type View = 'front' | 'angle';
 type Controls = { target: THREE.Vector3; update: () => void; addEventListener?: (t: 'start', f: () => void) => void; removeEventListener?: (t: 'start', f: () => void) => void };
 
 // куди підлетіти камері: точка, на яку дивимось, і позиція камери (метри)
-export interface Focus { key: string; target: [number, number, number]; pos: [number, number, number] }
+// frame: замість точок - вписати всю модель у кадр з потрібного ракурсу (з урахуванням пропорцій полотна)
+export interface Focus { key: string; target: [number, number, number]; pos: [number, number, number]; frame?: 'front' | 'angle' }
 
 // локальна точка модуля (мм) -> світові координати (м)
 const toWorld = (f: { x: number; z: number; rotY: number }, lx: number, y: number, lz: number) => {
@@ -141,6 +142,14 @@ const toWorld = (f: { x: number; z: number; rotY: number }, lx: number, y: numbe
 
 // показ подарунка: карго - збоку спереду, мийка - зверху спереду, LED - фронтально на всю кухню
 export function giftFocus(config: Config, model: SceneModel): Focus | null {
+  if (config.type === 'Шафа-купе / Гардеробна' && config.gift === 'LED Підсвітка') {
+    // шафа зі світлом: фронтально, двері відчинені
+    const b = model.bounds;
+    const t = new THREE.Vector3((b.minX + b.maxX) / 2000, b.maxY / 2000, (b.minZ + b.maxZ) / 2000);
+    const dist = Math.max((b.maxX - b.minX) / 1000 * 1.1, b.maxY / 1000 * 1.2) + 0.8;
+    const p = t.clone().addScaledVector(new THREE.Vector3(0.1, 0.08, 1).normalize(), dist);
+    return { key: `wled:${config.ledMode}`, target: t.toArray() as Focus['target'], pos: p.toArray() as Focus['pos'], frame: 'front' };
+  }
   if (config.type !== 'Кухня' || !config.gift) return null;
   if (config.gift === 'Висувне Карго') {
     const u = model.units.find((x) => x.cargo);
@@ -166,6 +175,49 @@ export function giftFocus(config: Config, model: SceneModel): Focus | null {
   return { key: 'led', target: t.toArray() as Focus['target'], pos: p.toArray() as Focus['pos'] };
 }
 
+// візерунок піскоструєм на дзеркалі: матові ромби/завитки поверх світлого дзеркала
+let patternTex: THREE.CanvasTexture | null = null;
+function patternTexture() {
+  if (patternTex) return patternTex;
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 512;
+  const g = cv.getContext('2d')!;
+  g.fillStyle = '#d9e1e5';
+  g.fillRect(0, 0, 256, 512);
+  g.strokeStyle = 'rgba(255,255,255,0.85)';
+  g.lineWidth = 5;
+  for (let y = -64; y < 576; y += 128) {
+    g.beginPath();
+    g.moveTo(128, y); g.bezierCurveTo(220, y + 32, 220, y + 96, 128, y + 128);
+    g.bezierCurveTo(36, y + 96, 36, y + 32, 128, y);
+    g.stroke();
+    g.beginPath(); g.arc(128, y + 64, 14, 0, Math.PI * 2); g.stroke();
+  }
+  patternTex = new THREE.CanvasTexture(cv);
+  patternTex.colorSpace = THREE.SRGBColorSpace;
+  return patternTex;
+}
+// фотодрук: умовне м'яке зображення (небо - зелень); конкретне фото клієнт погоджує з дизайнером
+let photoTex: THREE.CanvasTexture | null = null;
+function photoTexture() {
+  if (photoTex) return photoTex;
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 512;
+  const g = cv.getContext('2d')!;
+  const gr = g.createLinearGradient(0, 0, 0, 512);
+  gr.addColorStop(0, '#bcd3e3'); gr.addColorStop(0.45, '#d9e4d2'); gr.addColorStop(0.6, '#8fae73'); gr.addColorStop(1, '#4f6f3e');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 256, 512);
+  const r = (s => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646)(11);
+  for (let k = 0; k < 140; k++) {
+    g.fillStyle = `rgba(${60 + r() * 60},${110 + r() * 70},${40 + r() * 40},0.35)`;
+    g.beginPath(); g.arc(r() * 256, 260 + r() * 252, 6 + r() * 26, 0, Math.PI * 2); g.fill();
+  }
+  photoTex = new THREE.CanvasTexture(cv);
+  photoTex.colorSpace = THREE.SRGBColorSpace;
+  return photoTex;
+}
+
 const makeMat = (m: Material) =>
   m.clearcoat
     ? new THREE.MeshPhysicalMaterial({ color: m.color, roughness: m.roughness, metalness: m.metalness, clearcoat: m.clearcoat, clearcoatRoughness: 0.12 })
@@ -187,6 +239,7 @@ function frameCamera(cam: THREE.PerspectiveCamera, ctrl: Controls | null, b: Sce
   cam.far = 60;
   cam.updateProjectionMatrix();
   if (ctrl) { ctrl.target.copy(center); ctrl.update(); } else cam.lookAt(center);
+  return center;
 }
 
 function Rig({ model, apiRef, focus }: { model: SceneModel; apiRef: MutableRefObject<SceneApi | null>; focus: Focus | null }) {
@@ -244,7 +297,12 @@ function Rig({ model, apiRef, focus }: { model: SceneModel; apiRef: MutableRefOb
   const focusKey = focus?.key;
   useEffect(() => {
     if (!focus) return;
-    goal.current = { pos: new THREE.Vector3(...focus.pos), target: new THREE.Vector3(...focus.target) };
+    if (focus.frame) {
+      const { camera, size } = get();
+      const tmp = (camera as THREE.PerspectiveCamera).clone();
+      const center = frameCamera(tmp, null, b, focus.frame, size.width / Math.max(1, size.height));
+      goal.current = { pos: tmp.position.clone(), target: center };
+    } else goal.current = { pos: new THREE.Vector3(...focus.pos), target: new THREE.Vector3(...focus.target) };
     invalidate();
     // focus оновлюється разом із key
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -269,7 +327,7 @@ function Rig({ model, apiRef, focus }: { model: SceneModel; apiRef: MutableRefOb
   return null;
 }
 
-function Furniture({ config, model }: { config: Config; model: SceneModel }) {
+function Furniture({ config, model, showInterior }: { config: Config; model: SceneModel; showInterior: boolean }) {
   const { base, upper, topTier, carcass, countertop, handle } = config.materials;
   const mats = useMemo<Mats>(() => ({
     base: makeMat(facadeOf(base)),
@@ -281,7 +339,11 @@ function Furniture({ config, model }: { config: Config; model: SceneModel }) {
     plinth: new THREE.MeshStandardMaterial({ color: '#2a2a2a', roughness: 0.8 }),
     steel: new THREE.MeshStandardMaterial({ color: '#c8cacc', roughness: 0.25, metalness: 0.9 }),
     glass: new THREE.MeshStandardMaterial({ color: '#0d0d0f', roughness: 0.08, metalness: 0.3 }),
-    mirror: new THREE.MeshStandardMaterial({ color: '#dfe6ea', roughness: 0.03, metalness: 1 }),
+    // дзеркало: без справжніх відбиттів кімнати, тож світлий метал із легким блиском читається краще за чорне "ідеальне" дзеркало
+    mirror: new THREE.MeshStandardMaterial({ color: '#d9e1e5', roughness: 0.12, metalness: 0.65 }),
+    mirrorPattern: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.2, metalness: 0.55, map: patternTexture() }),
+    photo: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.25, metalness: 0, map: photoTexture() }),
+    lacomat: new THREE.MeshStandardMaterial({ color: '#eef0ee', roughness: 0.55, metalness: 0 }),
     ceramic: new THREE.MeshStandardMaterial({ color: '#fbfbfa', roughness: 0.15 }),
     granite: new THREE.MeshStandardMaterial({ color: '#2b2a28', roughness: 0.55 }),
   }), [base, upper, topTier, carcass, countertop, handle]);
@@ -296,18 +358,19 @@ function Furniture({ config, model }: { config: Config; model: SceneModel }) {
   const cargoOpen = config.gift === 'Висувне Карго';
   const led = kitchen && config.gift === 'LED Підсвітка';
   const granite = config.gift === "Кам'яна Мийка";
+  const wardrobeLed = config.type === 'Шафа-купе / Гардеробна' && config.gift === 'LED Підсвітка';
   const ledDrop = K.upperY - K.baseH - config.counterThickness;
   const t = carcassThickness(config);
   return (
     <group scale={0.001}>
-      {model.units.map((u) => <Cabinet key={u.id} u={u} mats={mats} handle={hType} t={t} cargo={u.id === cargoId ? cargoOpen : undefined} led={led && u.kind === 'upper' ? ledDrop : undefined} />)}
+      {model.units.map((u) => <Cabinet key={u.id} u={u} mats={mats} handle={hType} t={t} cargo={u.id === cargoId ? cargoOpen : undefined} led={led && u.kind === 'upper' ? ledDrop : undefined} open={wardrobeLed} hideDoors={showInterior} ledMode={wardrobeLed ? config.ledMode : null} />)}
       {model.slabs.map((s) => <SlabMesh key={s.id} s={s} m={s.kind === 'backsplash' ? splashMat : mats.countertop} />)}
       {model.fixtures.map((f) => <FixtureMesh key={f.id} f={f} mats={mats} granite={granite} />)}
     </group>
   );
 }
 
-export default function Scene({ config, apiRef, interior = 'studio' }: { config: Config; apiRef: MutableRefObject<SceneApi | null>; interior?: Interior }) {
+export default function Scene({ config, apiRef, interior = 'studio', showInterior = false }: { config: Config; apiRef: MutableRefObject<SceneApi | null>; interior?: Interior; showInterior?: boolean }) {
   const model = useMemo(() => buildScene(config), [config]);
   const focus = useMemo(() => giftFocus(config, model), [config, model]);
   // на телефонах: менша щільність пікселів і без тіней
@@ -349,7 +412,7 @@ export default function Scene({ config, apiRef, interior = 'studio' }: { config:
         <Lightformer form="rect" intensity={0.6} position={[5, 2, 3]} rotation-y={-Math.PI / 2.5} scale={[4, 3, 1]} />
       </Environment>
 
-      <Furniture config={config} model={model} />
+      <Furniture config={config} model={model} showInterior={showInterior} />
 
       {/* підлога і задня стіна приймають тіні */}
       <Room interior={interior} cx={cx} cz={cz} span={span} walls={model.walls} />

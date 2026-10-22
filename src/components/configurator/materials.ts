@@ -125,7 +125,8 @@ export type Interior = keyof typeof INTERIORS;
 
 // type: як ручка виглядає на моделі
 // profile - торцевий профіль на краю фасаду; gola - врізний профіль у корпусі під стільницею
-export type HandleType = 'rail' | 'profile' | 'gola' | 'none';
+// long - довга вертикальна ручка-профіль 1-1.2 м (шафи, пенали)
+export type HandleType = 'rail' | 'profile' | 'gola' | 'long' | 'none';
 export interface Handle extends Material { type: HandleType }
 
 export const HANDLES: Handle[] = [
@@ -135,6 +136,13 @@ export const HANDLES: Handle[] = [
   { code: 'GR-H04', name: 'Торцевий профіль, чорний', type: 'profile', group: 'handle', color: '#1B1B1B', finish: 'метал', roughness: 0.45, metalness: 0.6 },
   { code: 'GR-H06', name: 'Gola, алюміній', type: 'gola', group: 'handle', color: '#C4C6C8', finish: 'метал', roughness: 0.35, metalness: 0.85 },
   { code: 'GR-H07', name: 'Gola, чорний', type: 'gola', group: 'handle', color: '#1B1B1B', finish: 'метал', roughness: 0.45, metalness: 0.6 },
+  { code: 'GR-H08', name: 'Довга ручка 1200 мм, чорна', type: 'long', group: 'handle', color: '#1B1B1B', finish: 'метал', roughness: 0.45, metalness: 0.6 },
+  { code: 'GR-H09', name: 'Довга ручка 1200 мм, алюміній', type: 'long', group: 'handle', color: '#C4C6C8', finish: 'метал', roughness: 0.35, metalness: 0.85 },
+  // профіль дверей купе (рамка); у ручках для купе показуються лише вони
+  { code: 'GR-P01', name: 'Профіль купе, срібло', type: 'profile', group: 'handle', color: '#C9CBCD', finish: 'алюміній', roughness: 0.3, metalness: 0.9 },
+  { code: 'GR-P02', name: 'Профіль купе, чорний', type: 'profile', group: 'handle', color: '#1B1B1B', finish: 'алюміній', roughness: 0.45, metalness: 0.6 },
+  { code: 'GR-P03', name: 'Профіль купе, шампань', type: 'profile', group: 'handle', color: '#C8B48A', finish: 'алюміній', roughness: 0.3, metalness: 0.85 },
+  { code: 'GR-P04', name: 'Профіль купе, білий', type: 'profile', group: 'handle', color: '#F1F1EF', finish: 'фарбований', roughness: 0.5, metalness: 0.1 },
   { code: 'GR-H05', name: 'Без ручок (push-to-open)', type: 'none', group: 'handle', color: '#000000', finish: '-', roughness: 1, metalness: 0 },
 ];
 

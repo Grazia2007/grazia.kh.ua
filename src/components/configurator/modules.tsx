@@ -4,29 +4,30 @@
 import { memo, useEffect, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { K, type Unit, type Slab, type Fixture } from './layout';
+import { K, type Unit, type Slab, type Fixture, type LedMode } from './layout';
+import { WardrobeUnit } from './wardrobe';
 import type { HandleType } from './materials';
 
-export type MatKey = 'carcass' | 'base' | 'upper' | 'topTier' | 'countertop' | 'handle' | 'plinth' | 'steel' | 'glass' | 'mirror' | 'ceramic' | 'granite';
+export type MatKey = 'carcass' | 'base' | 'upper' | 'topTier' | 'countertop' | 'handle' | 'plinth' | 'steel' | 'glass' | 'mirror' | 'ceramic' | 'granite' | 'mirrorPattern' | 'photo' | 'lacomat';
 export type Mats = Record<MatKey, THREE.Material>;
 
 // одна геометрія на всю сцену, розмір задає scale
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 
-function Box({ x, y, z, w, h, d, m }: { x: number; y: number; z: number; w: number; h: number; d: number; m: THREE.Material }) {
+export function Box({ x, y, z, w, h, d, m }: { x: number; y: number; z: number; w: number; h: number; d: number; m: THREE.Material }) {
   if (w <= 0 || h <= 0 || d <= 0) return null;
   return <mesh geometry={BOX} material={m} position={[x + w / 2, y + h / 2, z + d / 2]} scale={[w, h, d]} castShadow receiveShadow />;
 }
 
-type Edge = 'top' | 'bottom' | 'left' | 'right';
+export type Edge = 'top' | 'bottom' | 'left' | 'right';
 type Rail = { orient: 'h' } | { orient: 'v'; side: 'left' | 'right'; at: 'top' | 'bottom' | 'mid' };
-interface Rect { x: number; y: number; w: number; h: number; profile: Edge; rail: Rail }
+export interface Rect { x: number; y: number; w: number; h: number; profile: Edge; rail: Rail }
 
 const PROFILE = 25; // ширина профіль-ручки
 const RAIL = 160; // довжина рейлінга на дверях
 
 // фасад + ручка обраного типу
-function Facade({ r, z, m, mats, handle }: { r: Rect; z: number; m: THREE.Material; mats: Mats; handle: HandleType }) {
+export function Facade({ r, z, m, mats, handle }: { r: Rect; z: number; m: THREE.Material; mats: Mats; handle: HandleType }) {
   const g = K.gap / 2;
   let x = r.x + g, y = r.y + g, w = r.w - K.gap, h = r.h - K.gap;
   const t = K.facadeT;
@@ -49,7 +50,14 @@ function Facade({ r, z, m, mats, handle }: { r: Rect; z: number; m: THREE.Materi
     if (e === 'right') { w -= G; extra = <Box x={x + w + K.gap / 2} y={r.y} z={cz} w={G} h={r.h} d={depth} m={mats.handle} />; }
     if (e === 'left') { extra = <Box x={r.x} y={r.y} z={cz} w={G} h={r.h} d={depth} m={mats.handle} />; x += G; w -= G; }
   }
-  if (handle === 'rail') {
+  if (handle === 'long' && r.rail.orient === 'v' && h >= 700) {
+    // довга ручка-профіль ~1200 мм, центр на висоті ~1050 мм від низу модуля
+    const len = Math.min(1200, h - 200);
+    const hx = r.rail.side === 'left' ? x + 45 : x + w - 59;
+    const hy = Math.min(Math.max(y + 100, 1050 - len / 2), y + h - len - 100);
+    extra = <Box x={hx} y={hy} z={z + t} w={14} h={len} d={22} m={mats.handle} />;
+  }
+  if (handle === 'rail' || (handle === 'long' && !(r.rail.orient === 'v' && h >= 700))) {
     const hz = z + t + 18;
     if (r.rail.orient === 'h') {
       const len = Math.max(60, Math.min(w - 120, 320));
@@ -97,7 +105,7 @@ function Slide({ open, by, children }: { open: boolean; by: number; children: Re
 
 // м'яке світіння LED-стрічки: градієнт згенерований один раз
 let glowTex: THREE.CanvasTexture | null = null;
-function glowTexture() {
+export function glowTexture() {
   if (glowTex) return glowTex;
   const cv = document.createElement('canvas');
   cv.width = 4; cv.height = 256;
@@ -137,7 +145,8 @@ function Led({ w, d, drop }: { w: number; d: number; drop: number }) {
   );
 }
 
-function CabinetImpl({ u, mats, handle, t, cargo, led }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number }) {
+function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number; open?: boolean; ledMode?: LedMode | null; hideDoors?: boolean }) {
+  if (u.kind === 'wardrobe') return <WardrobeUnit u={u} mats={mats} handle={handle} t={t} open={!!open} ledMode={ledMode ?? null} hide={!!hideDoors} />;
   const fm = mats[u.zone];
   const y0 = u.plinth;
   const hc = u.h - y0;
@@ -156,19 +165,7 @@ function CabinetImpl({ u, mats, handle, t, cargo, led }: { u: Unit; mats: Mats; 
 
   const rects: Rect[] = [];
 
-  if (u.kind === 'wardrobe' && u.sliding) {
-    // купе: двері на двох напрямних з перехлестом 30 мм, рамка з профілю
-    const n = u.doors, ov = 30, fw = 20;
-    const dw = (u.w + ov * (n - 1)) / n;
-    for (let i = 0; i < n; i++) {
-      const x = i * (dw - ov), z = fz + 10 + (i % 2) * 30;
-      box(`d${i}`, x + fw, y0 + fw, z, dw - 2 * fw, hc - 2 * fw, 10, fm);
-      box(`dl${i}`, x, y0, z - 4, fw, hc, 18, mats.handle);
-      box(`dr${i}`, x + dw - fw, y0, z - 4, fw, hc, 18, mats.handle);
-      box(`dt${i}`, x + fw, u.h - fw, z - 4, dw - 2 * fw, fw, 18, mats.handle);
-      box(`db${i}`, x + fw, y0, z - 4, dw - 2 * fw, fw, 18, mats.handle);
-    }
-  } else if (u.kind === 'tall' && u.tall) {
+  if (u.kind === 'tall' && u.tall) {
     const hs = u.handleSide ?? 'left';
     const v = (y: number, h: number): Rect => ({ x: 0, y, w: u.w, h, profile: hs, rail: { orient: 'v', side: hs, at: 'mid' } });
     const flip = (y: number, h: number, e: Edge): Rect => ({ x: 0, y, w: u.w, h, profile: e, rail: { orient: 'h' } });

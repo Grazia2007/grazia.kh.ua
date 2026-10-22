@@ -1,5 +1,5 @@
 // Текст специфікації ліда. Той самий текст бачить клієнт (підсумок) і менеджер (Telegram, orders).
-import { buildScene, carcassThickness, dimFields, TALL_MODULES, type Config, type Unit } from './layout';
+import { buildScene, carcassThickness, dimFields, TALL_MODULES, KUPE_STYLES, MIRROR_KINDS, INTERIORS_W, LED_MODES, type Config, type Unit } from './layout';
 import { facadeOf, carcassOf, countertopOf, handleOf, backsplashOf, materialLabel } from './materials';
 
 const KIND_LABEL: Record<Unit['kind'], string> = {
@@ -43,6 +43,11 @@ export function buildSpec(c: Config): string[] {
   if (c.type === 'Шафа-купе / Гардеробна') {
     lines.push(`Двері: ${c.wardrobeDoors}, ${model.units.find((u) => u.kind === 'wardrobe')?.doors ?? 0} шт.`);
     lines.push(`Антресоль: ${model.units.some((u) => u.kind === 'top') ? 'так' : 'ні'}`);
+    if (c.wardrobeDoors === 'Купе') {
+      lines.push(`Двері купе: ${KUPE_STYLES[c.kupeStyle]}`);
+      if (c.kupeStyle !== 'ldsp') lines.push(`Дзеркало: ${MIRROR_KINDS[c.mirrorKind]}`);
+    }
+    lines.push(`Наповнення: ${INTERIORS_W[c.interior]}${c.ironing ? '; місце під прасувальну дошку' : ''}`);
   }
   if (c.type === 'Меблі у вітальню') lines.push(`Пенали з боків: ${c.sidePenals ? 'так' : 'ні'}`);
   if (c.type === 'Меблі для ванної') lines.push(`Пенал: ${c.bathPenal ? 'так' : 'ні'}`);
@@ -64,6 +69,6 @@ export function buildSpec(c: Config): string[] {
     if (c.type === 'Кухня') lines.push(`• Фартук: ${c.backsplash === 'none' ? 'без фартуха' : c.backsplash === 'same' ? 'як стільниця' : materialLabel(backsplashOf(c.backsplash, c.materials.countertop))}`);
   }
   for (const n of model.notes) lines.push(`⚠ ${n}`);
-  lines.push(`Подарунок: ${c.gift === "Кам'яна Мийка" ? "Кам'яна мийка Granado" : c.gift || 'не обрано'}`);
+  lines.push(`Подарунок: ${c.gift === "Кам'яна Мийка" ? "Кам'яна мийка Granado" : c.gift || 'не обрано'}${c.gift === 'LED Підсвітка' && c.type === 'Шафа-купе / Гардеробна' ? ` (${LED_MODES[c.ledMode].toLowerCase()})` : ''}`);
   return lines;
 }

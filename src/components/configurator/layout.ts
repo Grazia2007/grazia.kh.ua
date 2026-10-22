@@ -27,6 +27,29 @@ export const WARDROBE_DOORS = ['Купе', 'Розпашні'] as const;
 export type WardrobeDoors = (typeof WARDROBE_DOORS)[number];
 
 export const GIFTS = ['Висувне Карго', 'LED Підсвітка', "Кам'яна Мийка"] as const;
+// карго й мийка мають сенс лише на кухні; для решти - тільки світло
+export const giftsFor = (type: FurnitureType): readonly (typeof GIFTS)[number][] => (type === 'Кухня' ? GIFTS : ['LED Підсвітка']);
+export const LED_MODES = { vertical: 'По висоті (профілі по боках секцій)', shelves: 'Під полицями' } as const;
+export type LedMode = keyof typeof LED_MODES;
+
+// шафа: двері купе, дзеркала, наповнення
+export const KUPE_STYLES = {
+  ldsp: 'Усі з ЛДСП / МДФ',
+  'mirror-center': 'Центральні - дзеркало, бокові - ЛДСП',
+  'mirror-all': 'Усі дзеркальні',
+  'wood-mirror-wood': 'Дзеркало по центру, ЛДСП 200 мм зверху і знизу',
+  mosaic: 'Мозаїка (дзеркало + ЛДСП + лакомат)',
+} as const;
+export type KupeStyle = keyof typeof KUPE_STYLES;
+export const MIRROR_KINDS = { clean: 'Чисте дзеркало', pattern: 'З візерунком (піскоструй)', photo: 'Фотодрук' } as const;
+export type MirrorKind = keyof typeof MIRROR_KINDS;
+export const INTERIORS_W = {
+  'shelves-pantograph': 'Полиці по боках, по центру пантограф зверху і штанга знизу',
+  'dresser-center': 'Комод знизу по центру, над ним штанга, по боках полиці',
+  'rod-shelves': 'Штанга з полицею зверху + секції полиць',
+} as const;
+export type WardrobeInterior = keyof typeof INTERIORS_W;
+export const SHEET_MAX = 2780; // лист 2800 мм мінус обробка кромок
 export const CALL_TIMES = ['Найближчим часом', '10:00 - 12:00', '14:00 - 16:00', 'Після 18:00'] as const;
 export const COUNTER_THICKNESS = [28, 38] as const;
 export const COUNTER_OVERHANG = [20, 30, 50] as const;
@@ -44,6 +67,11 @@ export interface Config {
   rightModule: TallModule;
   wardrobeDoors: WardrobeDoors;
   mezzanine: boolean;
+  kupeStyle: KupeStyle;
+  mirrorKind: MirrorKind;
+  interior: WardrobeInterior;
+  ironing: boolean;
+  ledMode: LedMode;
   sidePenals: boolean;
   bathPenal: boolean;
   materials: { base: string; upper: string; topTier: string; carcass: string; countertop: string; handle: string };
@@ -96,6 +124,11 @@ export const DEFAULT_CONFIG: Config = {
   rightModule: 'none',
   wardrobeDoors: 'Купе',
   mezzanine: true,
+  kupeStyle: 'mirror-center',
+  mirrorKind: 'clean',
+  interior: 'shelves-pantograph',
+  ironing: false,
+  ledMode: 'vertical',
   sidePenals: true,
   bathPenal: false,
   materials: { base: 'GR-F05', upper: 'GR-F01', topTier: 'GR-V01', carcass: 'GR-C01', countertop: 'GR-T01', handle: 'GR-H04' },
@@ -135,6 +168,11 @@ export function normalizeConfig(raw: unknown): Config {
     rightModule: oneOf(Object.keys(TALL_MODULES) as TallModule[], r.rightModule, 'none'),
     wardrobeDoors: oneOf(WARDROBE_DOORS, r.wardrobeDoors, d.wardrobeDoors),
     mezzanine: r.mezzanine === true,
+    kupeStyle: oneOf(Object.keys(KUPE_STYLES) as KupeStyle[], r.kupeStyle, d.kupeStyle),
+    mirrorKind: oneOf(Object.keys(MIRROR_KINDS) as MirrorKind[], r.mirrorKind, d.mirrorKind),
+    interior: oneOf(Object.keys(INTERIORS_W) as WardrobeInterior[], r.interior, d.interior),
+    ironing: r.ironing === true,
+    ledMode: oneOf(Object.keys(LED_MODES) as LedMode[], r.ledMode, d.ledMode),
     sidePenals: r.sidePenals === true,
     bathPenal: r.bathPenal === true,
     materials: {
@@ -148,7 +186,7 @@ export function normalizeConfig(raw: unknown): Config {
     counterThickness: COUNTER_THICKNESS.includes(Number(r.counterThickness) as 28) ? Number(r.counterThickness) : d.counterThickness,
     backsplash: r.backsplash === 'none' || r.backsplash === 'same' ? r.backsplash : code(BACKSPLASH_ALL, r.backsplash, 'same'),
     counterOverhang: COUNTER_OVERHANG.includes(Number(r.counterOverhang) as 20) ? Number(r.counterOverhang) : d.counterOverhang,
-    gift: oneOf(GIFTS, r.gift, '' as (typeof GIFTS)[number]),
+    gift: oneOf(giftsFor(oneOf(FURNITURE_TYPES, r.type, d.type)), r.gift, '' as (typeof GIFTS)[number]),
     phone: String(r.phone ?? '').replace(/[^\d+()\-\s]/g, '').slice(0, 25),
     time: oneOf(CALL_TIMES, r.time, d.time),
   };
@@ -196,6 +234,7 @@ export interface Unit {
   tall?: TallModule;
   handleSide?: 'left' | 'right'; // для пеналів: ручка з боку робочої зони
   cargo?: boolean; // вузьке висувне карго
+  wardrobe?: { style: KupeStyle; mirror: MirrorKind; interior: WardrobeInterior; ironing: boolean };
   sliding?: boolean;
   mirror?: boolean;
 }
@@ -372,7 +411,12 @@ export function buildScene(c: Config): SceneModel {
     const back: Wall = { kind: 'back' };
     const sliding = c.wardrobeDoors === 'Купе';
     const doors = sliding ? Math.max(2, Math.round(W / 900)) : Math.max(2, Math.round(W / 450));
-    units.push({ id: nid('wardrobe'), kind: 'wardrobe', frame: place(back, 0, W), y: 0, w: W, h: H - mezz, d: D, plinth: 80, zone: 'base', doors, drawers: 0, handleAt: 'side', sliding });
+    units.push({ id: nid('wardrobe'), kind: 'wardrobe', frame: place(back, 0, W), y: 0, w: W, h: H - mezz, d: D, plinth: 80, zone: 'base', doors, drawers: 0, handleAt: 'side', sliding,
+      wardrobe: { style: c.kupeStyle, mirror: c.mirrorKind, interior: c.interior, ironing: c.ironing } });
+    // купе: напрямні й двері стоять усередині корпусу і забирають ~100 мм глибини
+    if (sliding) notes.push(`Купе забирає ~100 мм глибини: корисна глибина ${D - 100} мм${D < 700 ? ' (для повноцінної штанги рекомендуємо глибину 700 мм)' : ''}`);
+    const doorH = H - mezz - 80 - 2 * carcassThickness(c);
+    if (doorH > SHEET_MAX) notes.push(`Висота дверей ${doorH} мм більша за лист (2800 мм): двері будуть поділені на ${SHEET_MAX} + ${doorH - SHEET_MAX} мм${sliding ? ' горизонтальним профілем' : ''}`);
     if (mezz) units.push({ id: nid('top'), kind: 'top', frame: place(back, 0, W), y: H - mezz, w: W, h: mezz, d: D, plinth: 0, zone: 'base', doors: Math.max(2, Math.round(W / 600)), drawers: 0, handleAt: 'bottom' });
   } else if (c.type === 'Меблі у вітальню') {
     const { a: W, height: H } = c.dims;

@@ -6,8 +6,9 @@ import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ChevronLeft, CheckCircle2, Check, Sparkles, Hammer, Layers, Box, Sun, Phone, AlertCircle, Loader2 } from 'lucide-react';
 import {
-  CALL_TIMES, CLASSES, COUNTER_OVERHANG, COUNTER_THICKNESS, DEFAULT_CONFIG, DEFAULT_DIMS, FURNITURE_TYPES, GIFTS, KITCHEN_LAYOUTS,
-  TALL_MODULES, UPPER_TIERS, WARDROBE_DOORS, dimFields, type Config, type TallModule,
+  CALL_TIMES, CLASSES, COUNTER_OVERHANG, COUNTER_THICKNESS, DEFAULT_CONFIG, DEFAULT_DIMS, FURNITURE_TYPES, KITCHEN_LAYOUTS,
+  TALL_MODULES, UPPER_TIERS, WARDROBE_DOORS, dimFields, giftsFor, buildScene, KUPE_STYLES, MIRROR_KINDS, INTERIORS_W, LED_MODES,
+  type Config, type TallModule, type KupeStyle, type MirrorKind, type WardrobeInterior, type LedMode,
 } from './layout';
 import { BACKSPLASH_ALL, CARCASS_ALL, COUNTERTOPS, FACADE_ALL, FAMILY_LABEL, HANDLES, INTERIORS, type Interior, type Material } from './materials';
 import { buildSpec, facadeZones, hasCountertop, hasHandles } from './spec';
@@ -58,6 +59,14 @@ const GIFT_NOTE: Record<string, string> = {
   "Кам'яна Мийка": 'Гранітна мийка Granado',
 };
 
+// купе - лише кольори профілю; інші - без профілів купе; Gola - лише кухня
+const handleFor = (type: Config['type'], doors: Config['wardrobeDoors'], cur: string) => {
+  const kupe = type === 'Шафа-купе / Гардеробна' && doors === 'Купе';
+  if (kupe) return /^GR-P/.test(cur) ? cur : 'GR-P01';
+  if (/^GR-P/.test(cur)) return type === 'Кухня' ? 'GR-H04' : 'GR-H08';
+  return cur;
+};
+
 const label = 'text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3';
 const choice = (on: boolean) =>
   `border rounded-lg transition-colors duration-200 text-left ${on ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`;
@@ -98,6 +107,15 @@ function Swatches({ list, value, onChange }: { list: Material[]; value: string; 
         ))}
       </div>
       {family?.startsWith('egger') && <p className="text-[11px] text-[var(--text-light)]">Відтінок на екрані орієнтовний - точний колір покажемо на зразку.</p>}
+    </div>
+  );
+}
+
+function Notes({ items }: { items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <div role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 space-y-1">
+      {items.map((n) => <p key={n} className="text-xs text-[var(--text-main)] flex gap-2"><AlertCircle size={14} className="mt-0.5 shrink-0 text-amber-600" />{n}</p>)}
     </div>
   );
 }
@@ -146,6 +164,8 @@ export default function Configurator() {
   const zones = [...facadeZones(config), { id: 'carcass' as const, label: 'Корпус' }];
   const activeZone = zones.some((z) => z.id === zone) ? zone : 'base';
   const spec = useMemo(() => buildSpec(config), [config]);
+  const notes = useMemo(() => buildScene(config).notes, [config]);
+  const [showInterior, setShowInterior] = useState(false);
 
   const set = (patch: Partial<Config>) => setConfig((c) => ({ ...c, ...patch }));
   const setMat = (k: keyof Config['materials'], code: string) => setConfig((c) => ({ ...c, materials: { ...c.materials, [k]: code } }));
@@ -155,10 +175,11 @@ export default function Configurator() {
     setDimText(Object.fromEntries(Object.entries(dims).map(([k, v]) => [k, String(v)])));
     setConfig((c) => {
       // для купе доступні лише профілі
-      const handle = type === 'Шафа-купе / Гардеробна' && c.wardrobeDoors === 'Купе' && !c.materials.handle.match(/GR-H0[34]/) ? 'GR-H03' : c.materials.handle;
+      const handle = handleFor(type, c.wardrobeDoors, c.materials.handle);
       // Gola - лише для кухні
       const h2 = type !== 'Кухня' && /GR-H0[67]/.test(handle) ? 'GR-H04' : handle;
-      return { ...c, type, dims, materials: { ...c.materials, handle: h2 } };
+      const gift = giftsFor(type).includes(c.gift as never) ? c.gift : '';
+      return { ...c, type, dims, gift, materials: { ...c.materials, handle: h2 } };
     });
   };
 
@@ -207,7 +228,7 @@ export default function Configurator() {
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
       <div ref={panelRef} className="lg:w-1/2 relative bg-[#e9e6e1] overflow-hidden border-b lg:border-b-0 lg:border-r border-[var(--border-color)] min-h-[400px] lg:min-h-0 cursor-grab active:cursor-grabbing">
-        <div className="absolute inset-0">{sceneOn ? <Scene config={config} apiRef={sceneApi} interior={interior} /> : <SceneLoading />}</div>
+        <div className="absolute inset-0">{sceneOn ? <Scene config={config} apiRef={sceneApi} interior={interior} showInterior={showInterior} /> : <SceneLoading />}</div>
         <div className="absolute top-5 left-5 flex flex-wrap gap-2 pointer-events-none">
           {[config.type, config.type === 'Кухня' ? config.layout : null, config.furnitureClass].filter(Boolean).map((t) => (
             <span key={t} className="bg-black/60 text-white/90 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{t}</span>
@@ -219,7 +240,12 @@ export default function Configurator() {
               <button key={k} type="button" aria-pressed={interior === k} onClick={() => setInterior(k)} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider transition-colors ${interior === k ? 'bg-white text-black' : 'text-white/80 hover:text-white'}`}>{INTERIORS[k]}</button>
             ))}
           </div>
-          <p className="text-[11px] text-[#5f5a52] pointer-events-none">Потягніть, щоб покрутити · масштаб: коліщатко або два пальці</p>
+          {config.type === 'Шафа-купе / Гардеробна' && (
+            <button type="button" aria-pressed={showInterior} onClick={() => setShowInterior((v) => !v)} className="bg-black/55 text-white rounded-full px-4 py-1.5 text-[11px] uppercase tracking-wider hover:bg-black/70">
+              {showInterior ? 'Зачинити двері' : 'Показати наповнення'}
+            </button>
+          )}
+          <p className="text-[11px] text-[#5f5a52] pointer-events-none">{config.type === 'Шафа-купе / Гардеробна' ? 'Клацніть по дверях, щоб відчинити · ' : ''}Потягніть, щоб покрутити · масштаб: коліщатко або два пальці</p>
         </div>
       </div>
 
@@ -257,7 +283,7 @@ export default function Configurator() {
                 </div>
               ) : (
                 <>
-                  <h3 className="text-3xl font-serif text-[var(--text-main)]">{STEP_TITLE[step]}</h3>
+                  <h3 className="text-3xl font-serif text-[var(--text-main)]">{step === 'handles' && !hasHandles(config) ? 'Профіль дверей купе' : STEP_TITLE[step]}</h3>
 
                   {step === 'type' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -306,6 +332,7 @@ export default function Configurator() {
                         ))}
                       </div>
                       <p className="text-xs text-[var(--text-muted)]">Приблизні заміри достатні - точні зробить технолог на виїзді.</p>
+                      <Notes items={notes} />
                     </div>
                   )}
 
@@ -328,8 +355,21 @@ export default function Configurator() {
                       )}
                       {config.type === 'Шафа-купе / Гардеробна' && (
                         <>
-                          <div><span className={label}>Двері</span><Chips items={WARDROBE_DOORS} value={config.wardrobeDoors} onChange={(wardrobeDoors) => setConfig((c) => ({ ...c, wardrobeDoors, materials: { ...c.materials, handle: wardrobeDoors === 'Купе' && !/GR-H0[34]/.test(c.materials.handle) ? 'GR-H03' : c.materials.handle } }))} /></div>
+                          <div><span className={label}>Двері</span><Chips items={WARDROBE_DOORS} value={config.wardrobeDoors} onChange={(wardrobeDoors) => setConfig((c) => ({ ...c, wardrobeDoors, materials: { ...c.materials, handle: handleFor(c.type, wardrobeDoors, c.materials.handle) } }))} /></div>
+                          {config.wardrobeDoors === 'Купе' && (
+                            <>
+                              <div><span className={label}>Заповнення дверей купе</span><Chips items={Object.keys(KUPE_STYLES) as KupeStyle[]} value={config.kupeStyle} onChange={(kupeStyle) => set({ kupeStyle })} render={(v) => KUPE_STYLES[v]} /></div>
+                              {config.kupeStyle !== 'ldsp' && (
+                                <div><span className={label}>Дзеркало</span><Chips items={Object.keys(MIRROR_KINDS) as MirrorKind[]} value={config.mirrorKind} onChange={(mirrorKind) => set({ mirrorKind })} render={(v) => MIRROR_KINDS[v]} />
+                                  {config.mirrorKind === 'photo' && <p className="text-[11px] text-[var(--text-light)] mt-2">На моделі - умовне зображення; фото для друку обираєте з дизайнером.</p>}
+                                </div>
+                              )}
+                            </>
+                          )}
                           <Toggle on={config.mezzanine} onChange={(mezzanine) => set({ mezzanine })} text="Антресоль зверху" />
+                          <div><span className={label}>Наповнення</span><Chips items={Object.keys(INTERIORS_W) as WardrobeInterior[]} value={config.interior} onChange={(interior) => set({ interior })} render={(v) => INTERIORS_W[v]} /></div>
+                          <Toggle on={config.ironing} onChange={(ironing) => set({ ironing })} text="Місце під прасувальну дошку" />
+                          <Notes items={notes} />
                         </>
                       )}
                       {config.type === 'Меблі у вітальню' && <Toggle on={config.sidePenals} onChange={(sidePenals) => set({ sidePenals })} text="Пенали з боків" />}
@@ -352,9 +392,9 @@ export default function Configurator() {
 
                   {step === 'handles' && (
                     <div className="space-y-3">
-                      {!hasHandles(config) && <p className="text-sm text-[var(--text-muted)]">Двері купе мають рамку з профілю - оберіть його колір.</p>}
+                      {!hasHandles(config) && <p className="text-sm text-[var(--text-muted)]">Двері купе мають рамку з алюмінієвого профілю - оберіть його колір.</p>}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {HANDLES.filter((h) => (hasHandles(config) || h.type === 'profile') && (h.type !== 'gola' || config.type === 'Кухня')).map((h) => (
+                        {HANDLES.filter((h) => (hasHandles(config) ? !h.code.startsWith('GR-P') && (h.type !== 'gola' || config.type === 'Кухня') && (h.type !== 'long' || config.type !== 'Кухня') : h.code.startsWith('GR-P'))).map((h) => (
                           <button key={h.code} type="button" aria-pressed={config.materials.handle === h.code} onClick={() => setMat('handle', h.code)} className={`${choice(config.materials.handle === h.code)} p-3 flex items-center gap-3`}>
                             <span className="w-8 h-8 rounded-full border border-black/10" style={{ background: h.type === 'none' ? 'transparent' : h.color }} />
                             <span className="text-sm">{h.name}<span className="block text-[9px] font-mono text-[var(--text-light)]">{h.code}</span></span>
@@ -384,12 +424,17 @@ export default function Configurator() {
                   )}
 
                   {step === 'gift' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {GIFTS.map((g) => (
+                    <div className="space-y-5">
+                    <div className={`grid grid-cols-1 gap-3 ${giftsFor(config.type).length > 1 ? 'sm:grid-cols-3' : ''}`}>
+                      {giftsFor(config.type).map((g) => (
                         <button key={g} type="button" aria-pressed={config.gift === g} onClick={() => set({ gift: g })} className={`${choice(config.gift === g)} p-5 flex flex-col items-center text-center gap-3`}>
-                          {GIFT_ICONS[g]}<span className="text-sm font-medium">{g}</span><span className="text-[11px] text-[var(--text-muted)]">{GIFT_NOTE[g]}</span>
+                          {GIFT_ICONS[g]}<span className="text-sm font-medium">{g}</span><span className="text-[11px] text-[var(--text-muted)]">{config.type === 'Кухня' ? GIFT_NOTE[g] : 'Усередині шафи'}</span>
                         </button>
                       ))}
+                    </div>
+                    {config.type === 'Шафа-купе / Гардеробна' && config.gift === 'LED Підсвітка' && (
+                      <div><span className={label}>Як розмістити підсвітку</span><Chips items={Object.keys(LED_MODES) as LedMode[]} value={config.ledMode} onChange={(ledMode) => set({ ledMode })} render={(v) => LED_MODES[v]} /></div>
+                    )}
                     </div>
                   )}
 
