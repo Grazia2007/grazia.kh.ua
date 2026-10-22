@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { normalizeConfig } from '@/components/configurator/layout';
+import { buildSpec } from '@/components/configurator/spec';
 
 // Ініціалізуємо серверні змінні для доступу до бази даних
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -61,8 +63,104 @@ async function handleProjectLead(body: any) {
   return NextResponse.json({ success: true });
 }
 
+// ---- ліди з 3D-конструктора: multipart (config + до 2 JPEG-знімків макета) ----
+const MAX_PHOTO = 1.5 * 1024 * 1024;
+const RATE_WINDOW = 10 * 60 * 1000;
+const RATE_MAX = 5;
+// в межах одного інстансу; від масового спаму не захищає повністю (див. DECISIONS.md)
+const hits = new Map<string, number[]>();
+const rateLimited = (ip: string) => {
+  const now = Date.now();
+  const list = (hits.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW);
+  if (hits.size > 5000) hits.clear();
+  if (list.length >= RATE_MAX) { hits.set(ip, list); return true; }
+  list.push(now);
+  hits.set(ip, list);
+  return false;
+};
+
+async function handleConfiguratorLead(req: Request) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!botToken || !chatId) {
+    return NextResponse.json({ error: 'Сервер не налаштовано для відправки в Telegram' }, { status: 500 });
+  }
+  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
+  if (rateLimited(ip)) return NextResponse.json({ error: 'Забагато заявок поспіль' }, { status: 429 });
+
+  let form: FormData;
+  try { form = await req.formData(); } catch { return NextResponse.json({ error: 'Некоректні дані форми' }, { status: 400 }); }
+
+  let raw: unknown = null;
+  try { raw = JSON.parse(String(form.get('config') || '').slice(0, 20000)); } catch { /* перевірка нижче */ }
+  const config = normalizeConfig(raw);
+  const digits = config.phone.replace(/\D/g, '');
+  if (digits.length < 9 || digits.length > 13) return NextResponse.json({ error: 'Некоректний телефон' }, { status: 400 });
+
+  const photos: Blob[] = [];
+  for (const f of form.getAll('photo').slice(0, 2)) {
+    if (typeof f === 'string') continue;
+    if (f.type !== 'image/jpeg' || f.size === 0) return NextResponse.json({ error: 'Макет має бути у форматі JPEG' }, { status: 400 });
+    if (f.size > MAX_PHOTO) return NextResponse.json({ error: 'Завеликий файл макета' }, { status: 413 });
+    photos.push(f);
+  }
+
+  const spec = buildSpec(config);
+  const text = [
+    '🌟 НОВИЙ ЛІД З 3D КОНФІГУРАТОРА',
+    '',
+    ...spec,
+    '',
+    `📞 Телефон: ${config.phone}`,
+    `⏰ Зручний час: ${config.time}`,
+  ].join('\n');
+
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/orders`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ store_id: 'furniture', customer_name: 'Лід з 3D Конфігуратора', total_amount: 0, status: 'draft', ttn_number: text.slice(0, 4000) })
+    });
+  } catch (dbError) {
+    console.error('Помилка автозбереження ліда в Supabase:', dbError);
+  }
+
+  const api = (method: string, body: FormData | string) =>
+    fetch(`https://api.telegram.org/bot${botToken}/${method}`, typeof body === 'string'
+      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+      : { method: 'POST', body });
+
+  // підпис до фото - максимум 1024 символи; довшу специфікацію шлемо окремим повідомленням
+  const fits = text.length <= 1024;
+  let photoOk = false;
+  if (photos.length) {
+    const fd = new FormData();
+    fd.append('chat_id', chatId);
+    if (photos.length === 1) {
+      fd.append('photo', photos[0], 'front.jpg');
+      fd.append('caption', fits ? text : '🌟 Макет з 3D конфігуратора');
+      photoOk = (await api('sendPhoto', fd)).ok;
+    } else {
+      fd.append('media', JSON.stringify(photos.map((_, i) => ({ type: 'photo', media: `attach://p${i}`, ...(i === 0 ? { caption: fits ? text : '🌟 Макет з 3D конфігуратора' } : {}) }))));
+      photos.forEach((p, i) => fd.append(`p${i}`, p, i === 0 ? 'front.jpg' : 'angle.jpg'));
+      const r = await api('sendMediaGroup', fd);
+      photoOk = r.ok;
+      if (!r.ok) console.error('Telegram sendMediaGroup error:', await r.json().catch(() => ({})));
+    }
+  }
+  if (!photoOk || !fits) {
+    const r = await api('sendMessage', JSON.stringify({ chat_id: chatId, text: text.slice(0, 4096) }));
+    if (!r.ok) {
+      console.error('Telegram API error:', await r.json().catch(() => ({})));
+      if (!photoOk) return NextResponse.json({ error: 'Не вдалося надіслати' }, { status: 502 });
+    }
+  }
+  return NextResponse.json({ success: true });
+}
+
 export async function POST(req: Request) {
   try {
+    if ((req.headers.get('content-type') || '').startsWith('multipart/form-data')) return await handleConfiguratorLead(req);
     const body = await req.json();
     if (body?.source === 'project') return handleProjectLead(body);
     

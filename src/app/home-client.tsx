@@ -16,29 +16,18 @@ import {
   PenTool, 
   Armchair,
   CheckCircle2,
-  Hammer,
   Globe,
   X,
   Star,
   PlayCircle,
-  Sparkles,
   Eye,
-  Sun,
   MousePointer2,
-  Box,
-  LayoutGrid,
-  Phone,
-  Check,
   Quote,
-  Palette,
-  Layers,
   Volume2,
   VolumeX
 } from 'lucide-react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, ContactShadows, Center, Float, RoundedBox } from '@react-three/drei';
-import * as THREE from 'three';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import Configurator from '@/components/configurator/Configurator';
 
 // роки досвіду рахуються від заснування (грудень 2007) - цифра оновлюється сама
 const YEARS = new Date().getFullYear() - 2007;
@@ -134,292 +123,6 @@ const FadeIn = ({ children, delay = 0, className = "", id }: { children: React.R
     {children}
   </motion.div>
 );
-
-// --- ПРЕМІУМ ПАЛІТРА ---
-const PREDEFINED_COLORS = [
-  { hex: '#F5F5F7', name: 'Soft White' },
-  { hex: '#E2DCD0', name: 'Cashmere' },
-  { hex: '#D1C7BD', name: 'Mushroom' },
-  { hex: '#8F9394', name: 'Dusty Grey' },
-  { hex: '#2C2C2C', name: 'Graphite' },
-  { hex: '#1E3527', name: 'Emerald' },
-  { hex: '#1A2421', name: 'Deep Forest' },
-  { hex: '#1F2A38', name: 'Navy Blue' },
-];
-
-const WOOD_TEXTURES = [
-  { name: 'Шпон: Світлий Дуб', bg: 'linear-gradient(135deg, #D4B895, #b89369)' },
-  { name: 'Шпон: Горіх', bg: 'linear-gradient(135deg, #5E4028, #3e2716)' },
-  { name: 'Шпон: Чорне дерево', bg: 'linear-gradient(135deg, #211C18, #110e0c)' },
-];
-
-// --- РОЗШИРЕНА СИСТЕМА МАТЕРІАЛІВ 3D ---
-const getMaterialProps = (colorStr: string) => {
-  const isWood = colorStr.includes('Шпон');
-  const isStone = colorStr.includes('Мармур') || colorStr.includes('Камінь');
-  
-  let hex = '#dddddd';
-  
-  if (colorStr.startsWith('#')) {
-    hex = colorStr;
-  } else {
-    if (colorStr.includes('Світлий Дуб')) hex = '#D4B895';
-    if (colorStr.includes('Горіх')) hex = '#5E4028';
-    if (colorStr.includes('Чорне дерево')) hex = '#211C18';
-    if (colorStr.includes('Білий Камінь')) hex = '#F9F9F9';
-    if (colorStr.includes('Чорний Мармур')) hex = '#1A1A1A';
-    if (colorStr.includes('ДСП') && colorStr.includes('Світле')) hex = '#E5D3B3';
-    if (colorStr.includes('HPL') && colorStr.includes('Бетон')) hex = '#8c8c8c';
-  }
-
-  return {
-    color: hex,
-    roughness: isWood ? 0.85 : isStone ? 0.2 : 0.15,
-    metalness: isStone ? 0.1 : 0.05,
-    clearcoat: isWood ? 0 : isStone ? 0.5 : 0.2,
-    clearcoatRoughness: 0.15,
-  };
-};
-
-const createMats = (carcassStr: string, facadeStr: string, facadeIndices: number[]) => {
-  const cMat = new THREE.MeshPhysicalMaterial(getMaterialProps(carcassStr));
-  const fMat = new THREE.MeshPhysicalMaterial(getMaterialProps(facadeStr));
-  const mats = [cMat, cMat, cMat, cMat, cMat, cMat];
-  facadeIndices.forEach(idx => {
-    mats[idx] = fMat;
-  });
-  return mats;
-};
-
-// --- ОНОВЛЕНИЙ 3D КОМПОНЕНТ ---
-const ParametricFurniture = ({ config }: { config: any }) => {
-  const { type, layout, leftModule, rightModule, upperTier, colors } = config;
-
-  const baseMatsMain = useMemo(() => createMats(colors.carcass, colors.base, [4]), [colors.carcass, colors.base]);
-  const upperMatsMain = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [4]), [colors.carcass, colors.upper, colors.base]);
-  const topTierMatsMain = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
-  
-  const baseMatsLeft = useMemo(() => createMats(colors.carcass, colors.base, [0, 4]), [colors.carcass, colors.base]);
-  const upperMatsLeft = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [0, 4]), [colors.carcass, colors.upper, colors.base]);
-  const topTierMatsLeft = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [0, 4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
-  
-  const baseMatsRight = useMemo(() => createMats(colors.carcass, colors.base, [1, 4]), [colors.carcass, colors.base]);
-  const upperMatsRight = useMemo(() => createMats(colors.carcass, colors.upper || colors.base, [1, 4]), [colors.carcass, colors.upper, colors.base]);
-  const topTierMatsRight = useMemo(() => createMats(colors.carcass, colors.topTier || colors.upper || colors.base, [1, 4]), [colors.carcass, colors.topTier, colors.upper, colors.base]);
-
-  const carcassOnlyMats = useMemo(() => createMats(colors.carcass, colors.carcass, []), [colors.carcass]);
-  const countertopMat = useMemo(() => new THREE.MeshPhysicalMaterial(getMaterialProps(colors.countertop)), [colors.countertop]);
-  const glassMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#050505', roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.95 }), []);
-  const fridgeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#E5E5E5', roughness: 0.3, metalness: 0.8 }), []);
-
-  const groupRef = useRef<THREE.Group>(null);
-  const targetScale = useMemo(() => new THREE.Vector3(1, 1, 1), []);
-  useFrame(() => {
-    if (groupRef.current) {
-      groupRef.current.scale.lerp(targetScale, 0.1);
-    }
-  });
-
-  if (type === 'Кухня' || type === '') {
-    const hasAntresol = upperTier === 'Двоярусні (з антресолями)';
-    const tallModHeight = hasAntresol ? 2.7 : 2.3;
-    const tallModY = tallModHeight / 2; 
-
-    const TallModule = ({ position, rotation = [0, 0, 0], moduleType }: { position: [number, number, number], rotation?: [number, number, number], moduleType: string }) => {
-      if (moduleType === 'none') return null;
-      const mats = moduleType === 'fridge_open' ? carcassOnlyMats : baseMatsMain;
-      return (
-        <group position={position} rotation={rotation as any}>
-          <mesh material={mats} castShadow receiveShadow>
-            <boxGeometry args={[0.6, tallModHeight, 0.6]} />
-          </mesh>
-          {moduleType === 'oven' && (
-            <mesh position={[0, 0.1, 0.31]} material={glassMat} castShadow>
-              <boxGeometry args={[0.55, 0.8, 0.02]} />
-            </mesh>
-          )}
-          {moduleType === 'fridge_open' && (
-            <mesh position={[0, -0.2, 0.1]} material={fridgeMat} castShadow>
-              <boxGeometry args={[0.55, tallModHeight - 0.5, 0.45]} />
-            </mesh>
-          )}
-        </group>
-      );
-    };
-
-    return (
-      <group ref={groupRef} scale={[0.7, 0.7, 0.7]} position={[0, -0.4, 0]}>
-        <group position={[0, 0, 0]}>
-          <mesh position={[0, 0.45, 0]} material={baseMatsMain} castShadow receiveShadow>
-            <boxGeometry args={[3, 0.9, 0.6]} />
-          </mesh>
-          <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
-            <boxGeometry args={[3.05, 0.04, 0.65]} />
-          </mesh>
-          
-          {hasAntresol ? (
-            <>
-              <mesh position={[0, 1.8, -0.125]} material={upperMatsMain} castShadow receiveShadow>
-                <boxGeometry args={[3, 0.6, 0.35]} />
-              </mesh>
-              <mesh position={[0, 2.4, 0]} material={topTierMatsMain} castShadow receiveShadow>
-                <boxGeometry args={[3, 0.6, 0.6]} />
-              </mesh>
-            </>
-          ) : (
-            <mesh position={[0, 1.9, -0.125]} material={upperMatsMain} castShadow receiveShadow>
-              <boxGeometry args={[3, 0.8, 0.35]} />
-            </mesh>
-          )}
-        </group>
-
-        {(() => {
-          const isLeftCorner = layout === 'Кутова (Ліворуч)' || layout === 'П-подібна';
-          return (
-            <group>
-              {isLeftCorner && (
-                <group>
-                  <mesh position={[-1.2, 0.45, 0.9]} material={baseMatsLeft} castShadow receiveShadow>
-                    <boxGeometry args={[0.6, 0.9, 1.2]} />
-                  </mesh>
-                  <mesh position={[-1.2, 0.92, 0.9]} material={countertopMat} castShadow receiveShadow>
-                    <boxGeometry args={[0.65, 0.04, 1.25]} />
-                  </mesh>
-
-                  {hasAntresol ? (
-                    <>
-                      <mesh position={[-1.325, 1.8, 0.775]} material={upperMatsLeft} castShadow receiveShadow>
-                        <boxGeometry args={[0.35, 0.6, 1.45]} />
-                      </mesh>
-                      <mesh position={[-1.2, 2.4, 0.9]} material={topTierMatsLeft} castShadow receiveShadow>
-                        <boxGeometry args={[0.6, 0.6, 1.2]} />
-                      </mesh>
-                    </>
-                  ) : (
-                    <mesh position={[-1.325, 1.9, 0.775]} material={upperMatsLeft} castShadow receiveShadow>
-                      <boxGeometry args={[0.35, 0.8, 1.45]} />
-                    </mesh>
-                  )}
-                </group>
-              )}
-              {leftModule !== 'none' && (
-                <TallModule 
-                  position={isLeftCorner ? [-1.2, tallModY, 1.8] : [-1.8, tallModY, 0]} 
-                  rotation={isLeftCorner ? [0, Math.PI / 2, 0] : [0, 0, 0]}
-                  moduleType={leftModule} 
-                />
-              )}
-            </group>
-          );
-        })()}
-
-        {(() => {
-          const isRightCorner = layout === 'Кутова (Праворуч)' || layout === 'П-подібна';
-          return (
-            <group>
-              {isRightCorner && (
-                <group>
-                  <mesh position={[1.2, 0.45, 0.9]} material={baseMatsRight} castShadow receiveShadow>
-                    <boxGeometry args={[0.6, 0.9, 1.2]} />
-                  </mesh>
-                  <mesh position={[1.2, 0.92, 0.9]} material={countertopMat} castShadow receiveShadow>
-                    <boxGeometry args={[0.65, 0.04, 1.25]} />
-                  </mesh>
-
-                  {hasAntresol ? (
-                    <>
-                      <mesh position={[1.325, 1.8, 0.775]} material={upperMatsRight} castShadow receiveShadow>
-                        <boxGeometry args={[0.35, 0.6, 1.45]} />
-                      </mesh>
-                      <mesh position={[1.2, 2.4, 0.9]} material={topTierMatsRight} castShadow receiveShadow>
-                        <boxGeometry args={[0.6, 0.6, 1.2]} />
-                      </mesh>
-                    </>
-                  ) : (
-                    <mesh position={[1.325, 1.9, 0.775]} material={upperMatsRight} castShadow receiveShadow>
-                      <boxGeometry args={[0.35, 0.8, 1.45]} />
-                    </mesh>
-                  )}
-                </group>
-              )}
-              {rightModule !== 'none' && (
-                <TallModule 
-                  position={isRightCorner ? [1.2, tallModY, 1.8] : [1.8, tallModY, 0]} 
-                  rotation={isRightCorner ? [0, -Math.PI / 2, 0] : [0, 0, 0]}
-                  moduleType={rightModule} 
-                />
-              )}
-            </group>
-          );
-        })()}
-
-        {layout === 'З островом' && (
-          <group position={[0, 0, 1.8]}>
-            <mesh position={[0, 0.45, 0]} material={baseMatsMain} castShadow receiveShadow>
-              <boxGeometry args={[1.8, 0.9, 0.8]} />
-            </mesh>
-            <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
-              <boxGeometry args={[1.85, 0.04, 0.85]} />
-            </mesh>
-          </group>
-        )}
-      </group>
-    );
-  }
-
-  if (type.includes('Шафа')) {
-    return (
-      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-        <mesh position={[0, 1.25, 0]} material={baseMatsMain} castShadow receiveShadow>
-          <boxGeometry args={[2.5, 2.5, 0.7]} />
-        </mesh>
-        <mesh position={[-0.6, 1.25, 0.36]} castShadow>
-          <boxGeometry args={[0.02, 2.4, 0.02]} />
-          <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
-        </mesh>
-        <mesh position={[0.6, 1.25, 0.36]} castShadow>
-          <boxGeometry args={[0.02, 2.4, 0.02]} />
-          <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
-        </mesh>
-      </group>
-    );
-  }
-
-  if (type.includes('вітальню')) {
-    return (
-      <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-        <mesh position={[0, 0.3, 0]} material={baseMatsMain} castShadow receiveShadow>
-          <boxGeometry args={[3, 0.4, 0.5]} />
-        </mesh>
-        <mesh position={[0, 1.4, -0.2]} material={glassMat} castShadow receiveShadow>
-          <boxGeometry args={[1.6, 0.9, 0.05]} />
-        </mesh>
-        <mesh position={[1.5, 1.5, -0.1]} material={upperMatsMain} castShadow receiveShadow>
-          <boxGeometry args={[0.4, 1.2, 0.3]} />
-        </mesh>
-      </group>
-    );
-  }
-
-  return (
-    <group ref={groupRef} scale={[0.8, 0.8, 0.8]}>
-      <mesh position={[0, 0.6, 0]} material={baseMatsMain} castShadow receiveShadow>
-        <boxGeometry args={[1.5, 0.6, 0.5]} />
-      </mesh>
-      <mesh position={[0, 0.92, 0]} material={countertopMat} castShadow receiveShadow>
-        <boxGeometry args={[1.55, 0.04, 0.55]} />
-      </mesh>
-      <mesh position={[0, 1.7, -0.2]} castShadow>
-        <boxGeometry args={[1.2, 0.8, 0.02]} />
-        <meshStandardMaterial color="#fff" metalness={1} roughness={0} />
-      </mesh>
-      <mesh position={[0, 1, 0]}>
-        <cylinderGeometry args={[0.2, 0.15, 0.15, 32]} />
-        <meshStandardMaterial color="#fff" roughness={0.1} />
-      </mesh>
-    </group>
-  );
-};
 
 let cachedWorldData: any = null;
 
@@ -601,35 +304,25 @@ const playWhoosh = useCallback(() => {
   const touchStartX = useRef<number>(0);
   const touchEndX = useRef<number>(0);
   
-  // --- СТЕЙТ РОЗШИРЕНОЇ ВОРОНКИ ---
-  const [configStep, setConfigStep] = useState(1);
-  const [activeColorZone, setActiveColorZone] = useState('base'); 
-  const [configData, setConfigData] = useState({
-    type: 'Кухня', 
-    furnitureClass: 'Стандарт',
-    layout: 'Пряма',
-    leftModule: 'none', 
-    rightModule: 'none', 
-    upperTier: 'Одноярусні',
-    colors: {
-      base: '#2C2C2C',
-      upper: '#F5F5F7',
-      topTier: 'Шпон: Світлий Дуб',
-      countertop: 'Камінь: Білий Камінь',
-      carcass: '#1A1A1A' 
-    },
-    dimensions: { length: '', width: '', height: '' },
-    gift: '',
-    phone: '',
-    time: 'Найближчим часом'
-  });
-
-  const [formSubmitted, setFormSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+
+  // глобус стартує лише коли зона видима і ставиться на паузу поза екраном
+  const geoZoneRef = useRef<HTMLDivElement>(null);
+  const geoVisibleRef = useRef(false);
+  const globeResumeRef = useRef<(() => void) | null>(null);
+  const [geoInView, setGeoInView] = useState(false);
+  useEffect(() => {
+    const el = geoZoneRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => {
+      geoVisibleRef.current = e.isIntersecting;
+      if (e.isIntersecting) { setGeoInView(true); globeResumeRef.current?.(); }
+    }, { rootMargin: '200px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   // --- ПАРАЛАКС ДЛЯ БЕКСТЕЙДЖУ ---
   const backstageRef = useRef<HTMLDivElement>(null);
@@ -649,33 +342,6 @@ const playWhoosh = useCallback(() => {
   const currentActiveProject = useMemo(() => {
     return activeGroupProjects[activeProjectIndex] || activeGroupProjects[0] || activePin;
   }, [activeGroupProjects, activeProjectIndex, activePin]);
-
-  // Динамічні вкладки кольорів залежно від типу
-  const colorTabs = useMemo(() => {
-    if (configData.type === 'Кухня') {
-      const tabs = [
-        { id: 'base', label: 'Нижні фасади' },
-        { id: 'upper', label: 'Верхні фасади' }
-      ];
-      if (configData.upperTier === 'Двоярусні (з антресолями)') {
-        tabs.push({ id: 'topTier', label: 'Антресолі' });
-      }
-      tabs.push({ id: 'carcass', label: 'Корпус' });
-      tabs.push({ id: 'countertop', label: 'Стільниця' });
-      return tabs;
-    } else {
-      return [
-        { id: 'base', label: 'Основний колір (Фасади)' },
-        { id: 'carcass', label: 'Корпус' }
-      ];
-    }
-  }, [configData.type, configData.upperTier]);
-
-  useEffect(() => {
-    if (!colorTabs.find(t => t.id === activeColorZone)) {
-      setActiveColorZone('base');
-    }
-  }, [colorTabs, activeColorZone]);
 
   useEffect(() => {
     // клас .dark уже виставив інлайн-скрипт у layout - тут лише синхронізуємо стан
@@ -745,7 +411,7 @@ const playWhoosh = useCallback(() => {
 
   // 1. D3.js 3D-Глобус 
   useEffect(() => {
-    if (mapLevel !== 'globe' || !canvasRef.current) return;
+    if (mapLevel !== 'globe' || !geoInView || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -786,7 +452,7 @@ const playWhoosh = useCallback(() => {
         const rect = canvas.getBoundingClientRect();
         const clientWidth = rect.width || canvas.parentElement?.clientWidth || 800;
         const clientHeight = rect.height || canvas.parentElement?.clientHeight || 600;
-        const dpr = window.devicePixelRatio || 2;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
         
         const width = clientWidth * dpr;
         const height = clientHeight * dpr;
@@ -812,7 +478,7 @@ const playWhoosh = useCallback(() => {
           worldData = cachedWorldData.world;
           ukraineFeature = cachedWorldData.ukraine;
         } else {
-          worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-50m.json').then(r => r.json());
+          worldData = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-110m.json').then(r => r.json());
           try {
             // Отримуємо еталонний GeoJSON України з кордонами 1991 року (включно з Кримом)
             ukraineFeature = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries/UKR.geo.json').then(r => r.json());
@@ -903,9 +569,15 @@ const playWhoosh = useCallback(() => {
         window.addEventListener('touchmove', handlePointerMove, { passive: false });
         window.addEventListener('touchend', handlePointerUp);
 
+        let lastFrameAt = 0;
         const render = () => {
+          if (!geoVisibleRef.current) { animationFrameId = 0; globeResumeRef.current = () => { globeResumeRef.current = null; if (!isDestroyed) animationFrameId = requestAnimationFrame(render); }; return; }
           if (isDestroyed || !canvasRef.current) return;
-          
+          // автообертання достатньо 30 fps - вдвічі менше роботи головного потоку
+          const now = performance.now();
+          if (!isZoomingIn && !isDragging && now - lastFrameAt < 33) { animationFrameId = requestAnimationFrame(render); return; }
+          lastFrameAt = now;
+
           if (isZoomingIn) {
             zoomProgress += 0.015; 
             if (zoomProgress >= 1) zoomProgress = 1;
@@ -1026,14 +698,18 @@ const playWhoosh = useCallback(() => {
       }
     };
 
-    loadScripts();
+    // d3 і геодані тягнемо, коли браузер вільний - не конкурує з першим рендером
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, o?: { timeout: number }) => number);
+    const idleId = ric ? ric(() => loadScripts(), { timeout: 1500 }) : window.setTimeout(loadScripts, 300);
 
     return () => {
       isDestroyed = true;
+      if (ric) (window as any).cancelIdleCallback?.(idleId); else clearTimeout(idleId);
+      globeResumeRef.current = null;
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       if (cleanupEventsFn) cleanupEventsFn();
     };
-  }, [mapLevel, isDark, themeLoaded]); 
+  }, [mapLevel, isDark, themeLoaded, geoInView]); 
 
   // 2. Ініціалізація та стилізація Mapbox
   useEffect(() => {
@@ -1195,80 +871,6 @@ const playWhoosh = useCallback(() => {
     }, 600);
   };
 
-  const handleCalcSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    
-    const cleanPhone = configData.phone.replace(/\D/g, '');
-    if (cleanPhone.length < 9) {
-       alert("Будь ласка, введіть коректний номер телефону.");
-       return;
-    }
-
-    if (isSubmitting || (localStorage.getItem('last_sub') && Date.now() - parseInt(localStorage.getItem('last_sub')!) < 15000)) {
-        setFormSubmitted(true);
-        return;
-    }
-    
-    setIsSubmitting(true);
-    localStorage.setItem('last_sub', Date.now().toString());
-    
-    const detailedMessage = `
-🔥 НОВИЙ ЛІД (3D КОНФІГУРАТОР) 🔥
-======================
-📞 Телефон: ${configData.phone}
-⏰ Час: ${configData.time}
-🎁 Подарунок: ${configData.gift || 'Не обрано'}
-
-📦 ТИП: ${configData.type}
-💎 КЛАС: ${configData.furnitureClass}
-📏 ГАБАРИТИ: ${configData.dimensions.length} x ${configData.dimensions.width} x ${configData.dimensions.height} мм
-
-${configData.type === 'Кухня' ? `
-📐 ПЛАНУВАННЯ: ${configData.layout}
-🏢 ПЕНАЛИ: 
-   - Лів: ${configData.leftModule !== 'none' ? configData.leftModule : 'Немає'}
-   - Прав: ${configData.rightModule !== 'none' ? configData.rightModule : 'Немає'}
-🔝 ВЕРХНІ СЕКЦІЇ: ${configData.upperTier}
-` : ''}
-
-🎨 КОЛЬОРИ:
-- Нижні (Основні): ${configData.colors.base}
-${configData.type === 'Кухня' ? `- Верхні: ${configData.colors.upper}` : ''}
-${configData.type === 'Кухня' && configData.upperTier.includes('антресол') ? `- Антресолі: ${configData.colors.topTier}` : ''}
-- Корпус: ${configData.colors.carcass}
-${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.countertop}` : ''}
-    `.trim();
-
-    try {
-      // ✅ КЛІЄНТ БІЛЬШЕ НЕ ПИШЕ В БАЗУ НАПРЯМУ!
-      // Ми просто відправляємо дані на наш сервер /api/telegram, 
-      // а він уже сам і в Телеграм сповіщення скине, і в базу запише.
-      const res = await fetch('/api/telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...configData, 
-          length: configData.dimensions.length,
-          width: configData.dimensions.width,
-          height: configData.dimensions.height,
-          color: configData.colors.base,
-          message: detailedMessage 
-        })
-      });
-
-      if (!res.ok) throw new Error("Помилка відправки даних на сервер.");
-
-      (window as any).gtag?.('event', 'generate_lead', { form: 'configurator', furniture_type: configData.type });
-      setFormSubmitted(true);
-    } catch (err) {
-      console.error("Помилка відправки:", err);
-      setFormSubmitted(true);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const TOTAL_STEPS = 7;
 
   const activePinIndex = dbProjects.findIndex(p => p.id === activePin?.id);
 
@@ -1513,7 +1115,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
           </div>
         </div>
 
-        <div id="interactive-zone" className="flex-1 w-full min-h-[450px] md:min-h-[600px] shrink-0 relative bg-[var(--bg-card)] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[var(--border-color)]">
+        <div id="interactive-zone" ref={geoZoneRef} className="flex-1 w-full min-h-[450px] md:min-h-[600px] shrink-0 relative bg-[var(--bg-card)] rounded-sm overflow-hidden flex items-center justify-center group shadow-xl border border-[var(--border-color)]">
           {mapLevel === 'globe' ? (
             <div className={`absolute inset-0 w-full h-full transition-all duration-[1500ms] ${isTransitioning ? 'scale-[3] opacity-0 blur-xl' : 'scale-100 opacity-100'}`}>
               <canvas 
@@ -1793,489 +1395,7 @@ ${configData.type === 'Кухня' ? `- Стільниця: ${configData.colors.
 
       {/* --- PREMIUM 3D CONFIGURATOR --- */}
       <FadeIn delay={0.3} className="px-6 md:px-12 py-12 max-w-[1600px] mx-auto" id="calc">
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
-          
-          <div className="lg:w-1/2 relative bg-[#111111] overflow-hidden flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-white/10 min-h-[400px] cursor-grab active:cursor-grabbing">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
-            
-            <div className="absolute inset-0 z-10">
-              <Canvas camera={{ position: [5, 4, 6], fov: 45 }}>
-                <ambientLight intensity={0.7} />
-                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1.5} castShadow />
-                <directionalLight position={[-10, 5, -5]} intensity={1} color="#e6f2ff" />
-                <directionalLight position={[0, -5, 0]} intensity={0.5} />
-                <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
-                  <Center>
-                    <ParametricFurniture config={configData} />
-                  </Center>
-                </Float>
-                <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
-                <OrbitControls enableZoom={true} enablePan={false} minPolarAngle={Math.PI / 4} maxPolarAngle={Math.PI / 2} autoRotate autoRotateSpeed={0.5} />
-              </Canvas>
-            </div>
-
-            <div className="absolute bottom-8 text-center w-full z-20 pointer-events-none">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/70 text-[10px] font-mono uppercase tracking-widest mb-3">
-                <Sparkles size={12} className="text-yellow-400" /> GRAZIA 3D ENGINE
-              </div>
-              <h3 className="text-white font-serif text-xl tracking-wide opacity-80">
-                Інтерактивна візуалізація
-              </h3>
-              <p className="text-white/40 text-xs mt-1">Покрутіть модель мишкою</p>
-            </div>
-            
-            <div className="absolute top-6 left-6 flex flex-col gap-2 z-20 pointer-events-none">
-              {configData.type && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.type}</span>}
-              {configData.layout && configData.type === 'Кухня' && <span className="bg-black/50 backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm">{configData.layout}</span>}
-              <span className={`backdrop-blur border border-white/10 text-white/80 text-[9px] px-3 py-1 uppercase tracking-widest rounded-sm ${configData.furnitureClass === 'Преміум' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-black/50'}`}>
-                {configData.furnitureClass}
-              </span>
-            </div>
-          </div>
-
-          <div className="lg:w-1/2 p-8 lg:p-14 flex flex-col relative bg-[var(--bg-main)]">
-            {!formSubmitted && (
-              <div className="mb-10">
-                <div className="flex justify-between text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] mb-3">
-                  <span>Крок {configStep} з {TOTAL_STEPS}</span>
-                  <span>{Math.round((configStep / TOTAL_STEPS) * 100)}%</span>
-                </div>
-                <div className="w-full h-1 bg-[var(--border-color)] rounded-full overflow-hidden">
-                  <motion.div 
-                    className="h-full bg-[var(--accent-main)]"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(configStep / TOTAL_STEPS) * 100}%` }}
-                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex-1 relative">
-              <AnimatePresence mode="wait">
-                
-                {configStep === 1 && !formSubmitted && (
-                  <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Що будемо створювати?</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть базову конфігурацію для 3D моделювання.</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {['Кухня', 'Шафа-купе / Гардеробна', 'Меблі у вітальню', 'Меблі для ванної'].map((item) => (
-                        <div 
-                          key={item}
-                          onClick={() => {
-                            setConfigData({...configData, type: item});
-                            if (item !== 'Кухня' && !['base', 'carcass'].includes(activeColorZone)) setActiveColorZone('base');
-                          }}
-                          className={`p-6 border rounded-lg cursor-pointer transition-all duration-300 flex flex-col items-center text-center gap-4 ${configData.type === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
-                        >
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${configData.type === item ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
-                            {item === 'Кухня' ? <LayoutGrid size={20} /> : <Box size={20} />}
-                          </div>
-                          <span className="font-medium text-[var(--text-main)]">{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {configStep === 2 && !formSubmitted && (
-                  <motion.div key="step1.5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Клас виконання</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Це допоможе нам одразу підібрати правильну фурнітуру та матеріали під ваш бюджет.</p>
-                    
-                    <div className="space-y-4">
-                      {[
-                        { id: 'Економ', desc: 'Базові матеріали, надійна стандартна фурнітура (плівка, базовий ДСП).', icon: <Layers size={20}/> },
-                        { id: 'Стандарт', desc: 'Оптимальний вибір. Фарбовані фасади, доводчики середнього сегменту (Muller).', icon: <Hammer size={20}/> },
-                        { id: 'Преміум', desc: 'Максимальна якість. Фурнітура Blum/Hettich, натуральний шпон, камінь, преміум емалі.', icon: <Sparkles size={20}/> }
-                      ].map((item) => (
-                        <div 
-                          key={item.id}
-                          onClick={() => setConfigData({...configData, furnitureClass: item.id})}
-                          className={`p-5 border rounded-lg cursor-pointer transition-all duration-300 flex items-start gap-4 ${configData.furnitureClass === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
-                        >
-                          <div className={`mt-1 flex-shrink-0 ${configData.furnitureClass === item.id ? 'text-[var(--accent-main)]' : 'text-[var(--text-light)]'}`}>
-                            {item.icon}
-                          </div>
-                          <div>
-                            <span className="font-bold text-lg text-[var(--text-main)] block mb-1">{item.id}</span>
-                            <span className="text-sm text-[var(--text-muted)]">{item.desc}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {configStep === 3 && !formSubmitted && (
-                  <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Конфігурація</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-6">Налаштуйте планування та модулі для техніки.</p>
-                    
-                    {configData.type === 'Кухня' ? (
-                      <div className="space-y-6 overflow-y-auto pr-2 pb-4 no-scrollbar">
-                        <div>
-                          <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Основна геометрія</span>
-                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                            {['Пряма', 'Кутова (Ліворуч)', 'Кутова (Праворуч)', 'П-подібна', 'З островом'].map((item) => (
-                              <div 
-                                key={item}
-                                onClick={() => setConfigData({...configData, layout: item})}
-                                className={`p-2 border rounded-lg cursor-pointer transition-all duration-300 text-xs text-center font-medium ${configData.layout === item ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`}
-                              >
-                                {item}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Верхні секції</span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {['Одноярусні', 'Двоярусні (з антресолями)'].map((tier) => (
-                              <div 
-                                key={tier}
-                                onClick={() => setConfigData({...configData, upperTier: tier})}
-                                className={`p-3 border rounded-lg cursor-pointer transition-all duration-300 text-sm flex items-center gap-2 ${configData.upperTier === tier ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`}
-                              >
-                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${configData.upperTier === tier ? 'border-[var(--accent-main)]' : 'border-[var(--border-color)]'}`}>
-                                  {configData.upperTier === tier && <div className="w-2 h-2 rounded-full bg-[var(--accent-main)]" />}
-                                </div>
-                                {tier}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Лівий пенал (Колона)</span>
-                            <select 
-                              value={configData.leftModule}
-                              onChange={(e) => setConfigData({...configData, leftModule: e.target.value})}
-                              className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm cursor-pointer"
-                            >
-                              <option value="none">Відсутній</option>
-                              <option value="fridge_built">Вбудований Холодильник</option>
-                              <option value="fridge_open">Ніша під звичайний Холодильник</option>
-                              <option value="oven">Пенал: Духовка + Мікрохвильовка</option>
-                              <option value="oven">Пенал: Духовка + Кавоварка</option>
-                              <option value="storage">Пенал для зберігання (Полиці)</option>
-                            </select>
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Правий пенал (Колона)</span>
-                            <select 
-                              value={configData.rightModule}
-                              onChange={(e) => setConfigData({...configData, rightModule: e.target.value})}
-                              className="w-full bg-[var(--bg-main)] rounded-lg px-3 py-2 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] text-sm cursor-pointer"
-                            >
-                              <option value="none">Відсутній</option>
-                              <option value="fridge_built">Вбудований Холодильник</option>
-                              <option value="fridge_open">Ніша під звичайний Холодильник</option>
-                              <option value="oven">Пенал: Духовка + Мікрохвильовка</option>
-                              <option value="oven">Пенал: Духовка + Кавоварка</option>
-                              <option value="storage">Пенал для зберігання (Полиці)</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-8 border border-[var(--border-color)] rounded-lg text-center bg-[var(--bg-card)]">
-                        <Box size={40} className="mx-auto text-[var(--text-light)] mb-4" />
-                        <p className="text-[var(--text-main)] font-medium">Для цього типу меблів планування розраховується індивідуально.</p>
-                        <p className="text-sm text-[var(--text-muted)] mt-2">Ви зможете обговорити всі деталі наповнення з нашим дизайнером.</p>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                {configStep === 4 && !formSubmitted && (
-                  <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Студія Дизайну</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-6">Оберіть зону та налаштуйте колір або матеріал.</p>
-                    
-                    <div className="flex gap-2 mb-6 border-b border-[var(--border-color)] pb-2 overflow-x-auto no-scrollbar">
-                      {colorTabs.map((tab) => (
-                        <button 
-                          key={tab.id}
-                          onClick={() => setActiveColorZone(tab.id)}
-                          className={`text-xs font-semibold tracking-widest uppercase px-3 py-2 whitespace-nowrap transition-colors ${activeColorZone === tab.id ? 'text-[var(--accent-main)] border-b-2 border-[var(--accent-main)]' : 'text-[var(--text-light)] hover:text-[var(--text-main)]'}`}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="space-y-6 overflow-y-auto pr-2 pb-4 no-scrollbar">
-                      {activeColorZone === 'countertop' ? (
-                        <>
-                          <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Вибір матеріалу стільниці</span>
-                            <div className="grid grid-cols-2 gap-3 mb-6">
-                              {['Вологостійке ДСП (Egger)', 'Штучний Камінь (Акрил)', 'HPL Компакт-плита', 'Натуральний Кварц/Мармур'].map(mat => {
-                                const isSelected = configData.colors.countertop.includes(mat.split(' ')[0]); 
-                                return (
-                                  <div key={mat} 
-                                       onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: `${mat.split(' ')[0]}: Базовий`}}))}
-                                       className={`p-3 border rounded-lg cursor-pointer transition-all duration-300 text-xs font-medium text-center ${isSelected ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 text-[var(--accent-main)]' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50 text-[var(--text-main)]'}`}
-                                  >
-                                    {mat}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-
-                          <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Популярні текстури (Демо)</span>
-                            <div className="flex gap-3">
-                              {['Білий Камінь', 'Чорний Мармур', 'ДСП: Світле Дерево', 'HPL: Бетон'].map(color => (
-                                <div key={color} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, countertop: color}}))} className="flex flex-col items-center gap-2 cursor-pointer group w-16">
-                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors.countertop === color ? 'border-[var(--accent-main)] scale-110' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                    <div className="w-full h-full rounded-full shadow-inner" style={{ 
-                                      backgroundColor: color.includes('Білий') ? '#F9F9F9' : color.includes('Чорний') ? '#1A1A1A' : color.includes('Дерево') ? '#E5D3B3' : '#8c8c8c' 
-                                    }}></div>
-                                  </div>
-                                  <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)] text-center">{color.split(':')[1] || color}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3 flex justify-between items-center">
-                              <span>Преміум Емаль / RAL</span>
-                              <div className="relative cursor-pointer group">
-                                <label className="flex items-center gap-1 text-[var(--accent-main)] font-semibold cursor-pointer">
-                                  <Palette size={14}/> СВІЙ КОЛІР (HEX)
-                                  <input 
-                                    type="color" 
-                                    value={configData.colors[activeColorZone as keyof typeof configData.colors].startsWith('#') ? configData.colors[activeColorZone as keyof typeof configData.colors] : '#ffffff'}
-                                    onChange={(e) => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: e.target.value}}))}
-                                    className="absolute opacity-0 w-full h-full cursor-pointer"
-                                  />
-                                </label>
-                              </div>
-                            </span>
-                            <div className="flex flex-wrap gap-4">
-                              {PREDEFINED_COLORS.map(color => (
-                                <div key={color.hex} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: color.hex}}))} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors[activeColorZone as keyof typeof configData.colors] === color.hex ? 'border-[var(--accent-main)] scale-110 shadow-lg' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                    <div className="w-full h-full rounded-full shadow-inner border border-black/10" style={{ backgroundColor: color.hex }}></div>
-                                  </div>
-                                  <span className="text-[9px] uppercase tracking-wider text-[var(--text-main)]">{color.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="pt-4 border-t border-[var(--border-color)]">
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-3">Натуральний Шпон / ДСП під дерево</span>
-                            <div className="flex gap-4">
-                              {WOOD_TEXTURES.map(wood => (
-                                <div key={wood.name} onClick={() => setConfigData(prev => ({...prev, colors: {...prev.colors, [activeColorZone]: wood.name}}))} className="flex flex-col items-center gap-2 cursor-pointer group w-20">
-                                  <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-all ${configData.colors[activeColorZone as keyof typeof configData.colors] === wood.name ? 'border-[var(--accent-main)] scale-110 shadow-lg' : 'border-transparent group-hover:border-[var(--border-color)]'}`}>
-                                    <div className="w-full h-full rounded-full shadow-inner border border-black/20" style={{ background: wood.bg }}></div>
-                                  </div>
-                                  <span className="text-[9px] uppercase tracking-wider text-center text-[var(--text-main)] leading-tight">{wood.name.replace('Шпон: ', '')}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {configStep === 5 && !formSubmitted && (
-                  <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Габарити виробу</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Вкажіть приблизні розміри для точного прорахунку (в міліметрах).</p>
-                    
-                    <div className="space-y-6">
-                      <div className="relative">
-                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Загальна довжина (L)</label>
-                        <div className="flex items-center border-b border-[var(--border-color)] focus-within:border-[var(--accent-main)] transition-colors pb-2">
-                          <Ruler size={16} className="text-[var(--text-light)] mr-3" />
-                          <input 
-                            type="number" 
-                            placeholder="Наприклад: 3500" 
-                            value={configData.dimensions.length}
-                            onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, length: e.target.value}})}
-                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)] placeholder:text-[var(--text-light)]"
-                          />
-                          <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
-                        </div>
-                      </div>
-
-                      <div className="relative">
-                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Ширина / Глибина (W)</label>
-                        <div className="flex items-center border-b border-[var(--border-color)] focus-within:border-[var(--accent-main)] transition-colors pb-2">
-                          <Ruler size={16} className="text-[var(--text-light)] mr-3" />
-                          <input 
-                            type="number" 
-                            placeholder="Наприклад: 600" 
-                            value={configData.dimensions.width}
-                            onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, width: e.target.value}})}
-                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)] placeholder:text-[var(--text-light)]"
-                          />
-                          <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
-                        </div>
-                      </div>
-
-                      <div className="relative">
-                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Висота приміщення (H)</label>
-                        <div className="flex items-center border-b border-[var(--border-color)] focus-within:border-[var(--accent-main)] transition-colors pb-2">
-                          <Ruler size={16} className="text-[var(--text-light)] mr-3" />
-                          <input 
-                            type="number" 
-                            placeholder="Наприклад: 2600" 
-                            value={configData.dimensions.height}
-                            onChange={(e) => setConfigData({...configData, dimensions: {...configData.dimensions, height: e.target.value}})}
-                            className="bg-transparent w-full focus:outline-none text-lg text-[var(--text-main)] placeholder:text-[var(--text-light)]"
-                          />
-                          <span className="text-[var(--text-light)] text-sm font-mono">мм</span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {configStep === 6 && !formSubmitted && (
-                  <motion.div key="step5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Ваш гарантований подарунок</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Оберіть бонус, який ми додамо до вашого замовлення безкоштовно.</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {[
-                        { id: 'Висувне Карго', icon: <Box size={24}/> },
-                        { id: 'LED Підсвітка', icon: <Sun size={24}/> },
-                        { id: 'Кам\'яна Мийка', icon: <CheckCircle2 size={24}/> }
-                      ].map((item) => (
-                        <div 
-                          key={item.id}
-                          onClick={() => setConfigData({...configData, gift: item.id})}
-                          className={`p-6 border rounded-lg cursor-pointer transition-all duration-300 flex flex-col items-center text-center gap-4 ${configData.gift === item.id ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/5 shadow-md' : 'border-[var(--border-color)] hover:border-[var(--accent-main)]/50'}`}
-                        >
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${configData.gift === item.id ? 'bg-[var(--accent-main)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-main)]'}`}>
-                            {item.icon}
-                          </div>
-                          <span className="font-medium text-sm text-[var(--text-main)]">{item.id}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {configStep === 7 && !formSubmitted && (
-                  <motion.div key="step6" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full flex flex-col">
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-2">Проєкт готовий до прорахунку</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-8">Залиште ваш контакт, і наш дизайнер-технолог Марина зв'яжеться з вами.</p>
-                    
-                    <div className="space-y-6 bg-[var(--bg-card)] p-6 rounded-xl border border-[var(--border-color)]">
-                      <div>
-                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Ваш телефон</label>
-                        <div className="flex items-center bg-[var(--bg-main)] rounded-lg px-4 py-3 border border-[var(--border-color)] focus-within:border-[var(--accent-main)] transition-colors">
-                          <Phone size={18} className="text-[var(--text-light)] mr-3" />
-                          <input 
-                            type="tel" 
-                            placeholder="+38 (000) 000-00-00" 
-                            value={configData.phone}
-                            onChange={(e) => setConfigData({...configData, phone: e.target.value})}
-                            className="bg-transparent w-full focus:outline-none text-[var(--text-main)] placeholder:text-[var(--text-light)]"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-light)] block mb-2">Зручний час для дзвінка</label>
-                        <select 
-                          value={configData.time}
-                          onChange={(e) => setConfigData({...configData, time: e.target.value})}
-                          className="w-full bg-[var(--bg-main)] rounded-lg px-4 py-3 border border-[var(--border-color)] focus:border-[var(--accent-main)] outline-none text-[var(--text-main)] appearance-none cursor-pointer"
-                        >
-                          <option>Найближчим часом</option>
-                          <option>10:00 - 12:00</option>
-                          <option>14:00 - 16:00</option>
-                          <option>Після 18:00</option>
-                        </select>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {formSubmitted && (
-                  <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col items-center justify-center text-center z-10 relative">
-                    <div className="w-20 h-20 bg-green-500/10 text-green-600 rounded-full flex items-center justify-center mb-6">
-                      <Check size={40} />
-                    </div>
-                    <h3 className="text-3xl font-serif text-[var(--text-main)] mb-3">Проєкт отримано!</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-10 max-w-md">
-                      Ми вже завантажили ваші параметри в базу. Дизайнер-технолог Марина зв'яжеться з вами у вказаний час ({configData.time}). Подарунок ({configData.gift || 'не обрано'}) зафіксовано за вашим номером.
-                    </p>
-
-                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1E3527] to-[#0D1A13] p-8 text-left w-full border border-white/10 shadow-2xl">
-                      <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
-                        <Sparkles size={100} className="text-white" />
-                      </div>
-                      <span className="bg-yellow-400/20 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1 rounded-sm block w-fit mb-4 relative z-10">
-                        Спеціальна пропозиція
-                      </span>
-                      <h4 className="text-white text-xl font-serif mb-2 relative z-10">Преміальна техніка для вашої кухні</h4>
-                      <p className="text-white/70 text-sm mb-6 max-w-sm relative z-10">
-                        Облаштуйте ваші нові меблі найкращою технікою від нашого офіційного партнера. При замовленні разом з меблями — доставка та монтаж техніки безкоштовно!
-                      </p>
-                      <a href="https://tekhnovybir.com.ua" target="_blank" rel="noopener noreferrer" className="relative z-10 inline-flex items-center gap-2 bg-white text-black px-6 py-3 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-yellow-400 transition-colors">
-                        Перейти на Tekhnovybir.com.ua <ArrowRight size={14} />
-                      </a>
-                    </div>
-                  </motion.div>
-                )}
-
-              </AnimatePresence>
-            </div>
-
-            {!formSubmitted && (
-              <div className="mt-10 pt-6 border-t border-[var(--border-color)] flex justify-between items-center relative z-10">
-                <button 
-                  onClick={() => setConfigStep(Math.max(1, configStep - 1))}
-                  className={`flex items-center gap-2 text-xs font-semibold tracking-widest uppercase transition-opacity ${configStep === 1 ? 'opacity-0 pointer-events-none' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
-                >
-                  <ChevronLeft size={16} /> Назад
-                </button>
-                
-                {configStep < TOTAL_STEPS ? (
-                  <button 
-                    onClick={() => {
-                      if (configStep === 1 && configData.type !== 'Кухня') {
-                        setConfigStep(4); 
-                      } else {
-                        setConfigStep(configStep + 1);
-                      }
-                    }}
-                    className="bg-[var(--btn-bg)] text-[var(--btn-text)] px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:opacity-80 transition-opacity rounded-sm shadow-lg"
-                  >
-                    Далі <ArrowRight size={16} />
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => handleCalcSubmit()}
-                    disabled={isSubmitting || !configData.phone}
-                    className="bg-[var(--accent-main)] text-white px-8 py-4 text-xs font-semibold tracking-widest uppercase flex items-center gap-3 hover:bg-[var(--accent-hover)] transition-colors rounded-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? 'Відправка...' : 'Отримати прорахунок'} <CheckCircle2 size={16} />
-                  </button>
-                )}
-              </div>
-            )}
-
-          </div>
-        </div>
+        <Configurator />
       </FadeIn>
 
       <FadeIn delay={0.2} className="w-full bg-[var(--bg-card)] border-y border-[var(--border-color)] py-16 mt-24">
