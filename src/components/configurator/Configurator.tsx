@@ -402,11 +402,11 @@ export default function Configurator() {
                           {(config.living.left !== 'none' || config.living.right !== 'none') && (
                             <>
                               <div><span className={label}>Колони</span><Chips items={['floor', 'wall'] as const} value={config.living.colMount} onChange={(colMount) => setLiv({ colMount })} render={(v) => (v === 'floor' ? 'На підлозі' : 'Підвісні')} /></div>
-                              <Toggle on={config.living.topRow} onChange={(topRow) => setLiv({ topRow })} text="Ряд шаф над ТВ між колонами" />
+                              <Toggle on={config.living.topRow} onChange={(topRow) => setLiv(topRow && config.living.shelvesAt === 'tv' ? { topRow, shelvesAt: 'left' } : { topRow })} text="Ряд шаф над ТВ між колонами" />
                             </>
                           )}
                           <div><span className={label}>Настінні полиці</span><Chips items={[0, 1, 2, 3] as const} value={config.living.shelves as 0} onChange={(shelves) => setLiv({ shelves })} render={(v) => (v ? `${v}` : 'Без полиць')} /></div>
-                          {config.living.shelves > 0 && <div><span className={label}>Де полиці</span><Chips items={['tv', 'left', 'right'] as const} value={config.living.shelvesAt} onChange={(shelvesAt) => setLiv({ shelvesAt })} render={(v) => (v === 'tv' ? 'Над ТВ' : v === 'left' ? 'Ліворуч від ТВ' : 'Праворуч від ТВ')} /></div>}
+                          {config.living.shelves > 0 && <div><span className={label}>Де полиці</span><Chips items={(config.living.topRow && (config.living.left !== 'none' || config.living.right !== 'none') ? ['left', 'right'] : ['tv', 'left', 'right']) as readonly ('tv' | 'left' | 'right')[]} value={config.living.shelvesAt} onChange={(shelvesAt) => setLiv({ shelvesAt })} render={(v) => (v === 'tv' ? 'Над ТВ' : v === 'left' ? 'Ліворуч від ТВ' : 'Праворуч від ТВ')} /></div>}
                           <Toggle on={config.living.panel} onChange={(panel) => setLiv({ panel })} text="Декоративна панель за ТВ" />
                           {config.living.panel && <div><span className={label}>Панель</span><Chips items={['flat', 'slats'] as const} value={config.living.panelKind} onChange={(panelKind) => setLiv({ panelKind })} render={(v) => (v === 'flat' ? 'Гладка' : 'Рейки')} /></div>}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

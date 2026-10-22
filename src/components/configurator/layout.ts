@@ -515,13 +515,17 @@ export function buildScene(c: Config): SceneModel {
     // ТВ: 16:9, ширина корпусу за діагоналлю
     const tw = Math.round(v.tvSize * 25.4 * 0.885), th = Math.round(tw * 0.5625);
     const top = tumbaY + tumbaH + 18;
-    const ty = v.tv === 'stand' ? top + 70 : Math.max(top + 250, 1050 - th / 2);
+    // з рядом шаф над ТВ телевізор - по центру між тумбою і шафами
+    const topRow = v.topRow && (l > 0 || r > 0);
+    const rowY = colH - 420;
+    const ty = v.tv === 'stand' ? top + 70 : topRow ? Math.max(top + 60, (top + rowY) / 2 - th / 2) : Math.max(top + 250, 1050 - th / 2);
+    if (topRow && ty + th > rowY - 30) notes.push(`ТВ ${v.tvSize}" щільно між тумбою і шафами - перевірте висоту стелі з дизайнером`);
     const tx = (W + l - r) / 2 - tw / 2;
     units.push({ id: nid('living'), kind: 'living', frame: place({ kind: 'back' }, 0, W), y: 0, w: W, h: colH, d: 420, plinth: 0, zone: 'base', doors: 0, drawers: 0, handleAt: 'side',
       living: { ...v, colW, colH, tumbaY, tumbaH, modules, tvBox: { x: tx, y: ty, w: tw, h: th } } });
     fixtures.push({ id: nid('tv'), kind: 'tv', frame: place({ kind: 'back' }, tx, tw), y: ty, x0: 0, z0: v.tv === 'stand' ? 150 : v.panel ? 50 : 30, w: tw, h: th, d: 40 });
     if (v.shelves && v.shelvesAt !== 'tv' && Math.min(tx - l, W - r - tx - tw) < 500) notes.push('Збоку від ТВ мало місця для полиць - зменшіть ТВ або розмістіть полиці над ним');
-    if (v.shelves && v.shelvesAt === 'tv' && ty + th + 150 + (v.shelves - 1) * 300 > colH) notes.push('Полиці над ТВ не вміщуються по висоті - оберіть полиці збоку або менший ТВ');
+    if (v.shelves && v.shelvesAt === 'tv' && !topRow && ty + th + 150 + (v.shelves - 1) * 300 > colH) notes.push('Полиці над ТВ не вміщуються по висоті - оберіть полиці збоку або менший ТВ');
     if (v.tvSize >= 75 && W - l - r < tw + 200) notes.push(`ТВ ${v.tvSize}" ширший за тумбу між колонами`);
   } else {
     const W = c.dims.a;

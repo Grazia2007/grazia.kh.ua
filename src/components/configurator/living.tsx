@@ -126,7 +126,12 @@ export function LivingUnit({ u, mats, handle, t, open, hide, doorsKey, led }: { 
     const shelfM = kind === 'vitrine' ? mats.glassClear : mats.carcass;
     for (let y = sy0 + 330; y < sy1 - 100; y += 330) {
       items.push(<Box key={`${key}s${y}`} x={cx + t} y={y} z={8} w={w - 2 * t} h={kind === 'vitrine' ? 8 : t} d={colD - 30} m={shelfM} />);
-      if (led) { items.push(<Strip key={`${key}ls${y}`} x={cx + t + 20} y={y + 330 - 4} z={colD - 50} w={w - 2 * t - 40} />); items.push(<Glow key={`${key}g${y}`} x={cx + t} yTop={y + 330} w={w - 2 * t} h={330} z={6} />); }
+      if (led) {
+        // світло під полицею вище (або під кришкою колони) - не виходить за межі корпусу
+        const yt = Math.min(y + 330, sy1);
+        items.push(<Strip key={`${key}ls${y}`} x={cx + t + 20} y={yt} z={colD - 50} w={w - 2 * t - 40} />);
+        items.push(<Glow key={`${key}g${y}`} x={cx + t} yTop={yt} w={w - 2 * t} h={yt - y} z={6} />);
+      }
     }
     const upper: Rect = { x: cx, y: sy0, w, h: sy1 - sy0 + t, profile: handleSide, rail: { orient: 'v', side: handleSide, at: 'bottom' } };
     if (kind === 'vitrine') hinged(`${key}gd`, upper, cz, true);
@@ -173,23 +178,30 @@ export function LivingUnit({ u, mats, handle, t, open, hide, doorsKey, led }: { 
   if (v.shelves) {
     const tv = v.tvBox;
     const zBase = v.panel ? (v.panelKind === 'slats' ? 38 : 18) : 0;
-    let sx: number, sw: number, sy0: number;
-    if (v.shelvesAt === 'tv') {
-      sw = Math.min(span - 200, 1600); sx = x0 + (span - sw) / 2; sy0 = Math.max(1750, tv.y + tv.h + 150);
+    const maxY = (topRow ? rowY : v.colH) - 150;
+    // з рядом шаф полиці над ТВ неможливі - ставимо збоку, де більше місця
+    const gapL = tv.x - x0, gapR = x1 - (tv.x + tv.w);
+    const at = v.shelvesAt === 'tv' && topRow ? (gapL >= gapR ? 'left' : 'right') : v.shelvesAt;
+    let sx = 0, sw = 0, ys: number[] = [];
+    if (at === 'tv') {
+      sw = Math.min(span - 200, 1600); sx = x0 + (span - sw) / 2;
+      const s0 = Math.max(1750, tv.y + tv.h + 150);
+      ys = Array.from({ length: v.shelves }, (_, q) => s0 + q * 300).filter((y) => y <= maxY);
     } else {
-      const gapL = tv.x - x0, gapR = x1 - (tv.x + tv.w);
-      const room = v.shelvesAt === 'left' ? gapL : gapR;
-      sw = Math.max(300, Math.min(900, room - 120));
-      sx = v.shelvesAt === 'left' ? x0 + Math.max(60, (room - sw) / 2) : tv.x + tv.w + Math.max(60, (room - sw) / 2);
-      sy0 = top + 380;
+      const room = at === 'left' ? gapL : gapR;
+      sw = Math.min(900, room - 120);
+      if (sw >= 250) {
+        // полиця не заходить на ТВ: відступ 60 мм від ТВ і від краю
+        sx = at === 'left' ? tv.x - 60 - sw : tv.x + tv.w + 60;
+        const s0 = top + 300;
+        const step = Math.min(380, (maxY - s0) / Math.max(1, v.shelves - 1 || 1));
+        ys = Array.from({ length: v.shelves }, (_, q) => s0 + q * step).filter((y) => y <= maxY);
+      }
     }
-    const maxY = (topRow ? rowY : v.colH) - 120;
-    for (let q = 0; q < v.shelves; q++) {
-      const sy = sy0 + q * 330;
-      if (sy > maxY) break;
+    ys.forEach((sy, q) => {
       items.push(<Box key={`ws${q}`} x={sx} y={sy} z={zBase} w={sw} h={25} d={240} m={mats.upper} />);
-      if (led) { items.push(<Strip key={`wl${q}`} x={sx + 30} y={sy} z={zBase + 180} w={sw - 60} />); items.push(<Glow key={`wg${q}`} x={sx} yTop={sy} w={sw} h={300} z={zBase + 3} op={0.6} />); }
-    }
+      if (led) { items.push(<Strip key={`wl${q}`} x={sx + 30} y={sy} z={zBase + 180} w={sw - 60} />); items.push(<Glow key={`wg${q}`} x={sx} yTop={sy} w={sw} h={Math.min(300, sy - top - 20)} z={zBase + 3} op={0.6} />); }
+    });
   }
 
   return <group position={[u.frame.x, u.y, u.frame.z]} rotation={[0, u.frame.rotY, 0]}>{items}</group>;
