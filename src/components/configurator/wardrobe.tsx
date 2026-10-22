@@ -230,7 +230,7 @@ function GlassDoor({ x, y, w, h, z, mats }: { x: number; y: number; w: number; h
 }
 
 // антресоль: ті самі секції, що й шафа внизу; по одних дверцятах на секцію, відчиняються вгору
-function Mezzanine({ u, mats, handle, t, open, hide, doorsKey }: { u: Unit; mats: Mats; handle: HandleType; t: number; open: boolean; hide: boolean; doorsKey: string }) {
+function Mezzanine({ u, mats, handle, t, open, hide, doorsKey, led }: { u: Unit; mats: Mats; handle: HandleType; t: number; open: boolean; hide: boolean; doorsKey: string; led: boolean }) {
   const secs = u.wardrobe!.sections;
   const fz = u.d + K.facadeOffset;
   return (
@@ -240,6 +240,14 @@ function Mezzanine({ u, mats, handle, t, open, hide, doorsKey }: { u: Unit; mats
       <Box x={t} y={0} z={0} w={u.w - 2 * t} h={t} d={u.d} m={mats.carcass} />
       <Box x={t} y={u.h - t} z={0} w={u.w - 2 * t} h={t} d={u.d} m={mats.carcass} />
       <Box x={t} y={t} z={0} w={u.w - 2 * t} h={u.h - 2 * t} d={4} m={mats.carcass} />
+      {/* підсвітка антресолі: профілі на всю висоту по боках кожної секції */}
+      {led && secs.map((s, k) => (
+        <group key={`l${k}`}>
+          <mesh position={[s.x + 8, u.h / 2, u.d - 60]} scale={[8, u.h - 2 * t, 8]}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#fff1d0" toneMapped={false} /></mesh>
+          <mesh position={[s.x + s.w - 8, u.h / 2, u.d - 60]} scale={[8, u.h - 2 * t, 8]}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#fff1d0" toneMapped={false} /></mesh>
+          <mesh position={[s.x + s.w / 2, u.h / 2, 6]}><planeGeometry args={[s.w, u.h - 2 * t]} /><meshBasicMaterial map={glowTexture()} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} opacity={0.6} /></mesh>
+        </group>
+      ))}
       {secs.slice(1).map((s, k) => <Box key={`p${k}`} x={s.x - t} y={t} z={4} w={t} h={u.h - 2 * t} d={u.d - 4} m={mats.carcass} />)}
       {!hide && secs.map((s, i) => {
         const l = i === 0 ? 0 : s.x - t / 2;
@@ -273,9 +281,12 @@ function Mezzanine({ u, mats, handle, t, open, hide, doorsKey }: { u: Unit; mats
 
 // ---------- шафа цілком ----------
 
-export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide, doorsKey }: { u: Unit; mats: Mats; handle: HandleType; t: number; open: boolean; ledMode: LedMode | null; hide: boolean; doorsKey: string }) {
+export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide, doorsKey, openSlot = 0 }: { u: Unit; mats: Mats; handle: HandleType; t: number; open: boolean; ledMode: LedMode | null; hide: boolean; doorsKey: string; openSlot?: number }) {
+  const invalidate = useThree((s) => s.invalidate);
+  // у режимі demand зникнення дверей саме по собі не перемальовує кадр
+  useEffect(() => { invalidate(); }, [hide, open, openSlot, invalidate]);
   const cfg = u.wardrobe!;
-  if (cfg.mezz) return <Mezzanine u={u} mats={mats} handle={handle} t={t} open={open} hide={hide} doorsKey={doorsKey} />;
+  if (cfg.mezz) return <Mezzanine u={u} mats={mats} handle={handle} t={t} open={open} hide={hide} doorsKey={doorsKey} led={!!ledMode} />;
   const y0 = u.plinth;
   const mirror = cfg.mirror === 'pattern' ? mats.mirrorPattern : cfg.mirror === 'photo' ? mats.photo : mats.mirror;
   const sliding = !!u.sliding;
@@ -293,10 +304,12 @@ export function WardrobeUnit({ u, mats, handle, t, open, ledMode, hide, doorsKey
       // дві напрямні: парні двері ззаду, непарні спереду
       const z = u.d - 70 + (i % 2) * 35;
       // задні двері (парні) заїжджають за сусідні передні; передні стоять, а по кліку їдуть за задні
-      const back = i % 2 === 0;
-      const dir = back ? (i + 1 < n ? 1 : -1) : i > 0 ? -1 : 1;
+      // двері на одній напрямній не розминаються: щоб відкрити проріз k, двері з нього їдуть
+      // у сусідній проріз (там вони на іншій напрямній). Повторний клік "Відчинені" - наступний проріз
+      const k = ((openSlot % n) + n) % n;
+      const dir = i !== k ? 0 : i === 0 ? 1 : -1;
       doors.push(
-        <Movable key={`d${i}-${doorsKey}`} kind="slide" amount={dir * (dw - ov)} open={open && back}>
+        <Movable key={`d${i}-${doorsKey}`} kind="slide" amount={dir * (dw - ov)} open={open && dir !== 0}>
           <KupeDoor i={i} n={n} x={x} w={dw} y0={dy} h={dh} z={z} style={cfg.style} mats={mats} mirror={mirror} />
         </Movable>,
       );

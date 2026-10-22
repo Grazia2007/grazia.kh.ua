@@ -145,8 +145,8 @@ function Led({ w, d, drop }: { w: number; d: number; drop: number }) {
   );
 }
 
-function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors, doorsKey }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number; open?: boolean; ledMode?: LedMode | null; hideDoors?: boolean; doorsKey?: string }) {
-  if (u.kind === 'wardrobe') return <WardrobeUnit u={u} mats={mats} handle={handle} t={t} open={!!open} ledMode={ledMode ?? null} hide={!!hideDoors} doorsKey={doorsKey ?? ''} />;
+function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors, doorsKey, openSlot }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number; open?: boolean; ledMode?: LedMode | null; hideDoors?: boolean; doorsKey?: string; openSlot?: number }) {
+  if (u.kind === 'wardrobe') return <WardrobeUnit u={u} mats={mats} handle={handle} t={t} open={!!open} ledMode={ledMode ?? null} hide={!!hideDoors} doorsKey={doorsKey ?? ''} openSlot={openSlot ?? 0} />;
   const fm = mats[u.zone];
   const y0 = u.plinth;
   const hc = u.h - y0;

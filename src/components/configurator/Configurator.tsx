@@ -167,6 +167,8 @@ export default function Configurator() {
   const notes = useMemo(() => buildScene(config).notes, [config]);
   // стан дверей шафи на моделі (лише візуал)
   const [doors, setDoors] = useState<'closed' | 'open' | 'hidden'>('closed');
+  // купе: повторне натискання "Відчинені" відкриває наступний проріз
+  const [openSlot, setOpenSlot] = useState(0);
 
   const set = (patch: Partial<Config>) => setConfig((c) => ({ ...c, ...patch }));
   const setFill = (patch: Partial<Config['fill']>) => setConfig((c) => ({ ...c, fill: { ...c.fill, ...patch } }));
@@ -230,11 +232,11 @@ export default function Configurator() {
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
       <div ref={panelRef} className="lg:w-1/2 relative bg-[#e9e6e1] overflow-hidden border-b lg:border-b-0 lg:border-r border-[var(--border-color)] min-h-[400px] lg:min-h-0 cursor-grab active:cursor-grabbing">
-        <div className="absolute inset-0">{sceneOn ? <Scene config={config} apiRef={sceneApi} interior={interior} doorsMode={doors} /> : <SceneLoading />}</div>
+        <div className="absolute inset-0">{sceneOn ? <Scene config={config} apiRef={sceneApi} interior={interior} doorsMode={doors} openSlot={openSlot} /> : <SceneLoading />}</div>
         {config.type === 'Шафа-купе / Гардеробна' && (
           <div className="absolute top-4 right-4 flex gap-1 bg-black/55 rounded-full p-1" role="group" aria-label="Двері на моделі">
             {([['closed', 'Зачинені'], ['open', 'Відчинені'], ['hidden', 'Без дверей']] as const).map(([k, t]) => (
-              <button key={k} type="button" aria-pressed={doors === k} onClick={() => setDoors(k)} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider transition-colors ${doors === k ? 'bg-white text-black' : 'text-white/80 hover:text-white'}`}>{t}</button>
+              <button key={k} type="button" aria-pressed={doors === k} onClick={() => { if (k === 'open' && doors === 'open') setOpenSlot((v) => v + 1); setDoors(k); }} title={k === 'open' && config.wardrobeDoors === 'Купе' ? 'Натисніть ще раз - відкриється наступний проріз' : undefined} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider transition-colors ${doors === k ? 'bg-white text-black' : 'text-white/80 hover:text-white'}`}>{k === 'open' && doors === 'open' && config.wardrobeDoors === 'Купе' ? 'Відчинені ↻' : t}</button>
             ))}
           </div>
         )}

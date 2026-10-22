@@ -120,7 +120,7 @@ export const GLASS: Material[] = [
 ];
 
 // оточення в 3D-сцені (лише візуал, у лід не йде)
-export const INTERIORS = { studio: 'Студія', parquet: 'Паркет', tile: 'Плитка', concrete: 'Мікроцемент' } as const;
+export const INTERIORS = { studio: 'Студія', parquet: 'Паркет', tile: 'Плитка' } as const;
 export type Interior = keyof typeof INTERIORS;
 
 // type: як ручка виглядає на моделі
