@@ -26,7 +26,7 @@ export type TallModule = keyof typeof TALL_MODULES;
 export const WARDROBE_DOORS = ['Купе', 'Розпашні'] as const;
 export type WardrobeDoors = (typeof WARDROBE_DOORS)[number];
 
-export const GIFTS = ['Висувне Карго', 'LED Підсвітка', "Кам'яна Мийка"] as const;
+export const GIFTS = ['Висувне Карго', 'LED Підсвітка', "Кам'яна Мийка", 'Сушка для посуду Inoxa'] as const;
 // карго й мийка мають сенс лише на кухні; для решти - тільки світло
 export const giftsFor = (type: FurnitureType): readonly (typeof GIFTS)[number][] => (type === 'Кухня' ? GIFTS : ['LED Підсвітка']);
 export const LED_MODES = { vertical: 'По висоті (профілі по боках секцій)', shelves: 'Під полицями' } as const;
@@ -90,6 +90,24 @@ export interface Living {
   tvSize: number;
 }
 
+// ванна
+export const SINKS = { overmount: 'Накладна (на тумбу)', undermount: 'Врізна під стільницю', vessel: 'Чаша на стільниці', integrated: 'Лита зі стільницею' } as const;
+export type SinkKind = keyof typeof SINKS;
+export const MIRRORS = { rect: 'Прямокутне', round: 'Кругле', arch: 'Арка', crescent: 'Півмісяць', cabinet: 'Дзеркальна шафа', none: 'Без дзеркала' } as const;
+export type MirrorShape = keyof typeof MIRRORS;
+export interface Bath {
+  mount: 'wall' | 'legs';
+  fronts: 'drawers' | 'doors' | 'mixed'; // mixed: шухляда зверху + дверцята
+  style: 'flat' | 'fluted'; // гладкі / рифлені фасади
+  sink: SinkKind;
+  sinkAt: 'center' | 'left' | 'right';
+  washer: 'none' | 'left' | 'right'; // ніша під пральну машину під стільницею
+  penal: 'none' | 'left' | 'right';
+  mirror: MirrorShape;
+  mirrorLed: boolean;
+  mirrorSides: 'none' | 'open' | 'glass' | 'doors'; // вузькі шафки 150 мм по боках дзеркала
+}
+
 export interface WardrobeFill { dresserAt: DresserAt; drawers: number; center: FillKind; sides: FillKind }
 export const SHEET_MAX = 2780; // лист 2800 мм мінус обробка кромок
 export const CALL_TIMES = ['Найближчим часом', '10:00 - 12:00', '14:00 - 16:00', 'Після 18:00'] as const;
@@ -105,6 +123,8 @@ export interface Config {
   dims: { a: number; b: number; c: number; height: number; depth: number };
   layout: KitchenLayout;
   upperTier: UpperTier;
+  topDoors: 'lift' | 'hinged'; // антресолі кухні: вгору чи розпашні
+  topGlass: boolean; // антресолі зі склом і підсвіткою всередині
   leftModule: TallModule;
   rightModule: TallModule;
   wardrobeDoors: WardrobeDoors;
@@ -119,6 +139,7 @@ export interface Config {
   sidePenals: boolean;
   living: Living;
   bathPenal: boolean;
+  bath: Bath;
   materials: { base: string; upper: string; topTier: string; carcass: string; countertop: string; handle: string };
   counterThickness: number;
   backsplash: string; // код матеріалу, 'same' (як стільниця) або 'none'
@@ -149,7 +170,10 @@ export function dimFields(c: Pick<Config, 'type' | 'layout'>): DimField[] {
     { key: 'a', label: 'Ширина стіни', min: 1500, max: 5000 },
     { key: 'height', label: 'Висота стелі', min: 2200, max: 3500 },
   ];
-  return [{ key: 'a', label: 'Ширина тумби', min: 500, max: 1400 }];
+  return [
+    { key: 'a', label: 'Ширина стільниці', min: 500, max: 2200 },
+    { key: 'depth', label: 'Глибина', min: 380, max: 600 },
+  ];
 }
 
 export const DEFAULT_DIMS: Record<FurnitureType, Config['dims']> = {
@@ -165,6 +189,8 @@ export const DEFAULT_CONFIG: Config = {
   dims: DEFAULT_DIMS['Кухня'],
   layout: 'Пряма',
   upperTier: 'Одноярусні',
+  topDoors: 'lift',
+  topGlass: false,
   leftModule: 'none',
   rightModule: 'none',
   wardrobeDoors: 'Купе',
@@ -179,6 +205,7 @@ export const DEFAULT_CONFIG: Config = {
   sidePenals: true,
   living: { mount: 'floor', fronts: 'drawers', centerKind: 'open', sideKind: 'closed', colMount: 'floor', shelvesAt: 'tv', panelKind: 'flat', topRow: false, left: 'vitrine', right: 'shelves', shelves: 0, panel: false, tv: 'wall', tvSize: 65 },
   bathPenal: false,
+  bath: { mount: 'wall', fronts: 'drawers', style: 'flat', sink: 'undermount', sinkAt: 'center', washer: 'none', penal: 'none', mirror: 'rect', mirrorLed: true, mirrorSides: 'none' },
   materials: { base: 'GR-F05', upper: 'GR-F01', topTier: 'GR-V01', carcass: 'GR-C01', countertop: 'GR-T01', handle: 'GR-H04' },
   counterThickness: 38,
   counterOverhang: 30,
@@ -212,6 +239,8 @@ export function normalizeConfig(raw: unknown): Config {
     dims,
     layout,
     upperTier: oneOf(UPPER_TIERS, r.upperTier, d.upperTier),
+    topDoors: r.topDoors === 'hinged' ? 'hinged' : 'lift',
+    topGlass: r.topGlass === true,
     leftModule: oneOf(Object.keys(TALL_MODULES) as TallModule[], r.leftModule, 'none'),
     rightModule: oneOf(Object.keys(TALL_MODULES) as TallModule[], r.rightModule, 'none'),
     wardrobeDoors: oneOf(WARDROBE_DOORS, r.wardrobeDoors, d.wardrobeDoors),
@@ -254,6 +283,23 @@ export function normalizeConfig(raw: unknown): Config {
       } as Living;
     })(),
     bathPenal: r.bathPenal === true,
+    bath: (() => {
+      const v = (r.bath && typeof r.bath === 'object' ? r.bath : {}) as Record<string, unknown>;
+      const db = d.bath;
+      const side = (x: unknown) => (x === 'left' || x === 'right' ? x : 'none') as 'none' | 'left' | 'right';
+      return {
+        mount: v.mount === 'legs' ? 'legs' : 'wall',
+        fronts: v.fronts === 'doors' || v.fronts === 'mixed' ? v.fronts : 'drawers',
+        style: v.style === 'fluted' ? 'fluted' : 'flat',
+        sink: oneOf(Object.keys(SINKS) as SinkKind[], v.sink, db.sink),
+        sinkAt: v.sinkAt === 'left' || v.sinkAt === 'right' ? v.sinkAt : 'center',
+        washer: side(v.washer),
+        penal: side(v.penal),
+        mirror: oneOf(Object.keys(MIRRORS) as MirrorShape[], v.mirror, db.mirror),
+        mirrorLed: v.mirrorLed !== false,
+        mirrorSides: v.mirrorSides === 'open' || v.mirrorSides === 'glass' || v.mirrorSides === 'doors' ? v.mirrorSides : 'none',
+      } as Bath;
+    })(),
     materials: {
       base: code(FACADE_ALL, m.base, d.materials.base),
       upper: code(FACADE_ALL, m.upper, d.materials.upper),
@@ -294,7 +340,7 @@ export const carcassThickness = (c: Pick<Config, 'furnitureClass'>) => (c.furnit
 // Frame - точка "ліво-низ-зад" модуля і поворот навколо Y.
 export interface Frame { x: number; z: number; rotY: number }
 
-export type UnitKind = 'base' | 'corner' | 'upper' | 'top' | 'tall' | 'wardrobe' | 'hanging' | 'vanity' | 'mirror' | 'penal' | 'living';
+export type UnitKind = 'base' | 'corner' | 'upper' | 'top' | 'tall' | 'wardrobe' | 'hanging' | 'vanity' | 'mirror' | 'penal' | 'living' | 'bath';
 
 export interface Unit {
   id: string;
@@ -313,6 +359,10 @@ export interface Unit {
   tall?: TallModule;
   handleSide?: 'left' | 'right'; // для пеналів: ручка з боку робочої зони
   cargo?: boolean; // вузьке висувне карго
+  hinged?: boolean; // антресоль кухні з розпашними дверцятами
+  glass?: boolean; // скляні фасади з підсвіткою всередині
+  dryer?: boolean; // верхня шафа над мийкою (сушка Inoxa)
+  bath?: Bath & { topY: number; topT: number; cabX: number; cabW: number; cabY: number; sinkX: number; sinkW: number; penalX: number; mirrorX: number; mirrorW: number };
   living?: Living & { colW: number; colH: number; tumbaY: number; tumbaH: number; modules: number[]; tvBox: { x: number; y: number; w: number; h: number } };
   wardrobe?: { style: KupeStyle; mirror: MirrorKind; fill: WardrobeFill; sections: WSection[]; mezz?: 'lift' | 'hinged' };
   sliding?: boolean;
@@ -398,7 +448,7 @@ export function buildScene(c: Config): SceneModel {
     const baseProto = { kind: 'base' as const, y: 0, h: K.baseH, d: K.baseD, plinth: K.plinth, zone: 'base' as const, handleAt: 'top' as const, drawersEvery: 3 };
     const upperProto = { kind: 'upper' as const, y: K.upperY, h: K.upperH, d: K.upperD, plinth: 0, zone: 'upper' as const, handleAt: 'bottom' as const };
     // антресолі глибокі, як нижні модулі й пенали; верхні лишаються вузькими (рівень голови)
-    const topProto = { kind: 'top' as const, y: K.tallH, h: tierH, d: K.baseD, plinth: 0, zone: 'topTier' as const, handleAt: 'bottom' as const, doors: 1 };
+    const topProto = { kind: 'top' as const, y: K.tallH, h: tierH, d: K.baseD, plinth: 0, zone: 'topTier' as const, handleAt: 'bottom' as const, doors: c.topDoors === 'hinged' ? undefined : 1, hinged: c.topDoors === 'hinged', glass: c.topGlass };
     const addTall = (wall: Wall, s: number, mod: TallModule, handleSide: 'left' | 'right') => {
       // з антресолями пенал іде до стелі одним корпусом - верхній фасад суцільний
       units.push({ id: nid('tall'), kind: 'tall', frame: place(wall, s, 600), y: 0, w: 600, h: K.tallH + (tier ? tierH : 0), d: K.baseD, plinth: K.plinth, zone: 'base', doors: 1, drawers: 0, handleAt: 'side', tall: mod, handleSide });
@@ -476,6 +526,19 @@ export function buildScene(c: Config): SceneModel {
     if (sinkLen >= (sinkWall === back ? 1600 : 700)) {
       const s = sinkWall === back ? sinkRange[0] + sinkLen * 0.25 : (sinkRange[0] + sinkRange[1]) / 2;
       fixtures.push({ id: nid('sink'), kind: 'sink', frame: place(sinkWall, s - 250, 500), y: K.baseH + c.counterThickness, x0: 0, z0: 60, w: 500, h: 4, d: 420 });
+      // сушка Inoxa ставиться у верхню шафу над мийкою: шукаємо найближчу верхню шафу
+      if (c.gift === 'Сушка для посуду Inoxa') {
+        const f = place(sinkWall, s - 250, 500);
+        const cx = f.x + 250 * Math.cos(f.rotY), cz = f.z - 250 * Math.sin(f.rotY);
+        let best: Unit | null = null, bd = Infinity;
+        for (const u of units) {
+          if (u.kind !== 'upper') continue;
+          const ux = u.frame.x + (u.w / 2) * Math.cos(u.frame.rotY), uz = u.frame.z - (u.w / 2) * Math.sin(u.frame.rotY);
+          const dd = Math.hypot(ux - cx, uz - cz);
+          if (dd < bd) { bd = dd; best = u; }
+        }
+        if (best) best.dryer = true;
+      }
     }
 
     if (L === 'З островом') {
@@ -528,15 +591,25 @@ export function buildScene(c: Config): SceneModel {
     if (v.shelves && v.shelvesAt === 'tv' && !topRow && ty + th + 150 + (v.shelves - 1) * 300 > colH) notes.push('Полиці над ТВ не вміщуються по висоті - оберіть полиці збоку або менший ТВ');
     if (v.tvSize >= 75 && W - l - r < tw + 200) notes.push(`ТВ ${v.tvSize}" ширший за тумбу між колонами`);
   } else {
-    const W = c.dims.a;
-    const back: Wall = { kind: 'back' };
-    const vD = c.dims.depth;
-    units.push({ id: nid('vanity'), kind: 'vanity', frame: place(back, 0, W), y: 420, w: W, h: 430, d: vD, plinth: 0, zone: 'base', doors: 0, drawers: 2, handleAt: 'top' });
-    slabs.push({ id: nid('top'), frame: place(back, 0, W), y: 850, x0: 0, z0: 0, w: W, h: Math.min(c.counterThickness, 28), d: vD + K.facadeOffset + K.facadeT + 10 });
-    const bw = Math.min(500, W - 120);
-    fixtures.push({ id: nid('basin'), kind: 'basin', frame: place(back, (W - bw) / 2, bw), y: 850 + Math.min(c.counterThickness, 28), x0: 0, z0: 50, w: bw, h: 120, d: 380 });
-    units.push({ id: nid('mirror'), kind: 'mirror', frame: place(back, 0, W), y: 1200, w: W, h: 700, d: 140, plinth: 0, zone: 'upper', doors: W >= 700 ? 2 : 1, drawers: 0, handleAt: 'bottom', mirror: true });
-    if (c.bathPenal) units.push({ id: nid('penal'), kind: 'penal', frame: place(back, W + 50, 350), y: 250, w: 350, h: 1650, d: 300, plinth: 0, zone: 'base', doors: 1, drawers: 0, handleAt: 'side' });
+    // ванна: стільниця на всю ширину, тумба (крім ніші під пральну машину), раковина, дзеркало, пенал
+    const W = c.dims.a, D = c.dims.depth, v = c.bath;
+    const WASH = 640, PEN = 350;
+    const washer = v.washer !== 'none' && W >= 1100 ? v.washer : 'none';
+    if (v.washer !== 'none' && washer === 'none') notes.push('Для ніші під пральну машину потрібна ширина від 1100 мм');
+    const topT = Math.min(c.counterThickness, 28);
+    const topY = washer !== 'none' ? 880 : 850; // над пральною машиною (850 мм) стільниця вища
+    const cabX = washer === 'left' ? WASH : 0;
+    const cabW = W - (washer !== 'none' ? WASH : 0);
+    const cabY = v.mount === 'wall' ? topY - 480 : 100;
+    const sinkW = Math.min(v.sink === 'vessel' ? 420 : 560, cabW - 100);
+    const sinkX = v.sinkAt === 'left' ? cabX + 60 : v.sinkAt === 'right' ? cabX + cabW - 60 - sinkW : cabX + (cabW - sinkW) / 2;
+    const penalX = v.penal === 'left' ? -PEN - 30 : W + 30;
+    const mirrorW = v.mirror === 'none' ? 0 : Math.min(v.mirror === 'cabinet' ? cabW : 900, W - 100);
+    const mirrorX = sinkX + sinkW / 2 - mirrorW / 2;
+    units.push({ id: nid('bath'), kind: 'bath', frame: place({ kind: 'back' }, 0, W), y: 0, w: W, h: 2000, d: D, plinth: 0, zone: 'base', doors: 0, drawers: 0, handleAt: 'top',
+      bath: { ...v, washer, topY, topT, cabX, cabW, cabY, sinkX, sinkW, penalX, mirrorX, mirrorW } });
+    // для габаритів сцени: пенал і дзеркало
+    if (v.penal !== 'none') fixtures.push({ id: nid('pnb'), kind: 'basin', frame: place({ kind: 'back' }, penalX, PEN), y: 0, x0: 0, z0: 0, w: 0.01, h: 1900, d: 0.01 });
   }
 
   // габарити сцени - для камери

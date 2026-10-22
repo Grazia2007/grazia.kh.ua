@@ -1,5 +1,5 @@
 // Текст специфікації ліда. Той самий текст бачить клієнт (підсумок) і менеджер (Telegram, orders).
-import { buildScene, carcassThickness, dimFields, TALL_MODULES, LIV_COLUMNS, LIV_FRONTS, SEC_KINDS, KUPE_STYLES, MIRROR_KINDS, DRESSER_AT, FILL_KINDS, LED_MODES, type Config, type Unit } from './layout';
+import { buildScene, carcassThickness, dimFields, TALL_MODULES, LIV_COLUMNS, LIV_FRONTS, SEC_KINDS, SINKS, MIRRORS, KUPE_STYLES, MIRROR_KINDS, DRESSER_AT, FILL_KINDS, LED_MODES, type Config, type Unit } from './layout';
 import { facadeOf, carcassOf, countertopOf, handleOf, backsplashOf, materialLabel } from './materials';
 
 const KIND_LABEL: Record<Unit['kind'], string> = {
@@ -14,6 +14,7 @@ const KIND_LABEL: Record<Unit['kind'], string> = {
   mirror: 'Дзеркальна шафа',
   penal: 'Пенали',
   living: 'ТВ-зона (тумба + колони)',
+  bath: 'Комплект для ванної',
 };
 
 export const hasCountertop = (c: Config) => c.type === 'Кухня' || c.type === 'Меблі для ванної';
@@ -26,7 +27,7 @@ export function facadeZones(c: Config): { id: 'base' | 'upper' | 'topTier'; labe
     return z;
   }
   if (c.type === 'Меблі у вітальню') return [{ id: 'base', label: 'Фасади' }, { id: 'upper', label: 'Стільниця, полиці, панель' }];
-  if (c.type === 'Меблі для ванної') return [{ id: 'base', label: 'Фасади тумби' }, { id: 'upper', label: 'Рамка дзеркальної шафи' }];
+  if (c.type === 'Меблі для ванної') return [{ id: 'base', label: 'Фасади' }];
   return [{ id: 'base', label: 'Фасади' }];
 }
 
@@ -38,7 +39,7 @@ export function buildSpec(c: Config): string[] {
   lines.push(`Розміри: ${dimFields(c).map((f) => `${f.label.toLowerCase()} ${c.dims[f.key]} мм`).join(', ')}`);
   if (c.type === 'Кухня') {
     lines.push(`Планування: ${c.layout}`);
-    lines.push(`Верхні секції: ${c.upperTier}`);
+    lines.push(`Верхні секції: ${c.upperTier}${c.upperTier === 'Двоярусні (з антресолями)' ? `; антресолі ${c.topDoors === 'hinged' ? 'розпашні' : 'підйомні'}${c.topGlass ? ', скло з підсвіткою' : ''}` : ''}`);
     lines.push(`Лівий пенал: ${TALL_MODULES[c.leftModule]}`);
     lines.push(`Правий пенал: ${TALL_MODULES[c.rightModule]}`);
   }
@@ -61,7 +62,18 @@ export function buildSpec(c: Config): string[] {
     if (v.panel) lines.push(`Панель за ТВ: ${v.panelKind === 'slats' ? 'рейки' : 'гладка'}`);
     lines.push(`ТВ ${v.tvSize}" ${v.tv === 'wall' ? 'на стіні' : 'на тумбі'}`);
   }
-  if (c.type === 'Меблі для ванної') lines.push(`Пенал: ${c.bathPenal ? 'так' : 'ні'}`);
+  if (c.type === 'Меблі для ванної') {
+    const b = model.units.find((x) => x.bath)?.bath;
+    const v = c.bath;
+    if (b) {
+      const side = (s: string) => (s === 'left' ? 'ліворуч' : 'праворуч');
+      lines.push(`Тумба: ${v.mount === 'wall' ? 'підвісна' : 'на ніжках'}, ${Math.round(b.cabW)} мм, ${v.fronts === 'drawers' ? '2 шухляди' : v.fronts === 'doors' ? 'дверцята' : 'шухляда + дверцята'}, фасади ${v.style === 'fluted' ? 'рифлені' : 'гладкі'}`);
+      lines.push(`Раковина: ${SINKS[v.sink]}, ${v.sinkAt === 'center' ? 'по центру' : side(v.sinkAt)}`);
+      if (b.washer !== 'none') lines.push(`Ніша під пральну машину ${side(b.washer)} (600 мм)`);
+      if (v.penal !== 'none') lines.push(`Пенал ${side(v.penal)} 350 мм`);
+      lines.push(`Дзеркало: ${MIRRORS[v.mirror]}${v.mirror !== 'none' && v.mirrorLed ? ' з підсвіткою (сенсорна кнопка)' : ''}${['rect', 'round', 'arch'].includes(v.mirror) && v.mirrorSides !== 'none' ? `; по боках шафки 150 мм - ${v.mirrorSides === 'open' ? 'відкриті' : v.mirrorSides === 'glass' ? 'за склом' : 'з дверцятами'}` : ''}`);
+    }
+  }
 
   // модулі з ширинами
   const groups = new Map<string, number[]>();

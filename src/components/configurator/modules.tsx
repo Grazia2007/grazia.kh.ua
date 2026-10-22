@@ -5,8 +5,9 @@ import { memo, useEffect, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { K, type Unit, type Slab, type Fixture, type LedMode } from './layout';
-import { WardrobeUnit } from './wardrobe';
+import { WardrobeUnit, Movable, GlassDoor } from './wardrobe';
 import { LivingUnit } from './living';
+import { BathUnit } from './bath';
 import type { HandleType } from './materials';
 
 export type MatKey = 'carcass' | 'base' | 'upper' | 'topTier' | 'countertop' | 'handle' | 'plinth' | 'steel' | 'glass' | 'mirror' | 'ceramic' | 'granite' | 'mirrorPattern' | 'photo' | 'lacomat' | 'glassClear';
@@ -146,7 +147,10 @@ function Led({ w, d, drop }: { w: number; d: number; drop: number }) {
   );
 }
 
-function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors, doorsKey, openSlot }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number; open?: boolean; ledMode?: LedMode | null; hideDoors?: boolean; doorsKey?: string; openSlot?: number }) {
+function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors, doorsKey, openSlot, dryer }: { u: Unit; mats: Mats; handle: HandleType; t: number; cargo?: boolean; led?: number; dryer?: boolean; open?: boolean; ledMode?: LedMode | null; hideDoors?: boolean; doorsKey?: string; openSlot?: number }) {
+  const invalidate = useThree((st) => st.invalidate);
+  useEffect(() => { invalidate(); }, [open, hideDoors, invalidate]);
+  if (u.kind === 'bath') return <BathUnit u={u} mats={mats} handle={handle} t={t} open={!!open} hide={!!hideDoors} doorsKey={doorsKey ?? ''} led={!!ledMode} />;
   if (u.kind === 'living') return <LivingUnit u={u} mats={mats} handle={handle} t={t} open={!!open} hide={!!hideDoors} doorsKey={doorsKey ?? ''} led={!!ledMode} />;
   if (u.kind === 'wardrobe') return <WardrobeUnit u={u} mats={mats} handle={handle} t={t} open={!!open} ledMode={ledMode ?? null} hide={!!hideDoors} doorsKey={doorsKey ?? ''} openSlot={openSlot ?? 0} />;
   const fm = mats[u.zone];
@@ -198,6 +202,7 @@ function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors,
   } else if (u.doors) {
     if (u.kind === 'base') rects.push(...doorRow(0, u.w, y0, hc, u.doors, 'top', 'top'));
     else if (u.kind === 'upper' || u.kind === 'mirror') rects.push(...doorRow(0, u.w, y0, hc, u.doors, 'bottom', 'bottom'));
+    else if (u.kind === 'top' && u.hinged) rects.push(...doorRow(0, u.w, y0, hc, u.doors, 'bottom', 'bottom'));
     else if (u.kind === 'top' || u.kind === 'hanging') {
       const e: Edge = u.kind === 'top' ? 'bottom' : 'top';
       for (const r of doorRow(0, u.w, y0, hc, u.doors, e, 'mid')) rects.push({ ...r, rail: { orient: 'h' } });
@@ -207,7 +212,29 @@ function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors,
   const doorMat = u.mirror ? mats.mirror : fm;
   // верхні шафи з Gola не мають каналу - відкриваються push-to-open
   const h2: HandleType = handle === 'gola' && (u.kind === 'upper' || u.kind === 'top' || u.kind === 'mirror') ? 'none' : handle;
-  const fronts = rects.map((r, i) => <Facade key={`f${i}`} r={r} z={fz} m={doorMat} mats={mats} handle={u.mirror ? 'none' : h2} />);
+  // фасади рухаються: шухляди виїжджають, дверцята на петлях, відкидні - вгору або вниз
+  const fronts = rects.map((r, i) => {
+    const face = u.glass
+      ? <><GlassDoor x={r.x} y={r.y} w={r.w} h={r.h} z={fz} mats={mats} />{h2 === 'rail' && <Box x={r.x + (r.w - 160) / 2} y={r.y + 30} z={fz + 38} w={160} h={12} d={12} m={mats.handle} />}</>
+      : <Facade r={r} z={fz} m={doorMat} mats={mats} handle={u.mirror ? 'none' : h2} />;
+    if (hideDoors) return null;
+    if (cargo !== undefined) return <group key={`f${i}`}>{face}</group>;
+    const k = `f${i}-${doorsKey ?? ''}`;
+    if (r.rail.orient === 'h' && u.drawers) {
+      return (
+        <Slide key={k} open={!!open} by={Math.min(420, u.d - 60)}>
+          {face}
+          <Box x={r.x + t + 10} y={r.y + 25} z={40} w={r.w - 2 * t - 20} h={Math.min(140, r.h - 50)} d={u.d - 60} m={mats.carcass} />
+        </Slide>
+      );
+    }
+    if (r.rail.orient === 'h' || (u.kind === 'top' && !u.hinged)) {
+      const up = r.profile === 'bottom' || u.kind === 'top';
+      return <Movable key={k} kind="lift" pivotY={up ? r.y + r.h : r.y} pivotZ={fz} amount={up ? -1.2 : 1.35} open={!!open}>{face}</Movable>;
+    }
+    const side = r.rail.orient === 'v' ? r.rail.side : 'right';
+    return <Movable key={k} kind="hinge" pivotX={side === 'right' ? r.x : r.x + r.w} pivotZ={fz} amount={(side === 'right' ? -1 : 1) * 1.6} open={!!open}>{face}</Movable>;
+  });
   if (cargo !== undefined) {
     // карго: фасад виїжджає разом із кошиками (3 рівні + стійки)
     const bw = u.w - 2 * t - 30, bd = u.d - 80, bx = t + 15, bz = 40;
@@ -231,6 +258,24 @@ function CabinetImpl({ u, mats, handle, t, cargo, led, open, ledMode, hideDoors,
     );
   } else items.push(...fronts);
   if (led) items.push(<Led key="led" w={u.w} d={u.d} drop={led} />);
+  // скляні антресолі: скляна полиця і власне світло всередині
+  if (u.glass) {
+    items.push(<Box key="gsh" x={t} y={y0 + hc / 2} z={8} w={u.w - 2 * t} h={8} d={u.d - 30} m={mats.glassClear} />);
+    items.push(<mesh key="gls" position={[u.w / 2, u.h - t - 4, u.d - 50]} scale={[u.w - 2 * t - 40, 6, 10]}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#fff1d0" toneMapped={false} /></mesh>);
+    items.push(<mesh key="glg" position={[u.w / 2, y0 + hc / 2, 6]}><planeGeometry args={[u.w - 2 * t, hc - 2 * t]} /><meshBasicMaterial map={glowTexture()} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} opacity={0.7} /></mesh>);
+  }
+  // сушка Inoxa: решітка для тарілок і піддон над нею, нержавійка
+  if (u.dryer && dryer) {
+    const iw = u.w - 2 * t - 20, ix = t + 10;
+    const rackY = y0 + hc * 0.45, trayY = y0 + 40;
+    items.push(<Box key="dt" x={ix} y={trayY} z={30} w={iw} h={15} d={u.d - 60} m={mats.mirror} />);
+    for (let x = ix + 10; x < ix + iw - 10; x += 22) items.push(<Box key={`dr${x}`} x={x} y={trayY + 15} z={40} w={4} h={4} d={u.d - 80} m={mats.mirror} />);
+    for (const z of [50, u.d - 70]) items.push(<Box key={`dl${z}`} x={ix} y={rackY} z={z} w={iw} h={8} d={8} m={mats.mirror} />);
+    for (let x = ix + 20; x < ix + iw - 20; x += 28) {
+      items.push(<Box key={`dw${x}`} x={x} y={rackY} z={60} w={4} h={170} d={4} m={mats.mirror} />);
+      items.push(<Box key={`dv${x}`} x={x} y={rackY} z={u.d - 80} w={4} h={110} d={4} m={mats.mirror} />);
+    }
+  }
   // дзеркальна шафа: рамка-полиця знизу в кольорі фасаду
   if (u.mirror) box('mf', 0, y0 - 20, 0, u.w, 20, u.d + K.facadeOffset + K.facadeT, fm);
 

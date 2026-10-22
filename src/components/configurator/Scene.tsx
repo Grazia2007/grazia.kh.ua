@@ -143,7 +143,7 @@ const toWorld = (f: { x: number; z: number; rotY: number }, lx: number, y: numbe
 
 // показ подарунка: карго - збоку спереду, мийка - зверху спереду, LED - фронтально на всю кухню
 export function giftFocus(config: Config, model: SceneModel): Focus | null {
-  if ((config.type === 'Шафа-купе / Гардеробна' || config.type === 'Меблі у вітальню') && config.gift === 'LED Підсвітка') {
+  if (config.type !== 'Кухня' && config.gift === 'LED Підсвітка') {
     // шафа зі світлом: фронтально, двері відчинені
     const b = model.bounds;
     const t = new THREE.Vector3((b.minX + b.maxX) / 2000, b.maxY / 2000, (b.minZ + b.maxZ) / 2000);
@@ -160,6 +160,14 @@ export function giftFocus(config: Config, model: SceneModel): Focus | null {
     const side = new THREE.Vector3(Math.cos(u.frame.rotY), 0, -Math.sin(u.frame.rotY));
     const p = t.clone().addScaledVector(n, 2.3).addScaledVector(side, -0.9).add(new THREE.Vector3(0, 0.9, 0));
     return { key: `cargo:${u.id}`, target: t.toArray() as Focus['target'], pos: p.toArray() as Focus['pos'] };
+  }
+  if (config.gift === 'Сушка для посуду Inoxa') {
+    const u = model.units.find((x) => x.dryer);
+    if (!u) return null;
+    const t = toWorld(u.frame, u.w / 2, u.y + u.h / 2, u.d / 2);
+    const n = new THREE.Vector3(Math.sin(u.frame.rotY), 0, Math.cos(u.frame.rotY));
+    const p = t.clone().addScaledVector(n, 2.8).add(new THREE.Vector3(0.4, -0.35, 0));
+    return { key: `dryer:${u.id}`, target: t.toArray() as Focus['target'], pos: p.toArray() as Focus['pos'] };
   }
   if (config.gift === "Кам'яна Мийка") {
     const f = model.fixtures.find((x) => x.kind === 'sink');
@@ -218,6 +226,42 @@ function photoTexture() {
   photoTex.colorSpace = THREE.SRGBColorSpace;
   return photoTex;
 }
+
+// прожилки мармуру/кварцу: канвас генерується один раз на колір
+const veinCache = new Map<string, THREE.CanvasTexture>();
+function veinTexture(base: string, dark: boolean) {
+  const key = base + dark;
+  const hit = veinCache.get(key);
+  if (hit) return hit;
+  const cv = document.createElement('canvas');
+  cv.width = 1024; cv.height = 256;
+  const g = cv.getContext('2d')!;
+  g.fillStyle = base;
+  g.fillRect(0, 0, 1024, 256);
+  const r = ((s) => () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646)(dark ? 5 : 3);
+  for (let k = 0; k < 14; k++) {
+    let x = r() * 1024, y = r() * 256;
+    g.strokeStyle = dark ? `rgba(230,225,215,${0.25 + r() * 0.35})` : `rgba(120,115,110,${0.18 + r() * 0.3})`;
+    g.lineWidth = 0.6 + r() * 1.8;
+    g.beginPath(); g.moveTo(x, y);
+    for (let q = 0; q < 8; q++) { x += 30 + r() * 90; y += (r() - 0.5) * 70; g.lineTo(x, y); }
+    g.stroke();
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  veinCache.set(key, tex);
+  return tex;
+}
+// камінь (білий штучний, мармур, кварц) - з прожилками; решта стільниць - як є
+const stoneMat = (m: Material) => {
+  const mat = makeMat(m);
+  if (m.finish === 'камінь') {
+    const dark = m.code === 'GR-T03';
+    (mat as THREE.MeshStandardMaterial).map = veinTexture(m.color, dark);
+    (mat as THREE.MeshStandardMaterial).color.set('#ffffff');
+  }
+  return mat;
+};
 
 const makeMat = (m: Material) =>
   m.clearcoat
@@ -335,13 +379,13 @@ function Furniture({ config, model, doorsMode, openSlot }: { config: Config; mod
     upper: makeMat(facadeOf(upper)),
     topTier: makeMat(facadeOf(topTier)),
     carcass: makeMat(carcassOf(carcass)),
-    countertop: makeMat(countertopOf(countertop)),
+    countertop: stoneMat(countertopOf(countertop)),
     handle: makeMat(handleOf(handle)),
     plinth: new THREE.MeshStandardMaterial({ color: '#2a2a2a', roughness: 0.8 }),
     steel: new THREE.MeshStandardMaterial({ color: '#c8cacc', roughness: 0.25, metalness: 0.9 }),
     glass: new THREE.MeshStandardMaterial({ color: '#0d0d0f', roughness: 0.08, metalness: 0.3 }),
     // дзеркало: без справжніх відбиттів кімнати, тож світлий метал із легким блиском читається краще за чорне "ідеальне" дзеркало
-    mirror: new THREE.MeshStandardMaterial({ color: '#d9e1e5', roughness: 0.12, metalness: 0.65 }),
+    mirror: new THREE.MeshStandardMaterial({ color: '#eef3f5', roughness: 0.06, metalness: 0.35 }),
     mirrorPattern: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.2, metalness: 0.55, map: patternTexture() }),
     photo: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.25, metalness: 0, map: photoTexture() }),
     lacomat: new THREE.MeshStandardMaterial({ color: '#eef0ee', roughness: 0.55, metalness: 0 }),
@@ -358,14 +402,15 @@ function Furniture({ config, model, doorsMode, openSlot }: { config: Config; mod
   const kitchen = config.type === 'Кухня';
   const cargoId = kitchen ? model.units.find((u) => u.cargo)?.id : undefined;
   const cargoOpen = config.gift === 'Висувне Карго';
+  const dryerGift = kitchen && config.gift === 'Сушка для посуду Inoxa';
   const led = kitchen && config.gift === 'LED Підсвітка';
   const granite = config.gift === "Кам'яна Мийка";
-  const wardrobeLed = (config.type === 'Шафа-купе / Гардеробна' || config.type === 'Меблі у вітальню') && config.gift === 'LED Підсвітка';
+  const wardrobeLed = config.type !== 'Кухня' && config.gift === 'LED Підсвітка';
   const ledDrop = K.upperY - K.baseH - config.counterThickness;
   const t = carcassThickness(config);
   return (
     <group scale={0.001}>
-      {model.units.map((u) => <Cabinet key={u.id} u={u} mats={mats} handle={hType} t={t} cargo={u.id === cargoId ? cargoOpen : undefined} led={led && u.kind === 'upper' ? ledDrop : undefined} open={doorsMode === 'open'} hideDoors={doorsMode === 'hidden'} doorsKey={doorsMode} openSlot={openSlot} ledMode={wardrobeLed ? config.ledMode : null} />)}
+      {model.units.map((u) => <Cabinet key={u.id} u={u} mats={mats} handle={hType} t={t} cargo={u.id === cargoId ? cargoOpen : undefined} led={led && u.kind === 'upper' ? ledDrop : undefined} dryer={dryerGift} open={doorsMode === 'open' || (dryerGift && !!u.dryer)} hideDoors={doorsMode === 'hidden'} doorsKey={doorsMode} openSlot={openSlot} ledMode={wardrobeLed ? config.ledMode : null} />)}
       {model.slabs.map((s) => <SlabMesh key={s.id} s={s} m={s.kind === 'backsplash' ? splashMat : mats.countertop} />)}
       {model.fixtures.map((f) => <FixtureMesh key={f.id} f={f} mats={mats} granite={granite} />)}
     </group>

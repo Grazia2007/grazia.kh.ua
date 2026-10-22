@@ -7,8 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ChevronLeft, CheckCircle2, Check, Sparkles, Hammer, Layers, Box, Sun, Phone, AlertCircle, Loader2 } from 'lucide-react';
 import {
   CALL_TIMES, CLASSES, COUNTER_OVERHANG, COUNTER_THICKNESS, DEFAULT_CONFIG, DEFAULT_DIMS, FURNITURE_TYPES, KITCHEN_LAYOUTS,
-  TALL_MODULES, UPPER_TIERS, WARDROBE_DOORS, dimFields, giftsFor, buildScene, KUPE_STYLES, MIRROR_KINDS, LIV_COLUMNS, LIV_FRONTS, TV_SIZES, SEC_KINDS, DRESSER_AT, DRAWER_COUNTS, FILL_KINDS, LED_MODES,
-  type Config, type TallModule, type KupeStyle, type MirrorKind, type LivColumn, type LivFronts, type SecKind, type DresserAt, type FillKind, type LedMode,
+  TALL_MODULES, UPPER_TIERS, WARDROBE_DOORS, dimFields, giftsFor, buildScene, KUPE_STYLES, MIRROR_KINDS, LIV_COLUMNS, LIV_FRONTS, TV_SIZES, SEC_KINDS, SINKS, MIRRORS, DRESSER_AT, DRAWER_COUNTS, FILL_KINDS, LED_MODES,
+  type Config, type TallModule, type KupeStyle, type MirrorKind, type LivColumn, type LivFronts, type SecKind, type SinkKind, type MirrorShape, type DresserAt, type FillKind, type LedMode,
 } from './layout';
 import { BACKSPLASH_ALL, CARCASS_ALL, COUNTERTOPS, FACADE_ALL, FAMILY_LABEL, HANDLES, INTERIORS, type Interior, type Material } from './materials';
 import { buildSpec, facadeZones, hasCountertop, hasHandles } from './spec';
@@ -51,12 +51,13 @@ const CLASS_INFO: { id: Config['furnitureClass']; desc: string; icon: ReactNode 
   { id: 'Стандарт', desc: 'Оптимальний вибір. Фарбовані фасади, доводчики середнього сегменту (Muller), ДСП 18 мм.', icon: <Hammer size={20} /> },
   { id: 'Преміум', desc: 'Максимальна якість. Фурнітура Blum/Hettich, натуральний шпон, камінь, преміум емалі.', icon: <Sparkles size={20} /> },
 ];
-const GIFT_ICONS: Record<string, ReactNode> = { 'Висувне Карго': <Box size={24} />, 'LED Підсвітка': <Sun size={24} />, "Кам'яна Мийка": <CheckCircle2 size={24} /> };
+const GIFT_ICONS: Record<string, ReactNode> = { 'Висувне Карго': <Box size={24} />, 'LED Підсвітка': <Sun size={24} />, "Кам'яна Мийка": <CheckCircle2 size={24} />, 'Сушка для посуду Inoxa': <Layers size={24} /> };
 
 const GIFT_NOTE: Record<string, string> = {
   'Висувне Карго': 'Висувна секція з кошиками',
   'LED Підсвітка': 'Під верхніми шафами',
   "Кам'яна Мийка": 'Гранітна мийка Granado',
+  'Сушка для посуду Inoxa': 'Нержавійка, у шафі над мийкою',
 };
 
 // купе - лише кольори профілю; інші - без профілів купе; Gola - лише кухня
@@ -171,6 +172,7 @@ export default function Configurator() {
   const [openSlot, setOpenSlot] = useState(0);
 
   const set = (patch: Partial<Config>) => setConfig((c) => ({ ...c, ...patch }));
+  const setBath = (patch: Partial<Config['bath']>) => setConfig((c) => ({ ...c, bath: { ...c.bath, ...patch } }));
   const setLiv = (patch: Partial<Config['living']>) => setConfig((c) => ({ ...c, living: { ...c.living, ...patch } }));
   const setFill = (patch: Partial<Config['fill']>) => setConfig((c) => ({ ...c, fill: { ...c.fill, ...patch } }));
   const setMat = (k: keyof Config['materials'], code: string) => setConfig((c) => ({ ...c, materials: { ...c.materials, [k]: code } }));
@@ -234,7 +236,7 @@ export default function Configurator() {
     <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden shadow-2xl flex flex-col lg:flex-row min-h-[750px]">
       <div ref={panelRef} className="lg:w-1/2 relative bg-[#e9e6e1] overflow-hidden border-b lg:border-b-0 lg:border-r border-[var(--border-color)] min-h-[400px] lg:min-h-0 cursor-grab active:cursor-grabbing">
         <div className="absolute inset-0">{sceneOn ? <Scene config={config} apiRef={sceneApi} interior={interior} doorsMode={doors} openSlot={openSlot} /> : <SceneLoading />}</div>
-        {(config.type === 'Шафа-купе / Гардеробна' || config.type === 'Меблі у вітальню') && (
+        {(
           <div className="absolute top-4 right-4 flex gap-1 bg-black/55 rounded-full p-1" role="group" aria-label="Двері на моделі">
             {([['closed', 'Зачинені'], ['open', 'Відчинені'], ['hidden', 'Без дверей']] as const).map(([k, t]) => (
               <button key={k} type="button" aria-pressed={doors === k} onClick={() => { if (k === 'open' && doors === 'open') setOpenSlot((v) => v + 1); setDoors(k); }} title={k === 'open' && config.wardrobeDoors === 'Купе' ? 'Натисніть ще раз - відкриється наступний проріз' : undefined} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider transition-colors ${doors === k ? 'bg-white text-black' : 'text-white/80 hover:text-white'}`}>{k === 'open' && doors === 'open' && config.type === 'Шафа-купе / Гардеробна' && config.wardrobeDoors === 'Купе' ? 'Відчинені ↻' : t}</button>
@@ -252,7 +254,7 @@ export default function Configurator() {
               <button key={k} type="button" aria-pressed={interior === k} onClick={() => setInterior(k)} className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider transition-colors ${interior === k ? 'bg-white text-black' : 'text-white/80 hover:text-white'}`}>{INTERIORS[k]}</button>
             ))}
           </div>
-          <p className="text-[11px] text-[#5f5a52] pointer-events-none">{config.type !== 'Кухня' && config.type !== 'Меблі для ванної' ? 'Клацніть по дверях, щоб відчинити · ' : ''}Потягніть, щоб покрутити · масштаб: коліщатко або два пальці</p>
+          <p className="text-[11px] text-[#5f5a52] pointer-events-none">Кнопки праворуч угорі відчиняють фасади · Потягніть, щоб покрутити · масштаб: коліщатко або два пальці</p>
         </div>
       </div>
 
@@ -348,6 +350,12 @@ export default function Configurator() {
                       {config.type === 'Кухня' && (
                         <>
                           <div><span className={label}>Верхні секції</span><Chips items={UPPER_TIERS} value={config.upperTier} onChange={(upperTier) => set({ upperTier })} /></div>
+                          {config.upperTier === 'Двоярусні (з антресолями)' && (
+                            <>
+                              <div><span className={label}>Дверцята антресолей</span><Chips items={['lift', 'hinged'] as const} value={config.topDoors} onChange={(topDoors) => set({ topDoors })} render={(v) => (v === 'lift' ? 'Підйомні (вгору)' : 'Розпашні (в бік)')} /></div>
+                              <Toggle on={config.topGlass} onChange={(topGlass) => set({ topGlass })} text="Антресолі зі склом і підсвіткою всередині" />
+                            </>
+                          )}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {(['leftModule', 'rightModule'] as const).map((k) => (
                               <label key={k} className="block">
@@ -416,7 +424,23 @@ export default function Configurator() {
                           <Notes items={notes} />
                         </>
                       )}
-                      {config.type === 'Меблі для ванної' && <Toggle on={config.bathPenal} onChange={(bathPenal) => set({ bathPenal })} text="Пенал поруч із тумбою" />}
+                      {config.type === 'Меблі для ванної' && (
+                        <>
+                          <div><span className={label}>Тумба</span><Chips items={['wall', 'legs'] as const} value={config.bath.mount} onChange={(mount) => setBath({ mount })} render={(v) => (v === 'wall' ? 'Підвісна' : 'На ніжках')} /></div>
+                          <div><span className={label}>Фасади тумби</span><Chips items={['drawers', 'doors', 'mixed'] as const} value={config.bath.fronts} onChange={(fronts) => setBath({ fronts })} render={(v) => (v === 'drawers' ? '2 шухляди' : v === 'doors' ? 'Дверцята' : 'Шухляда + дверцята')} /></div>
+                          <div><span className={label}>Вигляд фасадів</span><Chips items={['flat', 'fluted'] as const} value={config.bath.style} onChange={(style) => setBath({ style })} render={(v) => (v === 'flat' ? 'Гладкі' : 'Рифлені')} /></div>
+                          <div><span className={label}>Раковина</span><Chips items={Object.keys(SINKS) as SinkKind[]} value={config.bath.sink} onChange={(sink) => setBath({ sink })} render={(v) => SINKS[v]} /></div>
+                          <div><span className={label}>Розташування раковини</span><Chips items={['left', 'center', 'right'] as const} value={config.bath.sinkAt} onChange={(sinkAt) => setBath({ sinkAt })} render={(v) => (v === 'left' ? 'Ліворуч' : v === 'center' ? 'По центру' : 'Праворуч')} /></div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><span className={label}>Ніша під пральну машину</span><Chips items={['none', 'left', 'right'] as const} value={config.bath.washer} onChange={(washer) => setBath({ washer })} render={(v) => (v === 'none' ? 'Немає' : v === 'left' ? 'Ліворуч' : 'Праворуч')} /></div>
+                            <div><span className={label}>Пенал</span><Chips items={['none', 'left', 'right'] as const} value={config.bath.penal} onChange={(penal) => setBath({ penal })} render={(v) => (v === 'none' ? 'Немає' : v === 'left' ? 'Ліворуч' : 'Праворуч')} /></div>
+                          </div>
+                          <div><span className={label}>Дзеркало</span><Chips items={Object.keys(MIRRORS) as MirrorShape[]} value={config.bath.mirror} onChange={(mirror) => setBath({ mirror })} render={(v) => MIRRORS[v]} /></div>
+                          {['rect', 'round', 'arch'].includes(config.bath.mirror) && <div><span className={label}>Шафки по боках дзеркала (150 мм)</span><Chips items={['none', 'open', 'glass', 'doors'] as const} value={config.bath.mirrorSides} onChange={(mirrorSides) => setBath({ mirrorSides })} render={(v) => (v === 'none' ? 'Немає' : v === 'open' ? 'Відкриті полички' : v === 'glass' ? 'За склом' : 'З дверцятами')} /></div>}
+                          {config.bath.mirror !== 'none' && <Toggle on={config.bath.mirrorLed} onChange={(mirrorLed) => setBath({ mirrorLed })} text="Підсвітка дзеркала з сенсорною кнопкою" />}
+                          <Notes items={notes} />
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -468,10 +492,10 @@ export default function Configurator() {
 
                   {step === 'gift' && (
                     <div className="space-y-5">
-                    <div className={`grid grid-cols-1 gap-3 ${giftsFor(config.type).length > 1 ? 'sm:grid-cols-3' : ''}`}>
+                    <div className={`grid grid-cols-1 gap-3 ${giftsFor(config.type).length > 1 ? 'sm:grid-cols-2' : ''}`}>
                       {giftsFor(config.type).map((g) => (
                         <button key={g} type="button" aria-pressed={config.gift === g} onClick={() => { set({ gift: g }); if (config.type !== 'Кухня' && g === 'LED Підсвітка') setDoors('open'); }} className={`${choice(config.gift === g)} p-5 flex flex-col items-center text-center gap-3`}>
-                          {GIFT_ICONS[g]}<span className="text-sm font-medium">{g}</span><span className="text-[11px] text-[var(--text-muted)]">{config.type === 'Кухня' ? GIFT_NOTE[g] : config.type === 'Меблі у вітальню' ? 'Полиці, вітрини, ніша' : 'Усередині шафи'}</span>
+                          {GIFT_ICONS[g]}<span className="text-sm font-medium">{g}</span><span className="text-[11px] text-[var(--text-muted)]">{config.type === 'Кухня' ? GIFT_NOTE[g] : config.type === 'Меблі у вітальню' ? 'Полиці, вітрини, ніша' : config.type === 'Меблі для ванної' ? 'Під тумбою і дзеркало' : 'Усередині шафи'}</span>
                         </button>
                       ))}
                     </div>
